@@ -214,6 +214,7 @@ td{padding:8px 10px;vertical-align:top}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   main{padding:0!important;max-width:100%!important}
   .g2,.g3{grid-template-columns:1fr 1fr!important}
+  #pfil-g3 .card:nth-child(3){grid-column:1/-1!important}
   .bulk-bar,.ms-wrap,[class*="check"]{display:none!important}
 }
 
@@ -434,7 +435,7 @@ footer{text-align:center;padding:18px;font-size:.7rem;color:var(--muted);border-
   </div>
 
   <!-- Grid: Funil + Criticidade + Exigências -->
-  <div class="g3">
+  <div class="g3" id="pfil-g3">
 
     <!-- Funil de Avanço resumido -->
     <div class="card">
@@ -867,6 +868,7 @@ footer{text-align:center;padding:18px;font-size:.7rem;color:var(--muted);border-
     <div class="tbl-wrap" style="max-height:600px;overflow-y:auto;overflow-x:auto">
       <table>
         <thead><tr>
+          <th style="min-width:50px">Ações</th>
           <th style="min-width:110px">Nº SS</th>
           <th style="min-width:85px">Registro</th>
           <th style="min-width:280px">Nome da Tarefa</th>
@@ -925,6 +927,7 @@ footer{text-align:center;padding:18px;font-size:.7rem;color:var(--muted);border-
       <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px">👥 Gerenciar Usuários</div>
       <button onclick="toggleUserForm()" style="width:100%;margin-bottom:7px;background:rgba(13,148,136,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--font)">➕ Novo Usuário</button>
       <div id="new-user-form" style="display:none" class="user-form">
+        <div id="nu-form-title" style="font-size:.74rem;font-weight:700;color:var(--teal);margin-bottom:6px"></div>
         <div class="f-row">
           <div><label>Nome Completo</label><input type="text" id="nu-nome" placeholder="Nome Sobrenome"></div>
           <div><label>Login</label><input type="text" id="nu-login" placeholder="nome.sobrenome"></div>
@@ -940,8 +943,8 @@ footer{text-align:center;padding:18px;font-size:.7rem;color:var(--muted);border-
           </div>
         </div>
         <div style="display:flex;gap:8px">
-          <button onclick="saveNewUser()" style="flex:1;background:var(--teal);border:none;color:#fff;border-radius:5px;padding:8px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:var(--font)">✅ Salvar</button>
-          <button onclick="toggleUserForm()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:8px;font-size:.75rem;cursor:pointer;font-family:var(--font)">✕ Cancelar</button>
+          <button id="nu-save-btn" onclick="saveNewUser()" style="flex:1;background:var(--teal);border:none;color:#fff;border-radius:5px;padding:8px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:var(--font)">✅ Salvar</button>
+          <button onclick="cancelUserForm()" style="flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:8px;font-size:.75rem;cursor:pointer;font-family:var(--font)">✕ Cancelar</button>
         </div>
         <div id="nu-error" style="color:#ef4444;font-size:.7rem;margin-top:6px"></div>
       </div>
@@ -1102,6 +1105,94 @@ footer{text-align:center;padding:18px;font-size:.7rem;color:var(--muted);border-
   </div>
 </div>
 
+<!-- MODAL DE EDIÇÃO — ABA CRONOGRAMA -->
+<div class="modal-overlay" id="crono-edit-modal" style="display:none" onclick="if(event.target===this)closeCronoModal()">
+  <div class="modal-box">
+    <div class="modal-title">✏️ Editar Cronograma <span id="crono-modal-reg-label"></span></div>
+    <div class="modal-field">
+      <label>Nº SS</label>
+      <input type="text" id="ce-ss" readonly style="opacity:.6;cursor:not-allowed">
+    </div>
+    <div class="modal-field">
+      <label>Nome da Tarefa</label>
+      <input type="text" id="ce-nome-tarefa">
+    </div>
+    <div class="modal-field">
+      <label>NR13 Venc.</label>
+      <input type="text" id="ce-nr13" placeholder="dd/mm/aaaa">
+    </div>
+    <div class="modal-field">
+      <label>RTI Venc.</label>
+      <input type="text" id="ce-rti" placeholder="dd/mm/aaaa">
+    </div>
+    <div class="modal-field">
+      <label>SPIE Venc.</label>
+      <input type="text" id="ce-spie" placeholder="dd/mm/aaaa">
+    </div>
+    <div class="modal-field">
+      <label>Gerência</label>
+      <input type="text" id="ce-gerencia">
+    </div>
+    <div class="modal-field">
+      <label>Área/Sistema</label>
+      <input type="text" id="ce-area-sistema">
+    </div>
+    <div class="modal-field">
+      <label>Módulo</label>
+      <input type="text" id="ce-modulo">
+    </div>
+    <div class="modal-field">
+      <label>Piso/Setor</label>
+      <input type="text" id="ce-setor">
+    </div>
+    <div class="modal-field">
+      <label>Nota/Item/Med.</label>
+      <input type="text" id="ce-nota-item-med">
+    </div>
+    <div class="modal-field">
+      <label>Origem</label>
+      <input type="text" id="ce-origem">
+    </div>
+    <div class="modal-field">
+      <label>TAG</label>
+      <input type="text" id="ce-tag">
+    </div>
+    <div class="modal-field">
+      <label>Serviço Padrão</label>
+      <input type="text" id="ce-servico-padrao">
+    </div>
+    <div class="modal-field">
+      <label>Tipo Exigência</label>
+      <select id="ce-tipo-exig">
+        <option value="">—</option>
+        <option>RTI-A</option>
+        <option>RTI-B</option>
+        <option>RTI-C</option>
+        <option>RTI-D</option>
+        <option>NR-13</option>
+        <option>SPIE</option>
+        <option>NAVAL</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>Prioridade</label>
+      <select id="ce-prioridade">
+        <option>A - Não Postergável (Carro Chefe)</option>
+        <option>B - Não Postergável</option>
+        <option>C - Postergável</option>
+        <option>D - Postergável (Melhorias)</option>
+      </select>
+    </div>
+    <div style="background:rgba(26,111,173,.1);border:1px solid rgba(26,111,173,.3);border-radius:5px;padding:10px 12px;font-size:.74rem;color:#60a5fa;margin-bottom:4px">
+      ☁️ Ao salvar, a alteração é <strong>enviada à nuvem</strong> e ficará visível para toda a equipe ao sincronizar.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeCronoModal()">Cancelar</button>
+      <button class="modal-btn save" onclick="saveCronoEdit()">💾 Salvar Alteração</button>
+    </div>
+  </div>
+</div>
+
 <footer id="footer-data">P74-UMS-2024 FASE 3 · Campanha 2026/2027 · Revisão Petrobras 19/05/2026 · Gerado em 14/06/2026</footer>
 <script>
   (function(){
@@ -1195,7 +1286,11 @@ function exportCronoCSV() {
 }
 function exportCronoXLS(){ exportCronoCSV(); flash('📗 Arquivo CSV gerado — compatível com Excel.','#22c55e',3000); }
 
-function getAllData()  { return DATA_BR; }  // todos os registros — usado pela aba Tabela
+function getAllData()  {
+  // Correção automática: 'ADP Delineamento' (sem ON) é o mesmo status de 'ADP Delineamento ON'
+  DATA_BR.forEach(r => { if (r.status_plan === 'ADP Delineamento') r.status_plan = 'ADP Delineamento ON'; });
+  return DATA_BR;
+}  // todos os registros — usado pela aba Tabela
 function getData() {                        // apenas escopo ativo — usado por todas as outras abas
   return DATA_BR.filter(function(r) {
     return CANCEL_STATES.indexOf(r.status_plan) === -1 &&
@@ -1294,9 +1389,19 @@ function crossTable(id, rowKey, colKey, data, maxRows=20) {
 }
 
 // ── KPI BUILDER ───────────────────────────────────────────────────────────────
+function initDefaultTableFilters(){
+  document.querySelectorAll('.ms-chk[data-group="ms-samc"]').forEach(el=>{
+    el.checked = (el.value !== 'Cancelada');
+  });
+  if (typeof updateMsBtn === 'function') updateMsBtn('ms-samc');
+}
 function kpi(lbl,val,sub,cls='c-blue',drillKey=null,drillVal=null){
   const click = drillKey?`onclick="drillDown('${drillKey}','${drillVal||lbl}')" style="cursor:pointer" title="Clique para ver na Tabela"`:'';
   return `<div class="kpi ${cls} ${drillKey?'clickable':''}" ${click}><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div></div>`;
+}
+function kpiMulti(lbl,val,sub,cls,statesArr){
+  const click = `onclick='drillDownPlanMulti(${JSON.stringify(statesArr)})' style="cursor:pointer" title="Clique para ver na Tabela"`;
+  return `<div class="kpi ${cls} clickable" ${click}><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div></div>`;
 }
 
 // ── CHIP HELPERS ──────────────────────────────────────────────────────────────
@@ -1599,6 +1704,11 @@ async function doLogin() {
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
     SYNC_USER = found.nome;
     localStorage.setItem('lupa_user', found.nome);
+    isDark = false;
+    document.body.setAttribute('data-theme', 'light');
+    const themeBtn1 = document.getElementById('theme-btn');
+    if (themeBtn1) themeBtn1.textContent = '🌙 Escuro';
+    initDefaultTableFilters();
     applyPerfilUI();
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('login-pass').value = '';
@@ -1715,6 +1825,11 @@ async function checkExistingSession() {
     localStorage.setItem('lupa_user', session.nome);
     const ul = document.getElementById('sync-user-label');
     if (ul) ul.textContent = session.nome + ' (' + session.perfil + ')';
+    isDark = false;
+    document.body.setAttribute('data-theme', 'light');
+    const themeBtn2 = document.getElementById('theme-btn');
+    if (themeBtn2) themeBtn2.textContent = '🌙 Escuro';
+    initDefaultTableFilters();
     applyPerfilUI();
     document.getElementById('login-screen').style.display = 'none';
     startSessionTimers();
@@ -1727,13 +1842,49 @@ function toggleUserForm() {
   const f = document.getElementById('new-user-form');
   f.style.display = f.style.display === 'none' ? 'block' : 'none';
   if (f.style.display === 'block') {
+    _editingUser = null;
     document.getElementById('nu-nome').value = '';
     document.getElementById('nu-login').value = '';
     document.getElementById('nu-senha').value = '';
+    document.getElementById('nu-senha').placeholder = 'mín. 6 caracteres';
     document.getElementById('nu-perfil').value = 'editor';
     document.getElementById('nu-error').textContent = '';
+    const formTitleEl = document.getElementById('nu-form-title');
+    if (formTitleEl) formTitleEl.textContent = '';
+    const saveBtnEl = document.getElementById('nu-save-btn');
+    if (saveBtnEl) saveBtnEl.textContent = '✅ Salvar';
     document.getElementById('nu-nome').focus();
   }
+}
+
+let _editingUser = null; // null = criando novo · usuario original = editando existente
+
+async function editUser(usuario) {
+  const users = await loadUsers();
+  const u = users.find(x => x.usuario === usuario);
+  if (!u) return;
+  _editingUser = usuario;
+  document.getElementById('nu-nome').value = u.nome;
+  document.getElementById('nu-login').value = u.usuario;
+  document.getElementById('nu-senha').value = '';
+  document.getElementById('nu-senha').placeholder = 'deixe em branco para manter a atual';
+  document.getElementById('nu-perfil').value = u.perfil;
+  const formTitleEl = document.getElementById('nu-form-title');
+  if (formTitleEl) formTitleEl.textContent = `✏️ Editando: ${u.nome}`;
+  const saveBtnEl = document.getElementById('nu-save-btn');
+  if (saveBtnEl) saveBtnEl.textContent = '💾 Atualizar';
+  const form = document.getElementById('new-user-form');
+  if (form) form.style.display = 'block';
+}
+
+function cancelUserForm() {
+  _editingUser = null;
+  document.getElementById('nu-senha').placeholder = 'mín. 6 caracteres';
+  const formTitleEl = document.getElementById('nu-form-title');
+  if (formTitleEl) formTitleEl.textContent = '';
+  const saveBtnEl = document.getElementById('nu-save-btn');
+  if (saveBtnEl) saveBtnEl.textContent = '✅ Salvar';
+  toggleUserForm();
 }
 
 async function saveNewUser() {
@@ -1743,17 +1894,33 @@ async function saveNewUser() {
   const perfil = document.getElementById('nu-perfil').value;
   const errEl  = document.getElementById('nu-error');
   errEl.textContent = '';
-  if (!nome || !login || !senha) { errEl.textContent = 'Preencha todos os campos.'; return; }
-  if (senha.length < 6) { errEl.textContent = 'Senha mínima de 6 caracteres.'; return; }
+  if (!nome || !login) { errEl.textContent = 'Preencha nome e login.'; return; }
+  if (!_editingUser && !senha) { errEl.textContent = 'Preencha todos os campos.'; return; }
+  if (senha && senha.length < 6) { errEl.textContent = 'Senha mínima de 6 caracteres.'; return; }
   if (!/^[a-z0-9._-]+$/.test(login)) { errEl.textContent = 'Login: use apenas letras, números, ponto ou hífen.'; return; }
   const users = await loadUsers();
-  if (users.find(u => u.usuario === login)) { errEl.textContent = 'Login já cadastrado.'; return; }
-  const hash = await sha256(senha);
-  users.push({ nome, usuario: login, hash, perfil, ativo: true, criadoEm: new Date().toISOString() });
-  await saveUsers(users);
-  renderUserPanel(users);
-  toggleUserForm();
-  flash(`✅ Usuário "${nome}" cadastrado com sucesso!`, '#22c55e', 3000);
+  const dupUser = users.find(u => u.usuario === login && u.usuario !== _editingUser);
+  if (dupUser) { errEl.textContent = 'Login já cadastrado.'; return; }
+
+  if (_editingUser) {
+    const idx = users.findIndex(u => u.usuario === _editingUser);
+    if (idx < 0) { errEl.textContent = 'Usuário não encontrado.'; return; }
+    users[idx].nome = nome;
+    users[idx].usuario = login;
+    users[idx].perfil = perfil;
+    if (senha) users[idx].hash = await sha256(senha);
+    await saveUsers(users);
+    renderUserPanel(users);
+    cancelUserForm();
+    flash(`✅ Usuário "${nome}" atualizado com sucesso!`, '#22c55e', 3000);
+  } else {
+    const hash = await sha256(senha);
+    users.push({ nome, usuario: login, hash, perfil, ativo: true, criadoEm: new Date().toISOString() });
+    await saveUsers(users);
+    renderUserPanel(users);
+    toggleUserForm();
+    flash(`✅ Usuário "${nome}" cadastrado com sucesso!`, '#22c55e', 3000);
+  }
 }
 
 async function toggleUserActive(usuario) {
@@ -1802,6 +1969,8 @@ function renderUserPanel(users) {
       <td><span class="perfil-badge ${perfilClass[u.perfil]||''}">${u.perfil}</span></td>
       <td><span style="color:${u.ativo?'#22c55e':'#ef4444'};font-weight:700">${u.ativo?'✅':'⛔'}</span></td>
       <td style="white-space:nowrap">
+        <button onclick="editUser('${u.usuario}')" title="Editar usuário"
+          style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:2px 4px">✏️</button>
         <button onclick="toggleUserActive('${u.usuario}')" title="${u.ativo?'Desativar':'Ativar'}"
           style="background:none;border:none;cursor:pointer;font-size:.8rem;padding:2px 4px">${u.ativo?'⛔':'✅'}</button>
         <button onclick="resetUserPassword('${u.usuario}')" title="Redefinir senha"
@@ -2189,13 +2358,13 @@ function renderAll() {
   const emRev = samc['Em Revisão']||0;
   const agApr = samc['Aguardando Aprovação da Revisão']||0;
   const agForn = samc['Aguardando a aprovação do fornecedor']||0;
-  const cancel = samc['Cancelada']||0;
+  const cancelReal = getAllData().length - n; // Status SAMC retrata o escopo original: total geral menos escopo ativo
   document.getElementById('kpi-samc').innerHTML = [
     kpi('Em Andamento', emAnd, pct(emAnd,n)+'%','c-blue','status_samc','Em Andamento'),
     kpi('Em Revisão', emRev, pct(emRev,n)+'%','c-purple','status_samc','Em Revisão'),
     kpi('Ag. Aprovação Revisão', agApr, pct(agApr,n)+'%','c-warn','status_samc','Aguardando Aprovação da Revisão'),
     kpi('Ag. Aprovação Fornecedor', agForn, pct(agForn,n)+'%','c-accent','status_samc','Aguardando a aprovação do fornecedor'),
-    kpi('Cancelada', cancel, pct(cancel,n)+'%','c-danger','status_samc','Cancelada'),
+    kpi('Cancelada', cancelReal, pct(cancelReal,getAllData().length)+'%','c-danger','status_samc','Cancelada'),
     kpi('Rejeitada', samc['Rejeitada']||0, pct(samc['Rejeitada']||0,n)+'%','c-danger','status_samc','Rejeitada'),
   ].join('');
   crossTable('ct-samc-disc','status_samc','disciplina',data);
@@ -2208,6 +2377,7 @@ function renderAll() {
   const pESI = sup['Pendente ESI']||0;
   const pBRESI = sup['Pendente ESI+BR']||0;
   const pBR = sup['Pendente BR']||0;
+  const lmCad = sup['LM Cadastrada']||0;
   document.getElementById('kpi-sup').innerHTML = [
     kpi('Completo', completo, pct(completo,n)+'%','c-green','status_sup','Completo'),
     kpi('Não Cadastrado', ncad, pct(ncad,n)+'%','c-danger','status_sup','Não Cadastrado'),
@@ -2215,6 +2385,7 @@ function renderAll() {
     kpi('Pendente ESI', pESI, pct(pESI,n)+'%','c-danger','status_sup','Pendente ESI'),
     kpi('Pendente ESI+BR', pBRESI, pct(pBRESI,n)+'%','c-danger','status_sup','Pendente ESI+BR'),
     kpi('Pendente BR', pBR, pct(pBR,n)+'%','c-pink','status_sup','Pendente BR'),
+    kpi('LM Cadastrada', lmCad, pct(lmCad,n)+'%','c-teal','status_sup','LM Cadastrada'),
   ].join('');
 
   // Bar: Suprimento por Disciplina
@@ -2244,19 +2415,35 @@ function renderAll() {
   crossTable('ct-sup-lupa','status_sup','status_lupa',data);
   crossTable('ct-sup-disc','status_sup','disciplina',data);
 
-  // ── PLANEJAMENTO
-  const plEncP = pct(plEnc,n);
-  const emDelin = plan['Em Delineamento']||0;
-  const aprDelin = plan['Aprovação Delineamento ON']||0;
-  const aprBook = (plan['Aprovação Book de Planejamento']||0)+(plan['Aprovação Book de Planejamento ']||0);
-  const ssCancelada = plan['SS Cancelada']||0;
+  // ── PLANEJAMENTO — mesma classificação (ESI/BR/Aprovado) das Etapas 1 e 2 de "Gráficos Etapas BR",
+  // garantindo que os cards somem exatamente o escopo ativo (n)
+  const DELIN_ESI_STATES_P = ['Delineamento Não Iniciado','Em Delineamento','Verificação Delineamento ON',
+    'Fixação Delineamento ON','Postagem Delineamento ON','ADP Delineamento ON',
+    'Delineamento OFF','Postagem Delineamento OFF'];
+  const DELIN_BR_STATES_P = ['Aprovação Delineamento ON','Aprovação Delineamento OFF'];
+  const DELIN_APROV_STATES_P = ['Detalhamento','Verificação Detalhamento','Fixação Detalhamento',
+    'Back Check Detalhamento','Emissão Detalhamento','Análise Consistência Minuta de Material',
+    'Orçamento, Montagem e Postagem Book de Planejamento','ADP Book de Planejamento',
+    'Aprovação Book de Planejamento','Postagem Book Aprovado MIO','Cadastro e Codificação Material MIO',
+    'Atrelar Material Detalhamento','Planejamento Encerrado'];
+  const BOOK_ESI_STATES_P = ['Detalhamento','Verificação Detalhamento','Fixação Detalhamento',
+    'Back Check Detalhamento','Emissão Detalhamento','Análise Consistência Minuta de Material',
+    'Orçamento, Montagem e Postagem Book de Planejamento','ADP Book de Planejamento','Atrelar Material Detalhamento'];
+  const BOOK_BR_STATES_P = ['Aprovação Book de Planejamento'];
+  const BOOK_APROV_STATES_P = ['Planejamento Encerrado','Cadastro e Codificação Material MIO','Postagem Book Aprovado MIO'];
+
+  const delinPendESI  = data.filter(r=>DELIN_ESI_STATES_P.includes(r.status_plan||'')).length;
+  const delinPendBR   = data.filter(r=>DELIN_BR_STATES_P.includes(r.status_plan||'')).length;
+  const bookBaseP     = data.filter(r=>DELIN_APROV_STATES_P.includes(r.status_plan||''));
+  const bookPendESI   = bookBaseP.filter(r=>BOOK_ESI_STATES_P.includes(r.status_plan||'')).length;
+  const bookPendBR    = bookBaseP.filter(r=>BOOK_BR_STATES_P.includes(r.status_plan||'')).length;
+  const bookAprovado  = bookBaseP.filter(r=>BOOK_APROV_STATES_P.includes(r.status_plan||'')).length;
   document.getElementById('kpi-plan').innerHTML = [
-    kpi('Planej. Encerrado', plEnc, plEncP+'%','c-green','status_plan','Planejamento Encerrado'),
-    kpi('Em Delineamento', emDelin, pct(emDelin,n)+'%','c-blue','status_plan','Em Delineamento'),
-    kpi('Aprov. Delineamento', aprDelin, pct(aprDelin,n)+'%','c-warn','status_plan','Aprovação Delineamento ON'),
-    kpi('Aprov. Book Planej.', aprBook, pct(aprBook,n)+'%','c-accent','status_plan','Aprovação Book de Planejamento'),
-    kpi('Delineamento Não Iniciado', plan['Delineamento Não Iniciado']||0, 'A iniciar','c-danger','status_plan','Delineamento Não Iniciado'),
-    kpi('SS Cancelada', ssCancelada, pct(ssCancelada,n)+'%','c-muted','status_plan','SS Cancelada'),
+    kpiMulti('Delin. Pendente ESI', delinPendESI, pct(delinPendESI,n)+'%','c-blue',DELIN_ESI_STATES_P),
+    kpiMulti('Delin. Pendente BR', delinPendBR, pct(delinPendBR,n)+'%','c-warn',DELIN_BR_STATES_P),
+    kpiMulti('Book Pendente ESI', bookPendESI, pct(bookPendESI,n)+'%','c-purple',BOOK_ESI_STATES_P),
+    kpiMulti('Book Pendente BR', bookPendBR, pct(bookPendBR,n)+'%','c-accent',BOOK_BR_STATES_P),
+    kpiMulti('Planejamento Encerrado', bookAprovado, pct(bookAprovado,n)+'%','c-green',BOOK_APROV_STATES_P),
   ].join('');
 
   const planCleaned = {};
@@ -2303,7 +2490,23 @@ function renderAll() {
   };
   mkBar('b-disc-samc', discs, samcData, 'status_samc', SAMC_COLORS);
   mkBar('b-disc-sup', discs, supData, 'status_sup', SUP_COLORS);
-  mkBar('b-disc-fab', discs, fabData, 'fabricacao', {'Sim':'#22c55e','Não':'#1a6fad','Verificar':'#f59e0b'});
+  // Gráfico de fabricação: manter apenas disciplinas com ao menos 1 registro fabricacao='Sim'
+  const discsComFab = discs.filter(d => (fabData[d] && fabData[d]['Sim']) > 0);
+  const discFabEl = document.getElementById('b-disc-fab');
+  if (discFabEl) {
+    discFabEl.innerHTML = discsComFab.map(d=>{
+      const g = fabData[d]||{};
+      const simCount = g['Sim']||0;
+      const tot = Object.values(g).reduce((a,b)=>a+b,0);
+      const pctSim = tot ? Math.round(simCount/tot*100) : 0;
+      const dEsc = d.replace(/'/g,"\\'");
+      return `<div class="bar-row clickable" onclick="drillDown('disciplina','${dEsc}')" title="Ver na Tabela: ${d}">
+        <div class="bar-lbl narrow" title="${d}">${d}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pctSim}%;background:#22c55e">${pctSim}%</div></div>
+        <div class="bar-cnt">${simCount}/${tot}</div>
+      </div>`;
+    }).join('') || '<span style="font-size:.72rem;color:var(--muted)">Nenhuma disciplina com fabricação prevista</span>';
+  }
 
   // ── ALERTAS
   renderAlertas(data, n, samc, sup, disc, fab, plan, lupa);
@@ -2376,7 +2579,8 @@ function renderAlertas(data, n, samc, sup, disc, fab, plan, lupa) {
 // ── TABLE ─────────────────────────────────────────────────────────────────────
 // ── IMPORTAÇÃO DE STATUS PLANEJAMENTO (Excel) ───────────────────────────────
 const STATUS_PLAN_NORMALIZE = {
-  'orçamento, montagem e postagem book': 'Orçamento, Montagem e Postagem Book de Planejamento'
+  'orçamento, montagem e postagem book': 'Orçamento, Montagem e Postagem Book de Planejamento',
+  'adp delineamento': 'ADP Delineamento ON'
 };
 function normalizeStatusPlan(raw) {
   let v = (raw||'').toString().replace(/\s+/g,' ').trim();
@@ -2390,6 +2594,14 @@ function extractSSKey(nomeTarefa) {
 function extractFileYear(filename) {
   const m = /20(2[4-9]|3[0-9])/.exec(filename||'');
   return m ? parseInt(m[0],10) : 0;
+}
+function resolveStatusPlan(categoria, atribuidoA){
+  const cat = (categoria||'').toString().trim();
+  if (cat === 'Delineamento ON') {
+    const atrib = (atribuidoA||'').toString().trim();
+    return atrib ? 'Em Delineamento' : 'Delineamento Não Iniciado';
+  }
+  return normalizeStatusPlan(cat);
 }
 async function handlePlanImport(e) {
   const files = Array.from(e.target.files||[]);
@@ -2408,7 +2620,7 @@ async function handlePlanImport(e) {
       for(let i=1;i<rows.length;i++){
         const key = extractSSKey(rows[i][1]);
         if(!key) continue;
-        ssMap[key] = normalizeStatusPlan(rows[i][2]);
+        ssMap[key] = resolveStatusPlan(rows[i][2], rows[i][6]);
       }
       lidos++;
     } catch(err) {
@@ -3053,6 +3265,7 @@ function renderCrono() {
   if(!tbody) return;
   tbody.innerHTML=data.map(function(r){
     return '<tr>'+
+      '<td><button class="edit-cell-btn" onclick="openCronoEdit(\''+r.registro+'\')">✏️</button></td>'+
       '<td style="font-size:.71rem;white-space:nowrap">'+(r.nro_ss||'—')+'</td>'+
       '<td style="font-family:monospace;font-size:.7rem">'+(r.registro||'—')+'</td>'+
       '<td style="font-size:.7rem;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+(r.nome_tarefa||'')+'">'+(r.nome_tarefa||'—')+'</td>'+
@@ -3467,6 +3680,62 @@ function saveEdit() {
   pushEdits();
 }
 
+// ── EDIÇÃO — ABA CRONOGRAMA (campos próprios dessa aba) ─────────────────────
+let cronoEditIdx = null;
+function openCronoEdit(registro) {
+  const arr = DATA_BR;
+  const idx = arr.findIndex(r => r.registro === registro);
+  if(idx < 0) return;
+  const r = arr[idx];
+  cronoEditIdx = idx;
+  document.getElementById('crono-modal-reg-label').textContent = `Registro: ${registro}`;
+  document.getElementById('ce-ss').value = r.nro_ss || r.ss || '';
+  document.getElementById('ce-nome-tarefa').value = r.nome_tarefa || '';
+  document.getElementById('ce-nr13').value = r.nr13_venc || '';
+  document.getElementById('ce-rti').value = r.rti_venc || '';
+  document.getElementById('ce-spie').value = r.spie_venc || '';
+  document.getElementById('ce-gerencia').value = r.gerencia || '';
+  document.getElementById('ce-area-sistema').value = r.area_sistema || '';
+  document.getElementById('ce-modulo').value = r.modulo || '';
+  document.getElementById('ce-setor').value = r.setor || '';
+  document.getElementById('ce-nota-item-med').value = r.nota_item_med || '';
+  document.getElementById('ce-origem').value = r.origem || '';
+  document.getElementById('ce-tag').value = r.tag || '';
+  document.getElementById('ce-servico-padrao').value = r.servico_padrao || '';
+  document.getElementById('ce-tipo-exig').value = r.tipo_exigencia || '';
+  document.getElementById('ce-prioridade').value = r.prioridade || 'B - Não Postergável';
+  document.getElementById('crono-edit-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeCronoModal() {
+  document.getElementById('crono-edit-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  cronoEditIdx = null;
+}
+function saveCronoEdit() {
+  if(cronoEditIdx === null) return;
+  const arr = DATA_BR;
+  arr[cronoEditIdx].nome_tarefa    = document.getElementById('ce-nome-tarefa').value;
+  arr[cronoEditIdx].nr13_venc      = document.getElementById('ce-nr13').value;
+  arr[cronoEditIdx].rti_venc       = document.getElementById('ce-rti').value;
+  arr[cronoEditIdx].spie_venc      = document.getElementById('ce-spie').value;
+  arr[cronoEditIdx].gerencia       = document.getElementById('ce-gerencia').value;
+  arr[cronoEditIdx].area_sistema   = document.getElementById('ce-area-sistema').value;
+  arr[cronoEditIdx].modulo         = document.getElementById('ce-modulo').value;
+  arr[cronoEditIdx].setor          = document.getElementById('ce-setor').value;
+  arr[cronoEditIdx].nota_item_med  = document.getElementById('ce-nota-item-med').value;
+  arr[cronoEditIdx].origem         = document.getElementById('ce-origem').value;
+  arr[cronoEditIdx].tag            = document.getElementById('ce-tag').value;
+  arr[cronoEditIdx].servico_padrao = document.getElementById('ce-servico-padrao').value;
+  arr[cronoEditIdx].tipo_exigencia = document.getElementById('ce-tipo-exig').value;
+  arr[cronoEditIdx].prioridade     = document.getElementById('ce-prioridade').value;
+  arr[cronoEditIdx]._editedAt      = new Date().toISOString();
+  arr[cronoEditIdx]._editedBy      = SYNC_USER;
+  closeCronoModal();
+  renderCrono();
+  pushEdits();
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════════
 // ☁️  CLOUD SYNC — via JSONBin.io (REST API gratuita, funciona em qualquer
@@ -3547,7 +3816,7 @@ function buildEditsMap() {
     // Só envia campos que realmente mudaram em relação ao original
     const orig = JSON.parse(_ORIG[r.registro] || '{}');
     const diff = { _editedAt: r._editedAt, _editedBy: r._editedBy };
-    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel'].forEach(f=>{
+    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade'].forEach(f=>{
       if(r[f] !== orig[f]) diff[f] = r[f];
     });
     if(Object.keys(diff).length > 2) map[r.registro] = diff;
