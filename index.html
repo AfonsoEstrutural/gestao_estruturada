@@ -922,7 +922,7 @@ footer{text-align:center;padding:18px;font-size:.7rem;color:var(--muted);border-
     </div>
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">☁️ Sincronização</div>
     <button onclick="recoverEdits()" style="width:100%;margin-bottom:7px;background:var(--blue);border:none;color:#fff;border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">🔄 Sincronizar Agora</button>
-    <button onclick="openConfigModal()" style="width:100%;margin-bottom:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">⚙️ Configurar BIN / API Key</button>
+    <button onclick="openConfigModal()" style="width:100%;margin-bottom:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font);display:none">⚙️ Configurar BIN / API Key</button>
     <div id="admin-users-section" style="display:none" data-lazy-load="true">
       <div style="font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 6px">👥 Gerenciar Usuários</div>
       <button onclick="toggleUserForm()" style="width:100%;margin-bottom:7px;background:rgba(13,148,136,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--font)">➕ Novo Usuário</button>
@@ -1650,10 +1650,10 @@ async function loadUsers() {
     if (local) return JSON.parse(local);
     // Tentar JSONBin se configurado
     if (JSONBIN_ID && JSONBIN_KEY) {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,
+      const res = await fetch(`${FIREBASE_URL}/lupa_data.json`,
         { headers: jsonbinHeaders() });
       if (res.ok) {
-        const rec = (await res.json()).record || {};
+        const rec = (await res.json()) || {};
         if (rec._users) {
           localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(rec._users));
           return rec._users;
@@ -1672,11 +1672,11 @@ async function saveUsers(users) {
   // Sincronizar com JSONBin se configurado
   if (JSONBIN_ID && JSONBIN_KEY) {
     try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`,
+      const res = await fetch(`${FIREBASE_URL}/lupa_data.json`,
         { headers: jsonbinHeaders() });
-      const current = res.ok ? ((await res.json()).record || {}) : {};
+      const current = res.ok ? ((await res.json()) || {}) : {};
       current._users = users;
-      await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`,
+      await fetch(`${FIREBASE_URL}/lupa_data.json`,
         { method: 'PUT', headers: jsonbinHeaders(), body: JSON.stringify(current) });
     } catch(e) { console.warn('saveUsers sync:', e); }
   }
@@ -1719,7 +1719,7 @@ async function doLogin() {
     renderAll();
     if (JSONBIN_ID && JSONBIN_KEY) {
       pullEditsAndMerge();
-      setInterval(() => pullEdits(true), 60000);
+      setInterval(() => pullEdits(true), 300000); // 5 min — reduzido para poupar cota gratuita do JSONBin
     }
     flash(`✅ Bem-vindo(a), ${found.nome}!`, '#22c55e', 3000);
     // Atualizar label do usuário na barra
@@ -1734,6 +1734,15 @@ async function doLogin() {
 }
 
 // ── APLICAR RESTRIÇÕES DE PERFIL NA UI ───────────────────────────────────────
+function enforceViewerRestrictions() {
+  if (!_currentUser || _currentUser.perfil !== 'visualizador') return;
+  // Botões de editar (Tabela e Cronograma) + barra de edição em massa + checkboxes de seleção
+  document.querySelectorAll(
+    '.edit-cell-btn, #bulk-bar, .row-chk, .hdr-chk, #btn-recover, [onclick*="openEdit"], [onclick*="openCronoEdit"], [onclick*="applyBulkEdit"]'
+  ).forEach(el => { el.style.display = 'none'; });
+  // Campos inline editáveis na Tabela (Data Sup.+Tarde, ESI, BR, Responsável)
+  document.querySelectorAll('[onchange*="saveSupField"]').forEach(el => { el.disabled = true; el.style.opacity = '.5'; el.style.cursor = 'not-allowed'; });
+}
 function applyPerfilUI() {
   if (!_currentUser) return;
   const p = _currentUser.perfil;
@@ -1748,6 +1757,7 @@ function applyPerfilUI() {
   // Ocultar botão admin para visualizadores
   const adminBtn = document.querySelector('[onclick="toggleAdminPanel()"]');
   if (adminBtn) adminBtn.style.display = (p === 'visualizador') ? 'none' : '';
+  enforceViewerRestrictions();
 }
 
 // ── TIMERS DE SESSÃO ─────────────────────────────────────────────────────────
@@ -2039,6 +2049,7 @@ function clearBulkSel(){
   ['bulk-samc','bulk-sup','bulk-fab','bulk-plan'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
 }
 function applyBulkEdit(){
+  if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode editar.', '#ef4444', 3000); return; }
   const newSamc=document.getElementById('bulk-samc').value;
   const newSup=document.getElementById('bulk-sup').value;
   const newFab=document.getElementById('bulk-fab').value;
@@ -3018,6 +3029,7 @@ async function generateCampaignReport(){
 }
 
 function saveSupField(event, registro, field) {
+  if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode editar.', '#ef4444', 3000); renderTable(); return; }
   var val = field === 'esi_resp' || field === 'br_resp'
     ? event.target.checked
     : event.target.value;
@@ -3164,6 +3176,7 @@ function renderTable() {
       </select>
     </td>
   </tr>`;}).join('');
+  enforceViewerRestrictions();
 }
 
 // ── EXPORT ────────────────────────────────────────────────────────────────────
@@ -3284,6 +3297,7 @@ function renderCrono() {
       '<td style="font-size:.7rem;white-space:nowrap">'+(r.prioridade||'—')+'</td>'+
     '</tr>';
   }).join('');
+  enforceViewerRestrictions();
 }
 
 function showTab(id, el) {
@@ -3664,6 +3678,7 @@ function closeModal() {
   editIdx = null; editSource = null;
 }
 function saveEdit() {
+  if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode editar.', '#ef4444', 3000); closeModal(); return; }
   if(editIdx === null) return;
   const arr = DATA_BR;
   arr[editIdx].status_samc = document.getElementById('edit-samc').value;
@@ -3713,6 +3728,7 @@ function closeCronoModal() {
   cronoEditIdx = null;
 }
 function saveCronoEdit() {
+  if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode editar.', '#ef4444', 3000); closeCronoModal(); return; }
   if(cronoEditIdx === null) return;
   const arr = DATA_BR;
   arr[cronoEditIdx].nome_tarefa    = document.getElementById('ce-nome-tarefa').value;
@@ -3752,8 +3768,9 @@ function saveCronoEdit() {
 
 let SYNC_USER  = localStorage.getItem('lupa_user')  || '';
 let USERS_CACHE = [];  // cache de usuários ativos para o dropdown "Responsável" na coluna Ações
-let JSONBIN_ID  = localStorage.getItem('lupa_bin_id') || '6a32831dda38895dfecfae1d';
-let JSONBIN_KEY = localStorage.getItem('lupa_bin_key')|| '$2a$10$hdjNP2EWePvLAYNth/LIDut.7aWLYzlg88fCNZMIoydpRJ/nXf/Wa';
+const FIREBASE_URL = 'https://gestaoestruturada-8b457-default-rtdb.firebaseio.com';
+let JSONBIN_ID  = 'firebase-ativo';   // mantido por compatibilidade com o restante do código (checagens if(JSONBIN_ID && JSONBIN_KEY))
+let JSONBIN_KEY = 'firebase-ativo';
 let SYNC_BUSY  = false;
 
 // ── UI helpers ────────────────────────────────────────────────────────────
@@ -3860,7 +3877,7 @@ function applyEditsMap(map) {
 
 // ── JSONBin API calls ─────────────────────────────────────────────────────
 function jsonbinHeaders() {
-  return { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_KEY, 'X-Bin-Versioning': 'false' };
+  return { 'Content-Type': 'application/json' }; // Firebase (regras abertas) não usa Master Key
 }
 
 async function pushEdits() {
@@ -3896,7 +3913,7 @@ async function _doPush() {
         sz += chunk;
       }
       flash(`⚠️ Payload grande (${sizeKB}KB). Enviando edições mais recentes para a nuvem. Dados completos salvos localmente.`, '#f59e0b', 5000);
-      const putRes = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
+      const putRes = await fetch(`${FIREBASE_URL}/lupa_data.json`, {
         method:'PUT', headers:jsonbinHeaders(), body:JSON.stringify(trimmed)
       });
       if(!putRes.ok) { const e=await putRes.json(); throw new Error(e.message||putRes.status); }
@@ -3905,8 +3922,8 @@ async function _doPush() {
     }
 
     // Payload dentro do limite — GET + merge + PUT
-    const getRes = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, { headers: jsonbinHeaders() });
-    const current = getRes.ok ? ((await getRes.json()).record || {}) : {};
+    const getRes = await fetch(`${FIREBASE_URL}/lupa_data.json`, { headers: jsonbinHeaders() });
+    const current = getRes.ok ? ((await getRes.json()) || {}) : {};
     const merged = { ...current, ...map };
 
     // Se o merge ultrapassar o limite, descarta entradas antigas
@@ -3923,7 +3940,7 @@ async function _doPush() {
       mergedStr = JSON.stringify(slim);
     }
 
-    const putRes = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
+    const putRes = await fetch(`${FIREBASE_URL}/lupa_data.json`, {
       method:'PUT', headers:jsonbinHeaders(), body:mergedStr
     });
     if(putRes.ok) {
@@ -3951,9 +3968,9 @@ function _loadLocalEditsRaw() {
 async function pullEditsAndMerge() {
   updateSyncStatus('⏬ Recuperando edições...', '#f59e0b');
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, { headers: jsonbinHeaders() });
+    const res = await fetch(`${FIREBASE_URL}/lupa_data.json`, { headers: jsonbinHeaders() });
     if(!res.ok) throw new Error((await res.json()).message || res.status);
-    const cloudMap = (await res.json()).record || {};
+    const cloudMap = (await res.json()) || {};
     const localMap = _loadLocalEditsRaw() || {};
 
     // Mescla: para cada registro, vence o que tem _editedAt mais recente
@@ -4009,13 +4026,13 @@ async function pullEdits(silent=false) {
   }
   if(!silent) updateSyncStatus('⏬ Buscando...', '#f59e0b');
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, { headers: jsonbinHeaders() });
+    const res = await fetch(`${FIREBASE_URL}/lupa_data.json`, { headers: jsonbinHeaders() });
     if(!res.ok) {
       const err = await res.json();
       throw new Error(err.message || res.status);
     }
     const data = await res.json();
-    const map = data.record || {};
+    const map = data || {};
     if(!Object.keys(map).length) {
       if(!silent) flash('ℹ️ Nenhuma edição encontrada no servidor.', '#1a6fad');
       updateSyncStatus('☁️ Sem edições remotas', 'var(--muted)');
@@ -4037,7 +4054,7 @@ async function clearCloudEdits() {
   if(!JSONBIN_ID || !JSONBIN_KEY) { flash('⚙️ Configure primeiro.', '#f59e0b'); return; }
   if(!confirm('Apagar TODAS as edições da nuvem?\nOs dados voltarão ao estado original para todos.\nEsta ação não pode ser desfeita.')) return;
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
+    const res = await fetch(`${FIREBASE_URL}/lupa_data.json`, {
       method: 'PUT', headers: jsonbinHeaders(), body: JSON.stringify({})
     });
     if(res.ok) flash('🗑️ Todas as edições foram removidas da nuvem.', '#6b7280');
@@ -4048,8 +4065,8 @@ async function clearCloudEdits() {
 async function showHistory() {
   if(!JSONBIN_ID || !JSONBIN_KEY) { flash('⚙️ Configure primeiro.', '#f59e0b'); return; }
   try {
-    const res = await fetch('https://api.jsonbin.io/v3/b/'+JSONBIN_ID+'/latest', { headers: jsonbinHeaders() });
-    const raw = (await res.json()).record || {};
+    const res = await fetch(FIREBASE_URL+'/lupa_data.json', { headers: jsonbinHeaders() });
+    const raw = (await res.json()) || {};
     // Keep only entries that are real edits (have _editedAt)
     const edits = [];
     Object.keys(raw).forEach(function(k) {
@@ -4175,7 +4192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     // Puxa nuvem e mescla com local
     await pullEditsAndMerge();
-    setInterval(() => pullEdits(true), 60000);
+    setInterval(() => pullEdits(true), 300000); // 5 min — reduzido para poupar cota gratuita do JSONBin
   }
 });
 </script>
