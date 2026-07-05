@@ -350,6 +350,7 @@ footer{text-align:center;padding:18px;font-size:.7rem;color:var(--muted);border-
   <div class="tab" onclick="showTab('cronograma',this)">📅 Cronograma</div>
   <div class="tab" onclick="showTab('graficos-esi',this)">📈 Gráficos Visão Geral</div>
   <div class="tab" onclick="showTab('graficos-br',this)">📊 Gráficos Etapas BR</div>
+  <div class="tab" onclick="showTab('suprfab-teste',this)" style="color:var(--warn)">🧪 Suprimento &amp; Fabricação (Teste)</div>
 </nav>
 
 <main>
@@ -837,6 +838,91 @@ footer{text-align:center;padding:18px;font-size:.7rem;color:var(--muted);border-
   </div>
 </div>
 
+</div>
+
+
+<!-- ═══════════ MATERIAIS (TESTE) ═══════════ -->
+<div class="section" id="suprfab-teste">
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <button onclick="showSuprFabSub('materiais')" id="suprfab-subtab-materiais" class="tab active" style="border-radius:6px 6px 0 0;background:none;border:none;font-family:var(--font);font-size:1.05rem;font-weight:800;color:var(--accent);border-bottom:3px solid var(--accent)">📦 Materiais</button>
+    <button onclick="showSuprFabSub('detalhamento')" id="suprfab-subtab-detalhamento" class="tab" style="border-radius:6px 6px 0 0;background:none;border:none;font-family:var(--font);font-size:.85rem;font-weight:600;color:var(--muted);border-bottom:3px solid transparent">📐 Detalhamento</button>
+    <button onclick="showSuprFabSub('processamento')" id="suprfab-subtab-processamento" class="tab" style="border-radius:6px 6px 0 0;background:none;border:none;font-family:var(--font);font-size:.85rem;font-weight:600;color:var(--muted);border-bottom:3px solid transparent">⚙️ Processamento</button>
+  </div>
+
+  <div id="suprfab-sub-materiais">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🧪 Sistema de Materiais — Aba de Teste (não afeta o Dashboard oficial)</div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">
+        Importe o arquivo "rcm_aplic_detalhado...xlsx" para visualizar o cruzamento por Registro, o status de suprimento calculado
+        e a sinalização de liberação para PF. Os dados aqui NÃO alteram a aba Tabela — é só para validarmos a lógica juntos.
+      </p>
+      <button onclick="document.getElementById('materiaisImportInput').click()" style="background:rgba(245,166,35,.15);border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:9px 16px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Importar Sistema de Materiais (Excel)</button>
+      <input type="file" id="materiaisImportInput" accept=".xlsx" multiple style="display:none" onchange="handleMateriaisImport(event)">
+      <div id="materiais-resumo" style="margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+        <button onclick="toggleAllMatLevels()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)" id="mat-expand-btn">🔽 Expandir Registros</button>
+        <button onclick="exportMateriaisNivelAtual()" style="background:rgba(34,197,94,.15);border:1px solid var(--green);color:var(--green);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">⬇️ Exportar Nível Atual</button>
+        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Filtrar por status do Registro:</label>
+        <select id="mat-status-filter" onchange="applyMatStatusFilter(this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+          <option value="">Todos</option>
+          <option value="PF">✅ Liberado para PF</option>
+          <option value="Completo">Completo</option>
+          <option value="Pendente ESI">Pendente ESI</option>
+          <option value="Pendente BR">Pendente BR</option>
+          <option value="Pendente ESI+BR">Pendente ESI+BR</option>
+          <option value="Não Cadastrado">Não Cadastrado</option>
+        </select>
+      </div>
+      <div class="tbl-wrap" style="max-height:640px;overflow-y:auto;overflow-x:auto">
+        <table>
+          <thead><tr id="materiais-teste-head"></tr></thead>
+          <tbody id="materiais-teste-body"><tr><td colspan="7" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="suprfab-sub-detalhamento" style="display:none">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🧪 Detalhamento &amp; Processamento — Aba de Teste (não afeta o Dashboard oficial)</div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">
+        Depende dos dados já importados na sub-aba "Materiais" (usa os Registros "Liberado para PF"). Selecione os dois arquivos juntos:
+        "Relatorio_Geral_Detalhamentos.xlsx" e "Apontamento_de_Exe._Fabricacao.xlsx".
+      </p>
+      <button onclick="document.getElementById('detprocImportInput').click()" style="background:rgba(245,166,35,.15);border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:9px 16px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Atualizar Detalhamento &amp; Processamento (Excel)</button>
+      <input type="file" id="detprocImportInput" accept=".xlsx" multiple style="display:none" onchange="handleDetProcImport(event)">
+      <div id="detproc-resumo" style="margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <button onclick="toggleAllDetLevels()" id="det-expand-btn" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🔽 Expandir Registros</button>
+        <button onclick="exportDetNivelAtual()" style="background:rgba(34,197,94,.15);border:1px solid var(--green);color:var(--green);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">⬇️ Exportar Nível Atual</button>
+      </div>
+      <div class="tbl-wrap" style="max-height:640px;overflow-y:auto;overflow-x:auto">
+        <table>
+          <thead><tr id="det-teste-head"></tr></thead>
+          <tbody id="det-teste-body"><tr><td colspan="8" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="suprfab-sub-processamento" style="display:none">
+    <div class="card">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <button onclick="toggleAllProcLevels()" id="proc-expand-btn" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🔽 Expandir Registros</button>
+        <button onclick="exportProcNivelAtual()" style="background:rgba(34,197,94,.15);border:1px solid var(--green);color:var(--green);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">⬇️ Exportar Nível Atual</button>
+      </div>
+      <div class="tbl-wrap" style="max-height:640px;overflow-y:auto;overflow-x:auto">
+        <table>
+          <thead><tr id="proc-teste-head"></tr></thead>
+          <tbody id="proc-teste-body"><tr><td colspan="18" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 
@@ -2606,6 +2692,575 @@ function extractFileYear(filename) {
   const m = /20(2[4-9]|3[0-9])/.exec(filename||'');
   return m ? parseInt(m[0],10) : 0;
 }
+// ── SISTEMA DE MATERIAIS (aba de teste) ─────────────────────────────────────
+let MATERIAIS_DATA = {}; // registro -> {linhas:[...], statusCalc, pfLiberado, disciplina, nomeTarefa, ss, prazoContratadaMax, prazoClienteMax}
+const MATERIAIS_COLS = ['Nº LM','Rev. LM','Emitida Em','Status LM','Data de Necessidade','Nº do Projeto de Execução',
+  'Fase do Projeto','Registro','Descrição do Material','Unid.','Flag','Qtd. LM','Material Bloqueio?','Tipo',
+  'Escopo Fornec.','Status de Fornecimento da Linha','Status de Fornecimento do Item na Totalidade','Ordem de Compra Nº',
+  'OC Emitida Em','OC Aprovada Em','Prazo de Recebimento','OC Status','Recebido Em','Quant. Receb.',
+  'Vlr. Unit. (R$)','Vlr. Total (R$)','Nº RIR','Status RIR'];
+
+function fmtDataBR(v){
+  if(!v) return '';
+  if(v instanceof Date) return v.toLocaleDateString('pt-BR');
+  return String(v);
+}
+
+async function handleMateriaisImport(e) {
+  const files = Array.from(e.target.files||[]);
+  if(!files.length) return;
+  // Ajuste item 2: cruzamento apenas com o escopo ATIVO (getData exclui cancelados)
+  const ativos = getData();
+  const infoPorRegistro = {};
+  ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'(sem disciplina)', nomeTarefa: r.nome_tarefa||'(sem nome de tarefa)', ss: r.nro_ss||'(sem SS)' }; });
+  const registrosValidos = new Set(Object.keys(infoPorRegistro));
+
+  const grouped = {};
+  let totalLidas=0, totalCancel=0, totalForaEscopo=0;
+  for(const file of files){
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf,{type:'array', cellDates:true});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''});
+      const hdr = rows[0];
+      const colIdx = {};
+      MATERIAIS_COLS.forEach(c=>{ colIdx[c] = hdr.indexOf(c); });
+      if(colIdx['Registro'] === -1){ flash(`⚠️ Coluna "Registro" não encontrada em ${file.name}`, '#ef4444', 5000); continue; }
+      for(let i=1;i<rows.length;i++){
+        const row = rows[i];
+        const registro = String(row[colIdx['Registro']]||'').trim();
+        if(!registro) continue;
+        totalLidas++;
+        if(!registrosValidos.has(registro)){ totalForaEscopo++; continue; }
+        let temCancelado = false;
+        MATERIAIS_COLS.forEach(c=>{ if((row[colIdx[c]]||'').toString().trim()==='Cancelado') temCancelado = true; });
+        if(temCancelado){ totalCancel++; continue; }
+        const item = {};
+        MATERIAIS_COLS.forEach(c=>{ item[c] = row[colIdx[c]]; });
+        item.observacoes = ''; // item 12 — campo livre, editável na tela
+        if(!grouped[registro]) grouped[registro] = [];
+        grouped[registro].push(item);
+      }
+    } catch(err){ flash(`⚠️ Erro ao ler ${file.name}: ${err.message}`, '#ef4444', 6000); }
+  }
+
+  MATERIAIS_DATA = {};
+  Object.entries(grouped).forEach(([registro, linhas])=>{
+    const statusTotalList = linhas.map(l=>(l['Status de Fornecimento do Item na Totalidade']||'').toString().trim());
+    const todosRecebido = statusTotalList.length>0 && statusTotalList.every(s=>s==='Recebido');
+    let statusCalc;
+    if(todosRecebido){
+      statusCalc = 'Completo';
+    } else {
+      const pendentes = linhas.filter(l=>(l['Status de Fornecimento do Item na Totalidade']||'').toString().trim()!=='Recebido');
+      const escopos = new Set(pendentes.map(l=>(l['Escopo Fornec.']||'').toString().trim()));
+      const temContratada = escopos.has('Contratada');
+      const temCliente = escopos.has('Cliente');
+      if(temContratada && temCliente) statusCalc = 'Pendente ESI+BR';
+      else if(temContratada) statusCalc = 'Pendente ESI';
+      else if(temCliente) statusCalc = 'Pendente BR';
+      else statusCalc = 'Não Cadastrado';
+    }
+    const linhasFab = linhas.filter(l=>(l['Tipo']||'').toString().trim()==='Fabricação');
+    const pfLiberado = linhasFab.length>0 && linhasFab.every(l=>(l['Status de Fornecimento do Item na Totalidade']||'').toString().trim()==='Recebido');
+
+    // item 14 — maior "Prazo de Recebimento" por Escopo Fornec. (Contratada / Cliente)
+    function maxPrazo(escopo){
+      const datas = linhas.filter(l=>(l['Escopo Fornec.']||'').toString().trim()===escopo && l['Prazo de Recebimento'] instanceof Date)
+                          .map(l=>l['Prazo de Recebimento']);
+      if(!datas.length) return null;
+      return new Date(Math.max(...datas.map(d=>d.getTime())));
+    }
+    const prazoContratadaMax = maxPrazo('Contratada');
+    const prazoClienteMax = maxPrazo('Cliente');
+    const somaValorTotal = linhas.reduce((acc,l)=> acc + (Number(l['Vlr. Total (R$)'])||0), 0);
+
+    const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:''};
+    MATERIAIS_DATA[registro] = { linhas, statusCalc, pfLiberado, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, ss: info.ss, prazoContratadaMax, prazoClienteMax, somaValorTotal };
+  });
+
+  document.getElementById('materiais-resumo').innerHTML =
+    `${totalLidas} linha(s) lida(s) · ${Object.keys(MATERIAIS_DATA).length} registro(s) do escopo ativo encontrados · ${totalCancel} linha(s) canceladas ignoradas · ${totalForaEscopo} linha(s) fora do escopo (outros projetos/cancelados)`;
+  MAT_EXPAND_LEVEL = 0;
+  const expandBtn = document.getElementById('mat-expand-btn');
+  if(expandBtn) expandBtn.textContent = '🔽 Expandir Registros';
+  const statusFilterEl = document.getElementById('mat-status-filter');
+  if(statusFilterEl) statusFilterEl.value = '';
+  renderMateriaisTeste();
+  flash(`✅ Sistema de Materiais importado: ${Object.keys(MATERIAIS_DATA).length} registro(s) processado(s).`, '#22c55e', 5000);
+  e.target.value = '';
+}
+
+let MAT_FILTERS = {}; // item 16 — { 'Tipo': 'Fabricação', ... }
+let MAT_EXPAND_LEVEL = 0; // item 17 — 0=recolhido · 1=Registros · 2=Registros+LM's
+
+function applyMatFilters(colKey, val){
+  MAT_FILTERS[colKey] = val;
+  const anyActive = Object.values(MAT_FILTERS).some(v=>v);
+  const regRows = document.querySelectorAll('#materiais-teste-body tr[data-reg]');
+  regRows.forEach(row=>{
+    let visivel = true;
+    for(const k in MAT_FILTERS){
+      if(MAT_FILTERS[k] && row.dataset[({'Tipo':'tipo','Escopo Fornec.':'escopo','Status de Fornecimento do Item na Totalidade':'statusitem','OC Status':'ocstatus'})[k]] !== MAT_FILTERS[k]) visivel = false;
+    }
+    row.dataset.matMatch = visivel ? '1' : '0';
+  });
+  // se algum filtro está ativo, expande tudo para revelar os resultados; senão, mantém como está
+  if(anyActive){
+    document.querySelectorAll('#materiais-teste-body tr[data-ss], #materiais-teste-body tr[data-reg]').forEach(r=>{ r.style.display=''; });
+    document.querySelectorAll('#materiais-teste-body .arrow').forEach(a=>{ a.textContent='▼'; });
+  }
+  document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(row=>{
+    row.style.display = (row.dataset.matMatch==='0') ? 'none' : (anyActive ? '' : row.style.display);
+  });
+  // esconde ramos (Registro/SS) sem nenhum item visível quando há filtro ativo
+  if(anyActive){
+    document.querySelectorAll('#materiais-teste-body tr[data-reg-header]').forEach(regHdr=>{
+      const slug = regHdr.dataset.regHeader;
+      const filhos = document.querySelectorAll(`#materiais-teste-body tr[data-reg="${slug}"]`);
+      const temVisivel = [...filhos].some(f=>f.style.display!=='none');
+      regHdr.style.display = temVisivel ? '' : 'none';
+    });
+    document.querySelectorAll('#materiais-teste-body tr[data-ss-header]').forEach(ssHdr=>{
+      const slug = ssHdr.dataset.ssHeader;
+      const filhos = document.querySelectorAll(`#materiais-teste-body tr[data-reg-header][data-ss="${slug}"]`);
+      const temVisivel = [...filhos].some(f=>f.style.display!=='none');
+      ssHdr.style.display = temVisivel ? '' : 'none';
+    });
+  }
+}
+
+function applyMatStatusFilter(val){
+  const regHeaders = document.querySelectorAll('#materiais-teste-body tr[data-reg-header]');
+  regHeaders.forEach(row=>{
+    const match = !val || (val==='PF' ? row.dataset.pf==='1' : row.dataset.statusCalc===val);
+    row.dataset.matStatusMatch = match ? '1' : '0';
+  });
+  if(val){
+    // expande no mínimo até o nível de Registro para revelar o resultado do filtro
+    if(MAT_EXPAND_LEVEL < 1){ MAT_EXPAND_LEVEL = 1; }
+    document.querySelectorAll('#materiais-teste-body tr[data-ss]').forEach(r=>{ r.style.display=''; });
+    document.querySelectorAll('#materiais-teste-body tr[data-ss-header] .arrow').forEach(a=>{ a.textContent='▼'; });
+    const btn = document.getElementById('mat-expand-btn');
+    if(btn) btn.textContent = MAT_EXPAND_LEVEL>=2 ? '🔼 Recolher Tudo' : '🔽 Expandir LM\'s';
+  }
+  regHeaders.forEach(row=>{
+    row.style.display = (row.dataset.matStatusMatch==='0') ? 'none' : '';
+    if(row.dataset.matStatusMatch==='0'){
+      document.querySelectorAll(`#materiais-teste-body tr[data-reg="${row.dataset.regHeader}"]`).forEach(lm=>{ lm.style.display='none'; });
+    }
+  });
+  // esconde SS sem nenhum registro visível
+  document.querySelectorAll('#materiais-teste-body tr[data-ss-header]').forEach(ssHdr=>{
+    const slug = ssHdr.dataset.ssHeader;
+    const filhos = document.querySelectorAll(`#materiais-teste-body tr[data-reg-header][data-ss="${slug}"]`);
+    const temVisivel = [...filhos].some(f=>f.style.display!=='none');
+    ssHdr.style.display = (val && !temVisivel) ? 'none' : '';
+  });
+}
+
+function toggleAllMatLevels(){
+  // 0 = tudo recolhido · 1 = Registros visíveis · 2 = Registros + LM's visíveis
+  MAT_EXPAND_LEVEL = (MAT_EXPAND_LEVEL + 1) % 3;
+  document.querySelectorAll('#materiais-teste-body tr[data-ss]').forEach(r=>{ r.style.display = MAT_EXPAND_LEVEL>=1 ? '' : 'none'; });
+  document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(r=>{ r.style.display = MAT_EXPAND_LEVEL>=2 ? '' : 'none'; });
+  document.querySelectorAll('#materiais-teste-body tr[data-ss-header] .arrow').forEach(a=>{ a.textContent = MAT_EXPAND_LEVEL>=1 ? '▼' : '▶'; });
+  document.querySelectorAll('#materiais-teste-body tr[data-reg-header] .arrow').forEach(a=>{ a.textContent = MAT_EXPAND_LEVEL>=2 ? '▼' : '▶'; });
+  const btn = document.getElementById('mat-expand-btn');
+  if(btn){
+    if(MAT_EXPAND_LEVEL===0) btn.textContent = '🔽 Expandir Registros';
+    else if(MAT_EXPAND_LEVEL===1) btn.textContent = '🔽 Expandir LM\'s';
+    else btn.textContent = '🔼 Recolher Tudo';
+  }
+}
+
+function exportMateriaisNivelAtual(){
+  const headCells = document.querySelectorAll('#materiais-teste-head th');
+  if(!headCells.length){ flash('⚠️ Importe os dados antes de exportar.', '#ef4444', 4000); return; }
+  const headers = ['Nível', ...[...headCells].map(th=>th.childNodes[0] ? th.childNodes[0].textContent.trim() : th.textContent.trim())];
+  const rows = [...document.querySelectorAll('#materiais-teste-body tr')].filter(r=>r.style.display !== 'none');
+  if(!rows.length){ flash('⚠️ Nenhuma linha visível para exportar.', '#ef4444', 4000); return; }
+  const dataRows = rows.map(r=>{
+    let nivel = 'SS';
+    if(r.hasAttribute('data-reg-header')) nivel = 'Registro';
+    else if(r.hasAttribute('data-reg')) nivel = 'LM';
+    const tds = [...r.querySelectorAll('td')];
+    if(tds.length === 1){
+      // linha de cabeçalho (colspan) — texto único
+      return [nivel, tds[0].textContent.trim().replace(/\s+/g,' ')];
+    }
+    return [nivel, ...tds.map(td=>{
+      const inp = td.querySelector('input');
+      return inp ? inp.value : td.textContent.trim().replace(/\s+/g,' ');
+    })];
+  });
+  let tbl = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table style="border-collapse:collapse">';
+  tbl += '<tr>' + headers.map(h=>`<th style="border:1px solid #000;background:#1a6fad;color:#fff;font-weight:bold">${h}</th>`).join('') + '</tr>';
+  dataRows.forEach(r=>{
+    tbl += '<tr>' + r.map(c=>`<td style="border:1px solid #000">${(c||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`).join('') + '</tr>';
+  });
+  tbl += '</table></body></html>';
+  const blob = new Blob(['\ufeff'+tbl], {type:'application/vnd.ms-excel'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Sistema_Materiais_NivelAtual_${new Date().toISOString().slice(0,10)}.xls`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  flash(`✅ Exportado(s) ${dataRows.length} linha(s) visível(is).`, '#22c55e', 4000);
+}
+
+function matSlug(s){ return String(s).replace(/[^a-zA-Z0-9]/g,'_'); }
+function toggleMatGroup(attr, slugVal, btn){
+  document.querySelectorAll('tr[data-'+attr+'="'+slugVal+'"]').forEach(el=>{ el.style.display = el.style.display==='none' ? '' : 'none'; });
+  if(btn) btn.textContent = btn.textContent === '▶' ? '▼' : '▶';
+}
+
+function updateMatObs(registro, idx, val){
+  if(MATERIAIS_DATA[registro] && MATERIAIS_DATA[registro].linhas[idx]) MATERIAIS_DATA[registro].linhas[idx].observacoes = val;
+}
+
+function renderMateriaisTeste(){
+  const isAdmin = _currentUser && _currentUser.perfil === 'admin';
+  const headEl = document.getElementById('materiais-teste-head');
+  const bodyEl = document.getElementById('materiais-teste-body');
+  if(!bodyEl) return;
+  const baseCols = 10; // Nível 3: Nome da Tarefa, Tipo, Escopo, Status Item, Prazo Receb., Recebido Em, OC Status, Observações (+2 admin)
+  const colspan = isAdmin ? baseCols : baseCols - 2;
+  const registros = Object.keys(MATERIAIS_DATA);
+  if(!registros.length){
+    if(headEl) headEl.innerHTML = '';
+    bodyEl.innerHTML = `<tr><td colspan="${colspan}" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr>`;
+    return;
+  }
+  // valores únicos para os filtros (item 16)
+  const allLinhas = registros.flatMap(r=>MATERIAIS_DATA[r].linhas);
+  const uniq = key => [...new Set(allLinhas.map(l=>(l[key]||'').toString().trim()).filter(Boolean))];
+  function filterSelect(colKey){
+    const vals = uniq(colKey).sort();
+    const cur = MAT_FILTERS[colKey]||'';
+    const opts = ['<option value="">Todos</option>'].concat(vals.map(v=>`<option value="${v}" ${cur===v?'selected':''}>${v}</option>`)).join('');
+    return `<select onchange="applyMatFilters('${colKey}', this.value)" style="width:100%;font-size:.64rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px;margin-top:3px">${opts}</select>`;
+  }
+  if(headEl){
+    headEl.innerHTML =
+      `<th>Item (Nº LM / Descrição)</th>
+       <th>Tipo${filterSelect('Tipo')}</th>
+       <th>Escopo Fornec.${filterSelect('Escopo Fornec.')}</th>
+       <th>Status Fornec. Item${filterSelect('Status de Fornecimento do Item na Totalidade')}</th>
+       <th>Prazo de Recebimento</th>
+       <th>Recebido Em</th>
+       <th>OC Status${filterSelect('OC Status')}</th>
+       <th>Observações</th>` +
+      (isAdmin ? '<th>Vlr. Unit. (R$)</th><th>Vlr. Total (R$)</th>' : '');
+  }
+  const porSS = {};
+  registros.forEach(reg=>{
+    const ss = MATERIAIS_DATA[reg].ss || '(sem SS)';
+    if(!porSS[ss]) porSS[ss]=[];
+    porSS[ss].push(reg);
+  });
+  const fmtMoeda = v => (v!=null && v!=='') ? Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '';
+  const badgeColor = {'Completo':'#22c55e','Pendente ESI':'#ef4444','Pendente BR':'#f59e0b','Pendente ESI+BR':'#8b5cf6','Não Cadastrado':'#6b9cc4'};
+  const esc = s => String(s).replace(/"/g,'&quot;');
+
+  let html = '';
+  Object.keys(porSS).sort().forEach(ss=>{
+    const ssSlug = matSlug(ss);
+    html += `<tr data-ss-header="${ssSlug}" style="background:var(--bg3);cursor:pointer" onclick="toggleMatGroup('ss','${ssSlug}', this.querySelector('.arrow'))">
+      <td colspan="${colspan}" style="font-weight:700;padding:8px"><span class="arrow">▶</span> 📌 ${ss} — ${porSS[ss].length} registro(s)</td>
+    </tr>`;
+    porSS[ss].sort().forEach(reg=>{
+      const d = MATERIAIS_DATA[reg];
+      const regSlug = matSlug(reg);
+      const regLabel = `${d.disciplina} — ${d.nomeTarefa}`; // item 5 + item 15 (Nome da Tarefa já traz "Registro: X" embutido)
+      const prazoTxt = `Contratada: ${d.prazoContratadaMax ? fmtDataBR(d.prazoContratadaMax) : '—'} &nbsp;·&nbsp; Cliente: ${d.prazoClienteMax ? fmtDataBR(d.prazoClienteMax) : '—'}`; // item 14
+      const somaTxt = isAdmin ? `&nbsp;·&nbsp; Vlr. Total (R$): ${d.somaValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}` : '';
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+        <td colspan="${colspan}" style="padding:6px 8px">
+          <span class="arrow">▶</span> <strong>${regLabel}</strong> &nbsp;
+          <span style="background:${badgeColor[d.statusCalc]||'#6b9cc4'};color:#fff;padding:2px 8px;border-radius:4px;font-size:.7rem">${d.statusCalc}</span>
+          ${d.pfLiberado?`<span style="background:#14b8a6;color:#fff;padding:2px 8px;border-radius:4px;font-size:.7rem;margin-left:6px">✅ Liberado para PF${d.pfNumeroEmitido?(' — PF Nº '+d.pfNumeroEmitido):''}</span>`:''}
+          <div style="font-size:.68rem;color:var(--muted);margin-top:3px;margin-left:18px">${prazoTxt}${somaTxt}</div>
+        </td>
+      </tr>`;
+      const linhasOrd = d.linhas.map((l,idx)=>({l,idx})).sort((a,b)=>{
+        const ta=(a.l['Tipo']||''), tb=(b.l['Tipo']||'');
+        if(ta!==tb) return ta.localeCompare(tb);
+        return (a.l['Escopo Fornec.']||'').localeCompare(b.l['Escopo Fornec.']||'');
+      });
+      linhasOrd.forEach(({l,idx})=>{
+        html += `<tr data-reg="${regSlug}" data-tipo="${esc(l['Tipo']||'')}" data-escopo="${esc(l['Escopo Fornec.']||'')}" data-statusitem="${esc(l['Status de Fornecimento do Item na Totalidade']||'')}" data-ocstatus="${esc(l['OC Status']||'')}" style="display:none">
+          <td style="font-size:.7rem;max-width:240px">${l['Nº LM']||''} · ${l['Descrição do Material']||''} (${l['Qtd. LM']||''} ${l['Unid.']||''})</td>
+          <td style="font-size:.7rem">${l['Tipo']||''}</td>
+          <td style="font-size:.7rem">${l['Escopo Fornec.']||''}</td>
+          <td style="font-size:.7rem">${l['Status de Fornecimento do Item na Totalidade']||''}</td>
+          <td style="font-size:.7rem">${fmtDataBR(l['Prazo de Recebimento'])}</td>
+          <td style="font-size:.7rem">${fmtDataBR(l['Recebido Em'])}</td>
+          <td style="font-size:.7rem">${l['OC Status']||''}</td>
+          <td><input type="text" value="${esc(l.observacoes||'')}" onchange="updateMatObs('${esc(reg)}',${idx},this.value)" style="width:100%;font-size:.7rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 5px"></td>
+          ${isAdmin?`<td style="font-size:.7rem">${fmtMoeda(l['Vlr. Unit. (R$)'])}</td><td style="font-size:.7rem">${fmtMoeda(l['Vlr. Total (R$)'])}</td>`:''}
+        </tr>`;
+      });
+    });
+  });
+  bodyEl.innerHTML = html;
+}
+
+
+// ── DETALHAMENTO & PROCESSAMENTO (aba de teste, depende de MATERIAIS_DATA) ──
+let DETPROC_DATA = {}; // registro -> {ss, disciplina, nomeTarefa, detalhamentos:[{nInterno,tag,revisao,tipo,peso,area,dispositivo,pfNumero,statusPF,inicioPrevisto,terminoPrevisto,apon:{...}|null}]}
+let DET_EXPAND_LEVEL = 0;
+let PROC_EXPAND_LEVEL = 0;
+
+function showSuprFabSub(which){
+  const subs = ['materiais','detalhamento','processamento'];
+  function setSubTabStyle(btn, ativo){
+    btn.style.fontSize = ativo ? '1.05rem' : '.85rem';
+    btn.style.fontWeight = ativo ? '800' : '600';
+    btn.style.color = ativo ? 'var(--accent)' : 'var(--muted)';
+    btn.style.borderBottom = ativo ? '3px solid var(--accent)' : '3px solid transparent';
+  }
+  subs.forEach(s=>{
+    const painel = document.getElementById('suprfab-sub-'+s);
+    const btn = document.getElementById('suprfab-subtab-'+s);
+    if(painel) painel.style.display = (s===which) ? '' : 'none';
+    if(btn){ setSubTabStyle(btn, s===which); btn.classList.toggle('active', s===which); }
+  });
+}
+
+async function handleDetProcImport(e){
+  const files = Array.from(e.target.files||[]);
+  if(!files.length) return;
+  const registrosLiberados = new Set(Object.keys(MATERIAIS_DATA).filter(r=>MATERIAIS_DATA[r].pfLiberado));
+  if(!registrosLiberados.size){ flash('⚠️ Nenhum Registro "Liberado para PF" encontrado. Importe primeiro o Sistema de Materiais.', '#ef4444', 6000); return; }
+  const ativos = getData();
+  const infoPorRegistro = {};
+  ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'', nomeTarefa: r.nome_tarefa||'', ss: r.nro_ss||'(sem SS)' }; });
+
+  let relatorioRows = null, apontamentoRows = null, relatorioFile='', apontamentoFile='';
+  for(const file of files){
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf,{type:'array', cellDates:true});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''});
+      const hdr = rows[0];
+      if(hdr.includes('TAG do Detalhamento')){ relatorioRows = rows; relatorioFile = file.name; }
+      else if(hdr.includes('Número Detalhamento')){ apontamentoRows = rows; apontamentoFile = file.name; }
+    } catch(err){ flash(`⚠️ Erro ao ler ${file.name}: ${err.message}`, '#ef4444', 6000); }
+  }
+  if(!relatorioRows){ flash('⚠️ Arquivo "Relatorio_Geral_Detalhamentos" não foi selecionado.', '#ef4444', 6000); return; }
+  if(!apontamentoRows){ flash('⚠️ Arquivo "Apontamento_de_Exe._Fabricacao" não foi selecionado.', '#ef4444', 6000); return; }
+
+  // índice do Apontamento por "Número Detalhamento" (para casar com TAG do Detalhamento)
+  const aHdr = apontamentoRows[0];
+  const aIdx = {}; aHdr.forEach((h,i)=>aIdx[h]=i);
+  const apontamentoPorTag = {};
+  for(let i=1;i<apontamentoRows.length;i++){
+    const row = apontamentoRows[i];
+    const tag = String(row[aIdx['Número Detalhamento']]||'').trim();
+    if(!tag) continue;
+    if((row[aIdx['Cancelado']]||'').toString().trim()==='Sim') continue;
+    apontamentoPorTag[tag] = row;
+  }
+
+  // percorre Relatorio_Geral_Detalhamentos, só para Registros "Liberado para PF"
+  const rHdr = relatorioRows[0];
+  const rIdx = {}; rHdr.forEach((h,i)=>rIdx[h]=i);
+  DETPROC_DATA = {};
+  let totalLidas=0, totalCancel=0, totalForaEscopo=0, totalComApon=0;
+  for(let i=1;i<relatorioRows.length;i++){
+    const row = relatorioRows[i];
+    const registro = String(row[rIdx['Registro']]||'').trim();
+    if(!registro) continue;
+    totalLidas++;
+    if(!registrosLiberados.has(registro)){ totalForaEscopo++; continue; }
+    if((row[rIdx['Det. Cancelado']]||'').toString().trim()==='Sim'){ totalCancel++; continue; }
+    const tag = String(row[rIdx['TAG do Detalhamento']]||'').trim();
+    const pfNumero = row[rIdx['PF Nº']];
+    const statusPF = (pfNumero!=null && pfNumero!=='') ? 'PF Emitida' : 'Emitir PF';
+    const apon = apontamentoPorTag[tag] ? Object.fromEntries(aHdr.map((h,idx)=>[h, apontamentoPorTag[tag][idx]])) : null;
+    if(apon) totalComApon++;
+    const item = {
+      nInterno: row[rIdx['Nº Interno']],
+      tag, revisao: row[rIdx['Revisão']], tipo: row[rIdx['Tipo']], peso: row[rIdx['Peso']],
+      area: row[rIdx['Área']], dispositivo: row[rIdx['Dispositivo']],
+      pfNumero: (pfNumero!=null && pfNumero!=='') ? pfNumero : null, statusPF,
+      inicioPrevisto: apon ? apon['Início Previsto'] : null,
+      terminoPrevisto: apon ? apon['Término Previsto'] : null,
+      apon
+    };
+    if(!DETPROC_DATA[registro]){
+      const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:'(sem SS)'};
+      DETPROC_DATA[registro] = { ss: info.ss, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, detalhamentos: [] };
+    }
+    DETPROC_DATA[registro].detalhamentos.push(item);
+  }
+
+  document.getElementById('detproc-resumo').innerHTML =
+    `${totalLidas} detalhamento(s) lido(s) · ${Object.keys(DETPROC_DATA).length} registro(s) "Liberado para PF" com detalhamento · ${totalComApon} com apontamento de execução casado · ${totalCancel} cancelado(s) ignorado(s) · ${totalForaEscopo} fora do escopo liberado`;
+  // Retorno à aba Materiais: quando Liberado para PF e já existe PF emitida, mostra o(s) número(s) lá
+  Object.keys(DETPROC_DATA).forEach(registro=>{
+    const pfNumeros = [...new Set(DETPROC_DATA[registro].detalhamentos
+      .filter(it=>it.statusPF==='PF Emitida' && it.pfNumero!=null)
+      .map(it=>it.pfNumero))];
+    if(MATERIAIS_DATA[registro]) MATERIAIS_DATA[registro].pfNumeroEmitido = pfNumeros.length ? pfNumeros.join(', ') : null;
+  });
+  renderMateriaisTeste(); // atualiza a aba Materiais com o(s) número(s) de PF encontrados
+
+  DET_EXPAND_LEVEL = 0; PROC_EXPAND_LEVEL = 0;
+  renderDetTeste();
+  renderProcTeste();
+  flash(`✅ Detalhamento & Processamento importado: ${Object.keys(DETPROC_DATA).length} registro(s) processado(s).`, '#22c55e', 5000);
+  e.target.value = '';
+}
+
+// ── Sub-aba Detalhamento ──
+function renderDetTeste(){
+  const headEl = document.getElementById('det-teste-head');
+  const bodyEl = document.getElementById('det-teste-body');
+  const colspan = 8;
+  const registros = Object.keys(DETPROC_DATA);
+  if(!registros.length){
+    if(headEl) headEl.innerHTML = '';
+    bodyEl.innerHTML = `<tr><td colspan="${colspan}" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr>`;
+    return;
+  }
+  if(headEl){
+    headEl.innerHTML = '<th>Nº Interno</th><th>TAG do Detalhamento</th><th>Revisão</th><th>Tipo</th><th>Peso</th><th>Área</th><th>Dispositivo</th><th>PF Nº / Status</th>';
+  }
+  const porSS = {};
+  registros.forEach(reg=>{ const ss = DETPROC_DATA[reg].ss; if(!porSS[ss]) porSS[ss]=[]; porSS[ss].push(reg); });
+  const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
+  let html = '';
+  Object.keys(porSS).sort().forEach(ss=>{
+    const ssSlug = 'det_'+matSlug(ss);
+    html += `<tr data-ss-header="${ssSlug}" style="background:var(--bg3);cursor:pointer" onclick="toggleMatGroup('ss','${ssSlug}', this.querySelector('.arrow'))">
+      <td colspan="${colspan}" style="font-weight:700;padding:8px"><span class="arrow">▶</span> 📌 ${ss} — ${porSS[ss].length} registro(s)</td></tr>`;
+    porSS[ss].sort().forEach(reg=>{
+      const d = DETPROC_DATA[reg];
+      const regSlug = 'det_'+matSlug(reg);
+      const regLabel = `${d.disciplina} — ${d.nomeTarefa}`;
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+        <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${regLabel}</strong> &nbsp; <span style="font-size:.7rem;color:var(--muted)">${d.detalhamentos.length} detalhamento(s)</span></td></tr>`;
+      d.detalhamentos.forEach(it=>{
+        const pfColor = it.statusPF==='PF Emitida' ? '#22c55e' : '#f59e0b';
+        html += `<tr data-reg="${regSlug}" style="display:none">
+          <td style="font-size:.7rem">${esc(it.nInterno)}</td>
+          <td style="font-size:.7rem">${esc(it.tag)}</td>
+          <td style="font-size:.7rem">${esc(it.revisao)}</td>
+          <td style="font-size:.7rem">${esc(it.tipo)}</td>
+          <td style="font-size:.7rem">${esc(it.peso)}</td>
+          <td style="font-size:.7rem">${esc(it.area)}</td>
+          <td style="font-size:.7rem">${esc(it.dispositivo)}</td>
+          <td style="font-size:.7rem"><span style="background:${pfColor};color:#fff;padding:2px 7px;border-radius:4px">${it.pfNumero!=null?('PF '+it.pfNumero+' · '):''}${it.statusPF}</span></td>
+        </tr>`;
+      });
+    });
+  });
+  bodyEl.innerHTML = html;
+}
+
+function toggleAllDetLevels(){
+  DET_EXPAND_LEVEL = (DET_EXPAND_LEVEL+1)%3;
+  document.querySelectorAll('#det-teste-body tr[data-ss]').forEach(r=>{ r.style.display = DET_EXPAND_LEVEL>=1?'':'none'; });
+  document.querySelectorAll('#det-teste-body tr[data-reg]').forEach(r=>{ r.style.display = DET_EXPAND_LEVEL>=2?'':'none'; });
+  document.querySelectorAll('#det-teste-body tr[data-ss-header] .arrow').forEach(a=>{ a.textContent = DET_EXPAND_LEVEL>=1?'▼':'▶'; });
+  document.querySelectorAll('#det-teste-body tr[data-reg-header] .arrow').forEach(a=>{ a.textContent = DET_EXPAND_LEVEL>=2?'▼':'▶'; });
+  const btn = document.getElementById('det-expand-btn');
+  if(btn) btn.textContent = DET_EXPAND_LEVEL===0?'🔽 Expandir Registros':(DET_EXPAND_LEVEL===1?'🔽 Expandir Itens':'🔼 Recolher Tudo');
+}
+
+function exportDetNivelAtual(){ exportNivelAtualGenerico('det-teste-head','det-teste-body','Detalhamento'); }
+
+// ── Sub-aba Processamento ──
+const PROC_COLS = ['Iniciado Em','Corte','Pré-Montagem','Soldagem','Escaneamento','Ensaios/Inspeções','Jateamento Abrasivo','Pintura','Pintura Inspeção','Concluído Em','Avanço','Status de Exe.'];
+function renderProcTeste(){
+  const headEl = document.getElementById('proc-teste-head');
+  const bodyEl = document.getElementById('proc-teste-body');
+  const colspan = 6 + PROC_COLS.length + 1; // NInterno,Registro,NumDet,Revisao,Tipo,Peso,Area + PROC_COLS + Programação
+  const registros = Object.keys(DETPROC_DATA);
+  const comApon = registros.filter(r=>DETPROC_DATA[r].detalhamentos.some(it=>it.apon));
+  if(!comApon.length){
+    if(headEl) headEl.innerHTML = '';
+    bodyEl.innerHTML = `<tr><td colspan="${colspan}" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr>`;
+    return;
+  }
+  if(headEl){
+    headEl.innerHTML = '<th>Nº Interno</th><th>Registro</th><th>Número do Detalhamento</th><th>Revisão</th><th>Tipo</th><th>Peso</th><th>Área</th>' +
+      PROC_COLS.map(c=>`<th>${c}</th>`).join('') + '<th>Programação</th>';
+  }
+  const porSS = {};
+  comApon.forEach(reg=>{ const ss = DETPROC_DATA[reg].ss; if(!porSS[ss]) porSS[ss]=[]; porSS[ss].push(reg); });
+  const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
+  let html = '';
+  Object.keys(porSS).sort().forEach(ss=>{
+    const ssSlug = 'proc_'+matSlug(ss);
+    html += `<tr data-ss-header="${ssSlug}" style="background:var(--bg3);cursor:pointer" onclick="toggleMatGroup('ss','${ssSlug}', this.querySelector('.arrow'))">
+      <td colspan="${colspan}" style="font-weight:700;padding:8px"><span class="arrow">▶</span> 📌 ${ss} — ${porSS[ss].length} registro(s)</td></tr>`;
+    porSS[ss].sort().forEach(reg=>{
+      const d = DETPROC_DATA[reg];
+      const regSlug = 'proc_'+matSlug(reg);
+      const itensComApon = d.detalhamentos.filter(it=>it.apon);
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+        <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${d.disciplina} — ${d.nomeTarefa}</strong> &nbsp; <span style="font-size:.7rem;color:var(--muted)">${itensComApon.length} item(ns) em execução</span></td></tr>`;
+      itensComApon.forEach(it=>{
+        html += `<tr data-reg="${regSlug}" style="display:none">
+          <td style="font-size:.68rem">${esc(it.nInterno)}</td>
+          <td style="font-size:.68rem">${esc(reg)}</td>
+          <td style="font-size:.68rem">${esc(it.tag)}</td>
+          <td style="font-size:.68rem">${esc(it.revisao)}</td>
+          <td style="font-size:.68rem">${esc(it.tipo)}</td>
+          <td style="font-size:.68rem">${esc(it.peso)}</td>
+          <td style="font-size:.68rem">${esc(it.area)}</td>
+          ${PROC_COLS.map(c=>`<td style="font-size:.68rem">${esc(fmtDataBR(it.apon[c]) || it.apon[c] || '')}</td>`).join('')}
+          <td style="font-size:.68rem;font-weight:700">${it.pfNumero!=null?it.pfNumero:'—'}</td>
+        </tr>`;
+      });
+    });
+  });
+  bodyEl.innerHTML = html;
+}
+
+function toggleAllProcLevels(){
+  PROC_EXPAND_LEVEL = (PROC_EXPAND_LEVEL+1)%3;
+  document.querySelectorAll('#proc-teste-body tr[data-ss]').forEach(r=>{ r.style.display = PROC_EXPAND_LEVEL>=1?'':'none'; });
+  document.querySelectorAll('#proc-teste-body tr[data-reg]').forEach(r=>{ r.style.display = PROC_EXPAND_LEVEL>=2?'':'none'; });
+  document.querySelectorAll('#proc-teste-body tr[data-ss-header] .arrow').forEach(a=>{ a.textContent = PROC_EXPAND_LEVEL>=1?'▼':'▶'; });
+  document.querySelectorAll('#proc-teste-body tr[data-reg-header] .arrow').forEach(a=>{ a.textContent = PROC_EXPAND_LEVEL>=2?'▼':'▶'; });
+  const btn = document.getElementById('proc-expand-btn');
+  if(btn) btn.textContent = PROC_EXPAND_LEVEL===0?'🔽 Expandir Registros':(PROC_EXPAND_LEVEL===1?'🔽 Expandir Itens':'🔼 Recolher Tudo');
+}
+
+function exportProcNivelAtual(){ exportNivelAtualGenerico('proc-teste-head','proc-teste-body','Processamento'); }
+
+function exportNivelAtualGenerico(headId, bodyId, nomeArq){
+  const headCells = document.querySelectorAll('#'+headId+' th');
+  if(!headCells.length){ flash('⚠️ Importe os dados antes de exportar.', '#ef4444', 4000); return; }
+  const headers = ['Nível', ...[...headCells].map(th=>th.textContent.trim())];
+  const rows = [...document.querySelectorAll('#'+bodyId+' tr')].filter(r=>r.style.display !== 'none');
+  if(!rows.length){ flash('⚠️ Nenhuma linha visível para exportar.', '#ef4444', 4000); return; }
+  const dataRows = rows.map(r=>{
+    let nivel = 'SS';
+    if(r.hasAttribute('data-reg-header')) nivel = 'Registro';
+    else if(r.hasAttribute('data-reg')) nivel = 'Item';
+    const tds = [...r.querySelectorAll('td')];
+    if(tds.length === 1) return [nivel, tds[0].textContent.trim().replace(/\s+/g,' ')];
+    return [nivel, ...tds.map(td=>td.textContent.trim().replace(/\s+/g,' '))];
+  });
+  let tbl = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table style="border-collapse:collapse">';
+  tbl += '<tr>' + headers.map(h=>`<th style="border:1px solid #000;background:#1a6fad;color:#fff;font-weight:bold">${h}</th>`).join('') + '</tr>';
+  dataRows.forEach(r=>{ tbl += '<tr>' + r.map(c=>`<td style="border:1px solid #000">${(c||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`).join('') + '</tr>'; });
+  tbl += '</table></body></html>';
+  const blob = new Blob(['\ufeff'+tbl], {type:'application/vnd.ms-excel'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${nomeArq}_NivelAtual_${new Date().toISOString().slice(0,10)}.xls`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  flash(`✅ Exportado(s) ${dataRows.length} linha(s) visível(is).`, '#22c55e', 4000);
+}
+
 function resolveStatusPlan(categoria, atribuidoA){
   const cat = (categoria||'').toString().trim();
   if (cat === 'Delineamento ON') {
