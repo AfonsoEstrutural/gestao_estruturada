@@ -689,25 +689,6 @@ h1{letter-spacing:.02em}
     <select id="f-fab"  style="display:none"><option value=""></option></select>
     <select id="f-plan" onchange="renderTable()" style="min-width:220px">
       <option value="">Todos Status Planejamento</option>
-      <option value="Planejamento Encerrado">Planejamento Encerrado</option>
-      <option value="Em Delineamento">Em Delineamento</option>
-      <option value="Aprovação Delineamento ON">Aprovação Delineamento ON</option>
-      <option value="Verificação Delineamento ON">Verificação Delineamento ON</option>
-      <option value="Delineamento Não Iniciado">Delineamento Não Iniciado</option>
-      <option value="Aprovação Book de Planejamento">Aprovação Book de Planejamento</option>
-      <option value="Orçamento, Montagem e Postagem Book de Planejamento">Orçamento, Montagem e Postagem Book de Planejamento</option>
-      <option value="Detalhamento">Detalhamento</option>
-      <option value="Aprovação Delineamento OFF">Aprovação Delineamento OFF</option>
-      <option value="Cadastro e Codificação Material MIO">Cadastro e Codificação Material MIO</option>
-      <option value="ADP Book de Planejamento">ADP Book de Planejamento</option>
-      <option value="ADP Delineamento ON">ADP Delineamento ON</option>
-      <option value="Fixação Delineamento ON">Fixação Delineamento ON</option>
-      <option value="Postagem Delineamento ON">Postagem Delineamento ON</option>
-      <option value="Postagem Book Aprovado MIO">Postagem Book Aprovado MIO</option>
-      <option value="SS Cancelada">SS Cancelada</option>
-      <option value="Irá sair do Escopo da ESTRUTURAL">Irá sair do Escopo da ESTRUTURAL</option>
-      <option value="Pendência BR">Pendência BR</option>
-      <option value="Pendência ESI">Pendência ESI</option>
     </select>
     <button class="export-btn" onclick="clearFilters()" style="background:#6b7280" title="Limpar todos os filtros">✕ Limpar Filtros</button>
     <button class="export-btn" onclick="exportCSV()">⬇ CSV</button>
@@ -893,12 +874,13 @@ h1{letter-spacing:.02em}
       <button onclick="document.getElementById('materiaisImportInput').click()" style="background:rgba(245,166,35,.15);border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:9px 16px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Importar Sistema de Materiais (Excel)</button>
       <input type="file" id="materiaisImportInput" accept=".xlsx" multiple style="display:none" onchange="handleMateriaisImport(event)">
       <div id="materiais-resumo" style="margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
+      <div id="mat-summary-card" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px"></div>
     </div>
     <div class="card">
       <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
         <button onclick="toggleAllMatLevels()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)" id="mat-expand-btn">🔽 Expandir Registros</button>
         <button onclick="exportMateriaisNivelAtual()" style="background:rgba(34,197,94,.15);border:1px solid var(--green);color:var(--green);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">⬇️ Exportar Nível Atual</button>
-        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Filtrar por status do Registro:</label>
+        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Status do Registro:</label>
         <select id="mat-status-filter" onchange="applyMatStatusFilter(this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
           <option value="">Todos</option>
           <option value="PF">✅ Liberado para PF</option>
@@ -911,6 +893,22 @@ h1{letter-spacing:.02em}
         <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Disciplina:</label>
         <select id="mat-disc-filter" onchange="applyDisciplinaFilter('materiais-teste',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
           <option value="">Todas</option>
+        </select>
+        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Tipo:</label>
+        <select id="mat-tipo-filter" onchange="applyMatFilters('Tipo',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+          <option value="">Todos</option>
+        </select>
+        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Escopo Fornec.:</label>
+        <select id="mat-escopo-filter" onchange="applyMatFilters('Escopo Fornec.',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+          <option value="">Todos</option>
+        </select>
+        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Status Fornec. Item:</label>
+        <select id="mat-statusitem-filter" onchange="applyMatFilters('Status de Fornecimento do Item na Totalidade',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+          <option value="">Todos</option>
+        </select>
+        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">OC Status:</label>
+        <select id="mat-ocstatus-filter" onchange="applyMatFilters('OC Status',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+          <option value="">Todos</option>
         </select>
         <input id="mat-search-input" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyMatSearch(this.value)"
           style="flex:1;min-width:180px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
@@ -1484,6 +1482,12 @@ function isOverdue(s) {
 function cnt(arr, key) {
   const m = {};
   arr.forEach(r => { const v = (r[key]||'').trim(); m[v] = (m[v]||0)+1; });
+  return m;
+}
+// Como cnt(), mas para 'status_sup' usa o status efetivo (Materiais quando disponível)
+function cntSup(arr) {
+  const m = {};
+  arr.forEach(r => { const v = effSup(r); m[v] = (m[v]||0)+1; });
   return m;
 }
 function topN(obj, n=20) {
@@ -2280,7 +2284,7 @@ function renderPerfil() {
   var samc = cnt(data,'status_samc');
   var disc = cnt(data,'disciplina');
   var plan = cnt(data,'status_plan');
-  var sup  = cnt(data,'status_sup');
+  var sup  = cntSup(data);
   var fab  = cnt(data,'fabricacao');
   var prio = cnt(data,'prioridade');
   var exig = cnt(data,'tipo_exigencia');
@@ -2321,8 +2325,9 @@ function renderPerfil() {
   var etapa1 = n;
   var etapa2 = data.filter(function(r){ return delinPendStates.indexOf(r.status_plan)===-1 && cancelStates.indexOf(r.status_plan)===-1; }).length;
   var etapa3 = data.filter(function(r){
-    return r.status_sup==='Completo'||r.status_sup==='Minuta sem Materiais de Aplicação'||
-           r.status_sup==='Pendente ESI'||r.status_sup==='Pendente ESI+BR'||r.status_sup==='Pendente BR';
+    var s = effSup(r);
+    return s==='Completo'||s==='Minuta sem Materiais de Aplicação'||
+           s==='Pendente ESI'||s==='Pendente ESI+BR'||s==='Pendente BR';
   }).length;
   var funil = [
     {lbl:'1ª Etapa · Delineamento', val:etapa1, pct:100, col:'var(--blue)'},
@@ -2384,7 +2389,7 @@ function renderPerfil() {
   var discSorted = Object.entries(disc).sort(function(a,b){return b[1]-a[1];});
   document.getElementById('pfil-disc-bars').innerHTML = discSorted.map(function(e){
     var k=e[0], v=e[1];
-    var compDisc=data.filter(function(r){return r.disciplina===k&&r.status_sup==='Completo';}).length;
+    var compDisc=data.filter(function(r){return r.disciplina===k&&effSup(r)==='Completo';}).length;
     var isActive=perfilDiscFilter===k;
     return '<div class="bar-row clickable" onclick="perfilFilterDisc(&quot;'+k+'&quot;)">'+
       '<div class="bar-lbl narrow" style="'+(isActive?'color:var(--blue);font-weight:800;':'')+'" title="Clique para filtrar Suprimento por '+k+'">'+k+'</div>'+
@@ -2402,7 +2407,7 @@ function renderPerfil() {
   var supColMap={'Completo':'var(--green)','Minuta sem Materiais de Aplicação':'var(--warn)','Não Cadastrado':'var(--muted)','Pendente BR':'#1a6fad','Pendente ESI':'var(--danger)','Pendente ESI+BR':'#8b5cf6','LM Cadastrada':'#14b8a6'};
   var supLbl={'Completo':'Completo','Minuta sem Materiais de Aplicação':'Minuta s/ Mat.','Não Cadastrado':'Não Cadastrado','Pendente BR':'Pendente BR','Pendente ESI':'Pendente ESI','Pendente ESI+BR':'Pendente ESI+BR','LM Cadastrada':'LM Cadastrada'};
   var supData=perfilDiscFilter?data.filter(function(r){return r.disciplina===perfilDiscFilter;}):data;
-  var supCnt=cnt(supData,'status_sup');
+  var supCnt=cntSup(supData);
   var supN2=supData.length||1;
   var supTitleEl=document.getElementById('pfil-sup-title');
   if(supTitleEl) supTitleEl.textContent=perfilDiscFilter?'Situação do Suprimento — '+perfilDiscFilter:'Situação do Suprimento';
@@ -2482,9 +2487,9 @@ function renderPerfil() {
     var tot = disc[d]||0;
     var dData = data.filter(function(r){return r.disciplina===d;});
     var planE  = dData.filter(function(r){return r.status_plan==='Planejamento Encerrado';}).length;
-    var supC   = dData.filter(function(r){return r.status_sup==='Completo';}).length;
-    var supP   = dData.filter(function(r){return r.status_sup==='Pendente ESI'||r.status_sup==='Pendente ESI+BR'||r.status_sup==='Pendente BR';}).length;
-    var supN   = dData.filter(function(r){return r.status_sup==='Não Cadastrado';}).length;
+    var supC   = dData.filter(function(r){return effSup(r)==='Completo';}).length;
+    var supP   = dData.filter(function(r){var s=effSup(r);return s==='Pendente ESI'||s==='Pendente ESI+BR'||s==='Pendente BR';}).length;
+    var supN   = dData.filter(function(r){return effSup(r)==='Não Cadastrado';}).length;
     var exigT  = cnt(dData,'tipo_exigencia');
     var exigStr= Object.entries(exigT).filter(function(e){return e[1]>0;}).map(function(e){return e[0]+' ('+e[1]+')';}).join(', ')||'—';
     var fabS   = dData.filter(function(r){return r.fabricacao==='Sim';}).length;
@@ -2509,6 +2514,8 @@ function renderAll() {
   // Reaplicar restrições de perfil após cada render
   setTimeout(applyPerfilUI, 50);
   renderPerfil();
+  populateEditPlanOptions();
+  populateFPlanFilter();
 
   const data = getData();
   const n = data.length;
@@ -2517,7 +2524,7 @@ function renderAll() {
   const fab = cnt(data,'fabricacao');
   const plan = cnt(data,'status_plan');
   const lupa = cnt(data,'status_lupa');
-  const sup  = cnt(data,'status_sup');
+  const sup  = cntSup(data);
   const active = data.filter(r=>['Ativo','Novo'].includes(r.status_lupa));
   const nAct = active.length;
 
@@ -2580,7 +2587,7 @@ function renderAll() {
   // Bar: Suprimento por Disciplina
   const supByDisc = {};
   data.forEach(r => {
-    const d = r.disciplina, s = r.status_sup;
+    const d = r.disciplina, s = effSup(r);
     if(!supByDisc[d]) supByDisc[d] = {};
     supByDisc[d][s] = (supByDisc[d][s]||0)+1;
   });
@@ -2659,7 +2666,7 @@ function renderAll() {
     if(!supData[d]) supData[d]={};
     if(!fabData[d]) fabData[d]={};
     samcData[d][r.status_samc]=(samcData[d][r.status_samc]||0)+1;
-    supData[d][r.status_sup]=(supData[d][r.status_sup]||0)+1;
+    supData[d][effSup(r)]=(supData[d][effSup(r)]||0)+1;
     fabData[d][r.fabricacao]=(fabData[d][r.fabricacao]||0)+1;
   });
 
@@ -2978,17 +2985,21 @@ function applyMatSearch(val){
   applyMatStatusFilter(statusEl ? statusEl.value : '');
   Object.keys(MAT_FILTERS).forEach(k=>applyMatFilters(k, MAT_FILTERS[k]));
   if(MAT_SEARCH){
+    // a busca precisa forçar a exibição de tudo que combina, mesmo que a árvore
+    // esteja recolhida por padrão — por isso avaliamos e definimos display nos dois sentidos.
     document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(row=>{
-      if(row.style.display !== 'none' && !row.textContent.toLowerCase().includes(MAT_SEARCH)){
-        row.style.display = 'none';
-      }
+      const regHeader = document.querySelector(`#materiais-teste-body tr[data-reg-header="${row.dataset.reg}"]`);
+      const regHeaderVisivel = regHeader ? regHeader.style.display !== 'none' : true;
+      const passaFiltroColuna = row.dataset.matMatch !== '0';
+      if(!regHeaderVisivel || !passaFiltroColuna){ row.style.display = 'none'; return; }
+      row.style.display = row.textContent.toLowerCase().includes(MAT_SEARCH) ? '' : 'none';
     });
     document.querySelectorAll('#materiais-teste-body tr[data-reg-header]').forEach(rh=>{
       const slug = rh.dataset.regHeader;
       const kids = document.querySelectorAll(`#materiais-teste-body tr[data-reg="${slug}"]`);
       const anyVisible = [...kids].some(k=>k.style.display!=='none');
-      if(!anyVisible) rh.style.display = 'none';
-      else { rh.style.display=''; const ar = rh.querySelector('.arrow'); if(ar) ar.textContent='▼'; }
+      rh.style.display = anyVisible ? '' : 'none';
+      if(anyVisible){ const ar = rh.querySelector('.arrow'); if(ar) ar.textContent='▼'; }
     });
     document.querySelectorAll('#materiais-teste-body tr[data-ss-header]').forEach(ssHdr=>{
       const slug = ssHdr.dataset.ssHeader;
@@ -3012,12 +3023,10 @@ function toggleMatChartPanel(){
   if(collapsed) renderMatChart();
 }
 
-function renderMatChart(){
-  const body = document.getElementById('mat-chart-body');
-  if(!body || body.style.display === 'none') return;
+// ── Helper compartilhado: retorna os itens (nível 3) que passam em todos os filtros ativos ──
+function getMatFilteredItemRows(){
   const statusVal = document.getElementById('mat-status-filter') ? document.getElementById('mat-status-filter').value : '';
   const discVal = document.getElementById('mat-disc-filter') ? document.getElementById('mat-disc-filter').value : '';
-  // registros (nível 2) que passam nos filtros de Status do Registro e Disciplina
   const regHeaders = [...document.querySelectorAll('#materiais-teste-body tr[data-reg-header]')];
   const regsOk = new Set(regHeaders.filter(rh=>{
     if(statusVal){
@@ -3027,8 +3036,7 @@ function renderMatChart(){
     if(discVal && rh.dataset.disc !== discVal) return false;
     return true;
   }).map(rh=>rh.dataset.regHeader));
-  // itens (nível 3) que pertencem a um registro válido e passam nos filtros de coluna + busca
-  const rows = [...document.querySelectorAll('#materiais-teste-body tr[data-reg]')].filter(r=>{
+  return [...document.querySelectorAll('#materiais-teste-body tr[data-reg]')].filter(r=>{
     if(!regsOk.has(r.dataset.reg)) return false;
     for(const k in MAT_FILTERS){
       if(MAT_FILTERS[k]){
@@ -3039,6 +3047,47 @@ function renderMatChart(){
     if(MAT_SEARCH && !r.textContent.toLowerCase().includes(MAT_SEARCH)) return false;
     return true;
   });
+}
+
+// ── Card dinâmico no cabeçalho — atualiza conforme os filtros são acionados ──
+function renderMatSummaryCard(){
+  const cont = document.getElementById('mat-summary-card');
+  if(!cont) return;
+  const rows = getMatFilteredItemRows();
+  const isAdmin = _currentUser && _currentUser.perfil === 'admin';
+  const registrosSet = new Set(rows.map(r=>r.dataset.reg));
+  const total = rows.length;
+  const recebidos = rows.filter(r=>r.dataset.recebido==='1').length;
+  const pct = total ? Math.round(recebidos/total*100) : 0;
+  const valorTotal = isAdmin ? rows.reduce((s,r)=>s+(Number(r.dataset.vlrtotal)||0),0) : null;
+  cont.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">Registros</div>
+      <div style="font-size:1.25rem;font-weight:800;color:var(--text)">${registrosSet.size}</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">Itens (filtro atual)</div>
+      <div style="font-size:1.25rem;font-weight:800;color:var(--text)">${total}</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">Recebidos</div>
+      <div style="font-size:1.25rem;font-weight:800;color:var(--green)">${recebidos}/${total}</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">% Fornecido</div>
+      <div style="font-size:1.25rem;font-weight:800;color:${pct>=100?'var(--green)':'var(--accent)'}">${pct}%</div>
+    </div>
+    ${isAdmin ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">Vlr. Total (R$)</div>
+      <div style="font-size:1.05rem;font-weight:800;color:var(--text)">${valorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</div>
+    </div>` : ''}`;
+}
+
+function renderMatChart(){
+  renderMatSummaryCard();
+  const body = document.getElementById('mat-chart-body');
+  if(!body || body.style.display === 'none') return;
+  const rows = getMatFilteredItemRows();
   if(!rows.length){ body.innerHTML = '<div style="font-size:.76rem;color:var(--muted)">Nenhum item para os filtros atuais.</div>'; return; }
   const porTipo = {};
   rows.forEach(r=>{
@@ -3125,21 +3174,26 @@ function renderMateriaisTeste(){
   // valores únicos para os filtros (item 16)
   const allLinhas = registros.flatMap(r=>MATERIAIS_DATA[r].linhas);
   const uniq = key => [...new Set(allLinhas.map(l=>(l[key]||'').toString().trim()).filter(Boolean))];
-  function filterSelect(colKey){
-    const vals = uniq(colKey).sort();
+  function fillColFilter(selectId, colKey){
+    const sel = document.getElementById(selectId);
+    if(!sel) return;
     const cur = MAT_FILTERS[colKey]||'';
-    const opts = ['<option value="">Todos</option>'].concat(vals.map(v=>`<option value="${v}" ${cur===v?'selected':''}>${v}</option>`)).join('');
-    return `<select onchange="applyMatFilters('${colKey}', this.value)" style="width:100%;font-size:.64rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px;margin-top:3px">${opts}</select>`;
+    const vals = uniq(colKey).sort();
+    sel.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v.replace(/"/g,'&quot;')}" ${cur===v?'selected':''}>${v}</option>`).join('');
   }
+  fillColFilter('mat-tipo-filter','Tipo');
+  fillColFilter('mat-escopo-filter','Escopo Fornec.');
+  fillColFilter('mat-statusitem-filter','Status de Fornecimento do Item na Totalidade');
+  fillColFilter('mat-ocstatus-filter','OC Status');
   if(headEl){
     headEl.innerHTML =
       `<th>Item (Nº LM / Descrição)</th>
-       <th>Tipo${filterSelect('Tipo')}</th>
-       <th>Escopo Fornec.${filterSelect('Escopo Fornec.')}</th>
-       <th>Status Fornec. Item${filterSelect('Status de Fornecimento do Item na Totalidade')}</th>
+       <th>Tipo</th>
+       <th>Escopo Fornec.</th>
+       <th>Status Fornec. Item</th>
        <th>Prazo de Recebimento</th>
        <th>Recebido Em</th>
-       <th>OC Status${filterSelect('OC Status')}</th>
+       <th>OC Status</th>
        <th>Observações</th>` +
       (isAdmin ? '<th>Vlr. Unit. (R$)</th><th>Vlr. Total (R$)</th>' : '');
   }
@@ -3167,12 +3221,14 @@ function renderMateriaisTeste(){
       const somaTxt = isAdmin ? `&nbsp;·&nbsp; Vlr. Total (R$): ${d.somaValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}` : '';
       const temCotacao = d.linhas.some(l=>String(l['Status de Fornecimento do Item na Totalidade']||'').includes('Cotação'));
       const cotacaoNote = temCotacao ? ' <span style="background:rgba(245,158,11,.18);color:var(--warn);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens em Cotação</span>' : '';
+      const temIntegrado = d.linhas.some(l=>String(l['Status de Fornecimento do Item na Totalidade']||'').trim()==='Integrado');
+      const integradoNote = temIntegrado ? ' <span style="background:rgba(107,114,128,.18);color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens Integrados</span>' : '';
       html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" data-disc="${esc(d.disciplina)}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px">
           <span class="arrow">▶</span> <strong>${regLabel}</strong> &nbsp;
           <span style="background:${badgeColor[d.statusCalc]||'#6b9cc4'};color:#fff;padding:2px 8px;border-radius:4px;font-size:.7rem">${d.statusCalc}</span>
           ${d.pfLiberado?`<span style="background:#14b8a6;color:#fff;padding:2px 8px;border-radius:4px;font-size:.7rem;margin-left:6px">✅ Liberado para PF${d.pfNumeroEmitido?(' — PF Nº '+d.pfNumeroEmitido):''}</span>`:''}
-          <div style="font-size:.68rem;color:var(--muted);margin-top:3px;margin-left:18px">${prazoTxt}${somaTxt}${cotacaoNote}</div>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:3px;margin-left:18px">${prazoTxt}${somaTxt}${cotacaoNote}${integradoNote}</div>
         </td>
       </tr>`;
       const linhasOrd = d.linhas.map((l,idx)=>({l,idx})).sort((a,b)=>{
@@ -3181,7 +3237,7 @@ function renderMateriaisTeste(){
         return (a.l['Escopo Fornec.']||'').localeCompare(b.l['Escopo Fornec.']||'');
       });
       linhasOrd.forEach(({l,idx})=>{
-        html += `<tr data-reg="${regSlug}" data-tipo="${esc(l['Tipo']||'')}" data-escopo="${esc(l['Escopo Fornec.']||'')}" data-statusitem="${esc(l['Status de Fornecimento do Item na Totalidade']||'')}" data-ocstatus="${esc(l['OC Status']||'')}" data-recebido="${l['Recebido Em']?'1':'0'}" style="display:none">
+        html += `<tr data-reg="${regSlug}" data-tipo="${esc(l['Tipo']||'')}" data-escopo="${esc(l['Escopo Fornec.']||'')}" data-statusitem="${esc(l['Status de Fornecimento do Item na Totalidade']||'')}" data-ocstatus="${esc(l['OC Status']||'')}" data-recebido="${l['Recebido Em']?'1':'0'}" data-vlrtotal="${Number(l['Vlr. Total (R$)'])||0}" style="display:none">
           <td style="font-size:.7rem;max-width:240px">${l['Nº LM']||''} · ${l['Descrição do Material']||''} (${l['Qtd. LM']||''} ${l['Unid.']||''})</td>
           <td style="font-size:.7rem">${l['Tipo']||''}</td>
           <td style="font-size:.7rem">${l['Escopo Fornec.']||''}</td>
@@ -3602,7 +3658,7 @@ function renderProcTeste(){
       html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${d.disciplina} — ${d.nomeTarefa}</strong> &nbsp; <span style="font-size:.7rem;color:var(--muted)">${itensComApon.length} item(ns) em execução</span></td></tr>`;
       itensComApon.forEach(it=>{
-        html += `<tr data-reg="${regSlug}" data-tipo="${esc(it.tipo||'')}" data-avanco="${esc(it.apon['Avanço']||0)}" style="display:none">
+        html += `<tr data-reg="${regSlug}" data-tipo="${esc(it.tipo||'')}" data-avanco="${Math.round(avancoToPct(it.apon['Avanço']))}" style="display:none">
           <td style="font-size:.68rem">${esc(it.nInterno)}</td>
           <td style="font-size:.68rem">${esc(reg)}</td>
           <td style="font-size:.68rem">${esc(it.tag)}</td>
@@ -3610,7 +3666,7 @@ function renderProcTeste(){
           <td style="font-size:.68rem">${esc(it.tipo)}</td>
           <td style="font-size:.68rem">${esc(it.peso)}</td>
           <td style="font-size:.68rem">${esc(it.area)}</td>
-          ${PROC_COLS.map(c=>`<td style="font-size:.68rem">${esc(fmtDataBR(it.apon[c]) || it.apon[c] || '')}</td>`).join('')}
+          ${PROC_COLS.map(c=>`<td style="font-size:.68rem">${c==='Avanço' ? (it.apon[c]!=null && it.apon[c]!=='' ? Math.round(avancoToPct(it.apon[c]))+'%' : '') : esc(fmtDataBR(it.apon[c]) || it.apon[c] || '')}</td>`).join('')}
           <td style="font-size:.68rem;font-weight:700">${it.pfNumero!=null?it.pfNumero:'—'}</td>
         </tr>`;
       });
@@ -3824,7 +3880,7 @@ function computeCampaignMetrics(){
   const cancelados = all.length - total;
 
   const samc = cnt(ativos,'status_samc');
-  const sup  = cnt(ativos,'status_sup');
+  const sup  = cntSup(ativos);
   const plan = cnt(ativos,'status_plan');
   const fab  = cnt(ativos,'fabricacao');
   const prio = cnt(ativos,'prioridade');
@@ -3889,7 +3945,7 @@ function computeCampaignMetrics(){
     const rows = ativos.filter(r=>r.disciplina===d);
     const t = rows.length;
     const pe = rows.filter(r=>r.status_plan==='Planejamento Encerrado').length;
-    const sc = rows.filter(r=>r.status_sup==='Completo').length;
+    const sc = rows.filter(r=>effSup(r)==='Completo').length;
     const cf = rows.filter(r=>r.fabricacao==='Sim').length;
     return {disciplina:d, total:t, planEnc:pe, planEncPct:pct(pe,t), supCompleto:sc, supPct:pct(sc,t), comFab:cf};
   }).sort((a,b)=>b.total-a.total);
@@ -4202,7 +4258,7 @@ function getTableData() {
   const fFab  = getMsVals('ms-fab');
   if(fSamc.length) data=data.filter(r=>fSamc.includes(r.status_samc));
   if(fDisc.length) data=data.filter(r=>fDisc.includes(r.disciplina));
-  if(fSup.length)  data=data.filter(r=>fSup.includes(r.status_sup));
+  if(fSup.length)  data=data.filter(r=>fSup.includes(effSup(r)));
   if(fFab.length)  data=data.filter(r=>fFab.includes(r.fabricacao));
   if(fPlan) data=data.filter(r=>r.status_plan===fPlan);
   // Filtro múltiplo por status_plan (vindo do clique no donut)
@@ -4281,17 +4337,46 @@ function computeProcessamentoAvanco(registro){
   if(!dp || !dp.detalhamentos || !dp.detalhamentos.length) return 0;
   const comApon = dp.detalhamentos.filter(it=>it.apon && it.apon['Avanço']!=null && it.apon['Avanço']!=='');
   if(!comApon.length) return 0;
-  const vals = comApon.map(it=>{
-    let v = it.apon['Avanço'];
-    if(typeof v === 'string') v = parseFloat(v.replace('%','').replace(',','.'));
-    return isNaN(v) ? 0 : v;
-  });
+  const vals = comApon.map(it=>avancoToPct(it.apon['Avanço']));
   return Math.round(vals.reduce((a,b)=>a+b,0) / vals.length);
+}
+// Converte o valor bruto de "Avanço" (vindo do Excel, geralmente uma fração decimal
+// onde 1 = 100%, 0.5 = 50%) para percentual numérico (0-100).
+function avancoToPct(raw){
+  if(raw==null || raw==='') return 0;
+  if(typeof raw === 'number') return raw<=1 ? raw*100 : raw;
+  const hasPct = String(raw).includes('%');
+  let v = parseFloat(String(raw).replace('%','').replace(',','.'));
+  if(isNaN(v)) return 0;
+  if(!hasPct && v<=1) v = v*100;
+  return v;
 }
 function fmtProcessamentoCell(v){
   if(v === 'NA') return '<span style="color:var(--muted)">NA</span>';
   const color = v>=100 ? 'var(--green)' : v>0 ? 'var(--accent)' : 'var(--muted)';
   return `<span style="color:${color};font-weight:700">${v}%</span>`;
+}
+
+// ── Status Suprimento / Data Sup. + Tarde — quando o Registro existe em Materiais,
+// esses dois campos passam a ser calculados a partir de lá (item 6 do ajuste solicitado).
+function dateToISO(d){
+  if(!(d instanceof Date) || isNaN(d.getTime())) return '';
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function getEffectiveSupData(registro){
+  const d = MATERIAIS_DATA[registro];
+  if(!d) return null;
+  const datas = [d.prazoContratadaMax, d.prazoClienteMax].filter(Boolean);
+  const maisTarde = datas.length ? new Date(Math.max(...datas.map(x=>x.getTime()))) : null;
+  return { status: d.statusCalc, dataTarde: maisTarde };
+}
+// Helper global: retorna o Status Suprimento "efetivo" de um registro — vindo da
+// Materiais quando o registro existir lá, senão o status bruto do SAMC/Suprimento.
+// Usado para manter TODOS os gráficos/resumos sincronizados com a coluna da Tabela.
+function effSup(r){
+  const eff = getEffectiveSupData(r.registro);
+  return (eff ? eff.status : r.status_sup) || 'Não Cadastrado';
 }
 
 function renderTable() {
@@ -4310,6 +4395,9 @@ function renderTable() {
     const isCanceled = CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
     const rowStyle = isCanceled ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through' : '';
     const cancelBadge = isCanceled ? '<span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">CANCELADO</span>' : '';
+    const effSup = getEffectiveSupData(r.registro);
+    const supStatusView = effSup ? effSup.status : r.status_sup;
+    const supDateView = effSup && effSup.dataTarde ? dateToISO(effSup.dataTarde) : (r.data_sup_tarde||'');
     return `<tr style="${rowStyle}" data-registro="${r.registro}" data-fonte="${r.fonte||'BR'}">
     <td class="check-col"><input type="checkbox" class="row-chk" onchange="updateBulkBar()"></td>
     <td><button class="edit-cell-btn" onclick="openEdit('${r.registro}','${r.fonte||'BR'}')">✏️</button></td>
@@ -4321,10 +4409,11 @@ function renderTable() {
     <td style="text-align:center"><span class="chip" style="background:${fabBg};color:${fabCol}">${r.fabricacao}</span></td>
     <td style="font-size:.7rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.status_plan}">${r.status_plan}</td>
     <td>${chipLUPA(r.status_lupa)}</td>
-    <td>${chipSup(r.status_sup)}</td>
+    <td>${chipSup(supStatusView)}${effSup?' <span title="Calculado a partir da aba Materiais" style="font-size:.6rem;color:var(--blue)">🔗</span>':''}</td>
     <td class="sup-date-col">
-      <input type="date" value="${r.data_sup_tarde||''}"
+      <input type="date" value="${supDateView}"
         onchange="saveSupField(event,'${r.registro}','data_sup_tarde')"
+        ${effSup && effSup.dataTarde ? 'title="Calculado a partir da aba Materiais (Prazo de Recebimento mais tarde)"' : ''}
         style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.68rem;padding:3px 5px;font-family:var(--font);width:102px">
     </td>
     <td class="sup-chk-col">
@@ -4358,19 +4447,26 @@ const KEYS = ['registro','nro_ss','fonte','status_samc','disciplina','fabricacao
 const BOOL_KEYS = ['esi_resp','br_resp'];
 function fmtExportVal(k,v){ return BOOL_KEYS.includes(k) ? (v?'Sim':'Não') : v; }
 
+// Retorna o valor de exportação já considerando os overrides calculados
+// (Processamento, Status Suprimento e Data Sup.+Tarde vindos de Materiais),
+// sem mutar os registros originais em DATA_BR.
+function getExportVal(k, r){
+  if(k==='_processamento'){ const v=computeProcessamentoAvanco(r.registro); return v==='NA' ? 'NA' : v+'%'; }
+  if(k==='status_sup'){ const eff=getEffectiveSupData(r.registro); return eff ? eff.status : fmtExportVal(k,r[k]); }
+  if(k==='data_sup_tarde'){ const eff=getEffectiveSupData(r.registro); return (eff && eff.dataTarde) ? dateToISO(eff.dataTarde) : fmtExportVal(k,r[k]); }
+  return fmtExportVal(k,r[k]);
+}
 function exportCSV() {
   const d = getTableData();
-  d.forEach(r=>{ const v = computeProcessamentoAvanco(r.registro); r._processamento = v==='NA' ? 'NA' : v+'%'; });
   const esc = v=>`"${(v||'').toString().replace(/"/g,'""')}"`;
-  const rows = [HDR.map(esc).join(','),...d.map(r=>KEYS.map(k=>esc(fmtExportVal(k,r[k]))).join(','))];
+  const rows = [HDR.map(esc).join(','),...d.map(r=>KEYS.map(k=>esc(getExportVal(k,r))).join(','))];
   const blob = new Blob(['\uFEFF'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`Tabela_LUPA_BR_${new Date().toISOString().slice(0,10)}.csv`;a.click();
 }
 function exportXLS() {
   const d = getTableData();
-  d.forEach(r=>{ const v = computeProcessamentoAvanco(r.registro); r._processamento = v==='NA' ? 'NA' : v+'%'; });
-  const rows = [HDR,...d.map(r=>KEYS.map(k=>(fmtExportVal(k,r[k])||'').toString()))];
+  const rows = [HDR,...d.map(r=>KEYS.map(k=>(getExportVal(k,r)||'').toString()))];
   let tbl = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table style="border-collapse:collapse">';
   rows.forEach((row,i)=>{tbl+='<tr>'+row.map(c=>`<${i===0?'th':'td'} style="border:1px solid #000;${i===0?'background:#1a6fad;color:#fff;font-weight:bold;':''}">${c.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</${i===0?'th':'td'}>`).join('')+'</tr>';});
   tbl+='</table></body></html>';
@@ -4391,7 +4487,7 @@ function renderESICharts() {
   var plan = cnt(data,'status_plan');
   var lupa = cnt(data,'status_lupa');
   var fab  = cnt(data,'fabricacao');
-  var sup  = cnt(data,'status_sup');
+  var sup  = cntSup(data);
   var supColors = {
     'Completo':'#22c55e','Minuta sem Materiais de Aplicação':'#f59e0b',
     'Não Cadastrado':'#6b7280','Pendente ESI':'#ef4444',
@@ -4514,7 +4610,7 @@ function buildPlanSupData() {
         SUP_COLS.forEach(function(c) { row[c] = 0; });
         planMap[plan] = row;
       }
-      var sup = r.status_sup || 'Não Cadastrado';
+      var sup = effSup(r);
       if (planMap[plan][sup] !== undefined) planMap[plan][sup]++;
     });
     result[disc] = {
@@ -4740,7 +4836,8 @@ function renderBRCharts(discFilter) {
   // ── DONUT 3: Suprimento ───────────────────────────────────────────────────
   var supData = {}, supTooltip = {}, supClick = {};
   base.forEach(function(r) {
-    var rawSup = r.status_sup || 'Não Cadastrado';
+    var eff = (typeof getEffectiveSupData === 'function') ? getEffectiveSupData(r.registro) : null;
+    var rawSup = (eff ? eff.status : r.status_sup) || 'Não Cadastrado';
     var label  = SUP_LABEL_MAP[rawSup] || rawSup;
     var p      = r.status_plan || 'Sem Status';
     supData[label] = (supData[label]||0) + 1;
@@ -4767,7 +4864,7 @@ function renderBRCharts(discFilter) {
     var supDiscRows = discsAll.map(function(d) {
       var rows = base.filter(function(r){ return r.disciplina === d; });
       if (!rows.length) return null;
-      var completo = rows.filter(function(r){ return r.status_sup === 'Completo'; }).length;
+      var completo = rows.filter(function(r){ return effSup(r) === 'Completo'; }).length;
       return { disc: d, total: rows.length, completo: completo };
     }).filter(Boolean);
     var maxTotal = Math.max.apply(null, supDiscRows.map(function(r){return r.total;}).concat([1]));
@@ -4831,6 +4928,33 @@ function toggleTheme() {
 let editIdx = null;
 let editSource = null; // 'ESI' or 'BR' or index in combined
 
+// ── Status Planejamento — mantém o dropdown de edição atualizado com quaisquer
+// status novos que apareçam nos dados (ex: vindos da "Atualização Status Planejamento"),
+// sem perder as opções já conhecidas.
+const STATUS_PLAN_BASE = ['Planejamento Encerrado','Em Delineamento','Aprovação Delineamento ON','Verificação Delineamento ON',
+  'Delineamento Não Iniciado','Aprovação Book de Planejamento','Orçamento, Montagem e Postagem Book de Planejamento',
+  'Detalhamento','Aprovação Delineamento OFF','Cadastro e Codificação Material MIO','ADP Book de Planejamento',
+  'ADP Delineamento ON','Fixação Delineamento ON','Postagem Delineamento ON','Postagem Book Aprovado MIO',
+  'SS Cancelada','Irá sair do Escopo da ESTRUTURAL'];
+function populateEditPlanOptions(){
+  const sel = document.getElementById('edit-plan');
+  if(!sel) return;
+  const emUso = [...new Set(DATA_BR.map(r=>r.status_plan).filter(Boolean))];
+  const todos = [...new Set([...STATUS_PLAN_BASE, ...emUso])];
+  sel.innerHTML = todos.map(s=>`<option value="${String(s).replace(/"/g,'&quot;')}">${s}</option>`).join('');
+}
+// Popula o filtro "Todos Status Planejamento" da aba Tabela dinamicamente, preservando a seleção atual.
+function populateFPlanFilter(){
+  const sel = document.getElementById('f-plan');
+  if(!sel) return;
+  const cur = sel.value;
+  const emUso = [...new Set(DATA_BR.map(r=>r.status_plan).filter(Boolean))];
+  const todos = [...new Set([...STATUS_PLAN_BASE, ...emUso])].sort();
+  sel.innerHTML = '<option value="">Todos Status Planejamento</option>' +
+    todos.map(s=>`<option value="${String(s).replace(/"/g,'&quot;')}">${s}</option>`).join('');
+  if(todos.includes(cur)) sel.value = cur;
+}
+
 function openEdit(registro, fonte) {
   const arr = DATA_BR;
   const idx = arr.findIndex(r => r.registro === registro);
@@ -4843,6 +4967,7 @@ function openEdit(registro, fonte) {
   document.getElementById('edit-samc').value = r.status_samc;
   document.getElementById('edit-disc').value = r.disciplina;
   document.getElementById('edit-fab').value = r.fabricacao;
+  populateEditPlanOptions();
   document.getElementById('edit-plan').value = r.status_plan;
   document.getElementById('edit-lupa').value = r.status_lupa;
   document.getElementById('edit-sup').value = r.status_sup;
