@@ -871,8 +871,7 @@ h1{letter-spacing:.02em}
         Importe o arquivo "rcm_aplic_detalhado...xlsx" para visualizar o cruzamento por Registro, o status de suprimento calculado
         e a sinalização de liberação para PF. Os dados aqui NÃO alteram a aba Tabela — é só para validarmos a lógica juntos.
       </p>
-      <button onclick="document.getElementById('materiaisImportInput').click()" style="background:rgba(245,166,35,.15);border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:9px 16px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Importar Sistema de Materiais (Excel)</button>
-      <input type="file" id="materiaisImportInput" accept=".xlsx" multiple style="display:none" onchange="handleMateriaisImport(event)">
+      <p style="font-size:.72rem;color:var(--accent);margin-bottom:12px">🔐 A importação deste arquivo agora é feita pelo Painel Admin (botão "🔐 Admin" no topo).</p>
       <div id="materiais-resumo" style="margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
       <div id="mat-summary-card" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px"></div>
     </div>
@@ -936,8 +935,7 @@ h1{letter-spacing:.02em}
         Depende dos dados já importados na sub-aba "Materiais" (usa os Registros "Liberado para PF"). Selecione os dois arquivos juntos:
         "Relatorio_Geral_Detalhamentos.xlsx" e "Apontamento_de_Exe._Fabricacao.xlsx".
       </p>
-      <button onclick="document.getElementById('detprocImportInput').click()" style="background:rgba(245,166,35,.15);border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:9px 16px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Atualizar Detalhamento &amp; Processamento (Excel)</button>
-      <input type="file" id="detprocImportInput" accept=".xlsx" multiple style="display:none" onchange="handleDetProcImport(event)">
+      <p style="font-size:.72rem;color:var(--accent);margin-bottom:12px">🔐 A importação destes arquivos agora é feita pelo Painel Admin (botão "🔐 Admin" no topo).</p>
       <div id="detproc-resumo" style="margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
     </div>
     <div class="card">
@@ -1132,6 +1130,13 @@ h1{letter-spacing:.02em}
       </div>
     </div>
     <button onclick="showHistory()" style="width:100%;margin-bottom:18px;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📜 Histórico de Edições</button>
+    <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📦 Materiais / Detalhamento / Processamento</div>
+    <button onclick="document.getElementById('materiaisImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(245,166,35,.15);border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Importar Sistema de Materiais (Excel)</button>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:10px">Arquivo "rcm_aplic_detalhado...xlsx".</div>
+    <input type="file" id="materiaisImportInput" accept=".xlsx" multiple style="display:none" onchange="handleMateriaisImport(event)">
+    <button onclick="document.getElementById('detprocImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(245,166,35,.15);border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Atualizar Detalhamento &amp; Processamento (Excel)</button>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione juntos: "Relatorio_Geral_Detalhamentos.xlsx" e "Apontamento_de_Exe._Fabricacao.xlsx". Depende da Materiais já importada.</div>
+    <input type="file" id="detprocImportInput" accept=".xlsx" multiple style="display:none" onchange="handleDetProcImport(event)">
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📊 Planejamento</div>
     <button onclick="document.getElementById('planImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(20,184,166,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📊 Atualizar Status Planejamento (Excel)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione um ou mais arquivos "UN-BUZ...xlsx". O mais recente prevalece em caso de conflito.</div>
@@ -2793,11 +2798,20 @@ function extractFileYear(filename) {
 }
 // ── SISTEMA DE MATERIAIS (aba de teste) ─────────────────────────────────────
 let MATERIAIS_DATA = {}; // registro -> {linhas:[...], statusCalc, pfLiberado, disciplina, nomeTarefa, ss, prazoContratadaMax, prazoClienteMax}
+
 const MATERIAIS_COLS = ['Nº LM','Rev. LM','Emitida Em','Status LM','Data de Necessidade','Nº do Projeto de Execução',
   'Fase do Projeto','Registro','Descrição do Material','Unid.','Flag','Qtd. LM','Material Bloqueio?','Tipo',
   'Escopo Fornec.','Status de Fornecimento da Linha','Status de Fornecimento do Item na Totalidade','Ordem de Compra Nº',
-  'OC Emitida Em','OC Aprovada Em','Prazo de Recebimento','OC Status','Recebido Em','Quant. Receb.',
+  'OC Emitida Em','OC Aprovada Em','Prazo de Recebimento','OC Follow UP','OC Status','Recebido Em','Quant. Receb.',
   'Vlr. Unit. (R$)','Vlr. Total (R$)','Nº RIR','Status RIR'];
+// Um item é considerado "Recebido" se o Status de Fornecimento do Item na Totalidade
+// já disser "Recebido", OU se a coluna Flag indicar "Atendido" (material captado de
+// outra campanha/contrato, que entra no RCM já atendido).
+function isItemRecebido(l){
+  const status = (l['Status de Fornecimento do Item na Totalidade']||'').toString().trim();
+  const flag = (l['Flag']||'').toString().trim();
+  return status==='Recebido' || flag==='Atendido';
+}
 
 function fmtDataBR(v){
   if(!v) return '';
@@ -2845,13 +2859,12 @@ async function handleMateriaisImport(e) {
 
   MATERIAIS_DATA = {};
   Object.entries(grouped).forEach(([registro, linhas])=>{
-    const statusTotalList = linhas.map(l=>(l['Status de Fornecimento do Item na Totalidade']||'').toString().trim());
-    const todosRecebido = statusTotalList.length>0 && statusTotalList.every(s=>s==='Recebido');
+    const todosRecebido = linhas.length>0 && linhas.every(l=>isItemRecebido(l));
     let statusCalc;
     if(todosRecebido){
       statusCalc = 'Completo';
     } else {
-      const pendentes = linhas.filter(l=>(l['Status de Fornecimento do Item na Totalidade']||'').toString().trim()!=='Recebido');
+      const pendentes = linhas.filter(l=>!isItemRecebido(l));
       const escopos = new Set(pendentes.map(l=>(l['Escopo Fornec.']||'').toString().trim()));
       const temContratada = escopos.has('Contratada');
       const temCliente = escopos.has('Cliente');
@@ -2861,12 +2874,14 @@ async function handleMateriaisImport(e) {
       else statusCalc = 'Não Cadastrado';
     }
     const linhasFab = linhas.filter(l=>(l['Tipo']||'').toString().trim()==='Fabricação');
-    const pfLiberado = linhasFab.length>0 && linhasFab.every(l=>(l['Status de Fornecimento do Item na Totalidade']||'').toString().trim()==='Recebido');
+    const pfLiberado = linhasFab.length>0 && linhasFab.every(l=>isItemRecebido(l));
 
-    // item 14 — maior "Prazo de Recebimento" por Escopo Fornec. (Contratada / Cliente)
+    // item 14 — maior "OC Follow UP" por Escopo Fornec. (Contratada / Cliente).
+    // Essa coluna já reflete o prazo original + a data repactuada, caso o fornecedor
+    // tenha alterado a data de entrega — por isso substituiu "Prazo de Recebimento" aqui.
     function maxPrazo(escopo){
-      const datas = linhas.filter(l=>(l['Escopo Fornec.']||'').toString().trim()===escopo && l['Prazo de Recebimento'] instanceof Date)
-                          .map(l=>l['Prazo de Recebimento']);
+      const datas = linhas.filter(l=>(l['Escopo Fornec.']||'').toString().trim()===escopo && l['OC Follow UP'] instanceof Date)
+                          .map(l=>l['OC Follow UP']);
       if(!datas.length) return null;
       return new Date(Math.max(...datas.map(d=>d.getTime())));
     }
@@ -2886,6 +2901,7 @@ async function handleMateriaisImport(e) {
   const statusFilterEl = document.getElementById('mat-status-filter');
   if(statusFilterEl) statusFilterEl.value = '';
   renderMateriaisTeste();
+  pushMateriaisToCloud();
   flash(`✅ Sistema de Materiais importado: ${Object.keys(MATERIAIS_DATA).length} registro(s) processado(s).`, '#22c55e', 5000);
   e.target.value = '';
 }
@@ -3237,7 +3253,7 @@ function renderMateriaisTeste(){
         return (a.l['Escopo Fornec.']||'').localeCompare(b.l['Escopo Fornec.']||'');
       });
       linhasOrd.forEach(({l,idx})=>{
-        html += `<tr data-reg="${regSlug}" data-tipo="${esc(l['Tipo']||'')}" data-escopo="${esc(l['Escopo Fornec.']||'')}" data-statusitem="${esc(l['Status de Fornecimento do Item na Totalidade']||'')}" data-ocstatus="${esc(l['OC Status']||'')}" data-recebido="${l['Recebido Em']?'1':'0'}" data-vlrtotal="${Number(l['Vlr. Total (R$)'])||0}" style="display:none">
+        html += `<tr data-reg="${regSlug}" data-tipo="${esc(l['Tipo']||'')}" data-escopo="${esc(l['Escopo Fornec.']||'')}" data-statusitem="${esc(l['Status de Fornecimento do Item na Totalidade']||'')}" data-ocstatus="${esc(l['OC Status']||'')}" data-recebido="${isItemRecebido(l)?'1':'0'}" data-vlrtotal="${Number(l['Vlr. Total (R$)'])||0}" style="display:none">
           <td style="font-size:.7rem;max-width:240px">${l['Nº LM']||''} · ${l['Descrição do Material']||''} (${l['Qtd. LM']||''} ${l['Unid.']||''})</td>
           <td style="font-size:.7rem">${l['Tipo']||''}</td>
           <td style="font-size:.7rem">${l['Escopo Fornec.']||''}</td>
@@ -3483,6 +3499,8 @@ async function handleDetProcImport(e){
   DET_EXPAND_LEVEL = 0; PROC_EXPAND_LEVEL = 0;
   renderDetTeste();
   renderProcTeste();
+  pushDetProcToCloud();
+  pushMateriaisToCloud(); // pfNumeroEmitido foi atualizado em MATERIAIS_DATA acima
   flash(`✅ Detalhamento & Processamento importado: ${Object.keys(DETPROC_DATA).length} registro(s) processado(s).`, '#22c55e', 5000);
   e.target.value = '';
 }
@@ -4413,7 +4431,7 @@ function renderTable() {
     <td class="sup-date-col">
       <input type="date" value="${supDateView}"
         onchange="saveSupField(event,'${r.registro}','data_sup_tarde')"
-        ${effSup && effSup.dataTarde ? 'title="Calculado a partir da aba Materiais (Prazo de Recebimento mais tarde)"' : ''}
+        ${effSup && effSup.dataTarde ? 'title="Calculado a partir da aba Materiais (OC Follow UP mais tarde entre Contratada/Cliente)"' : ''}
         style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.68rem;padding:3px 5px;font-family:var(--font);width:102px">
     </td>
     <td class="sup-chk-col">
@@ -5183,6 +5201,68 @@ function jsonbinHeaders() {
   return { 'Content-Type': 'application/json' }; // Firebase (regras abertas) não usa Master Key
 }
 
+// ── Sincronização em nuvem (Firebase) — Materiais / Detalhamento / Processamento ──
+// Guardados em caminhos próprios no mesmo Realtime Database já usado para as edições
+// da Tabela. Datas (Date objects) precisam de um replacer/reviver, pois JSON puro não as preserva.
+function dateReplacer(key, value){
+  if(this[key] instanceof Date) return { __isDate: true, iso: this[key].toISOString() };
+  return value;
+}
+function dateReviver(key, value){
+  if(value && typeof value === 'object' && value.__isDate) return new Date(value.iso);
+  return value;
+}
+async function pushMateriaisToCloud(){
+  try {
+    await fetch(`${FIREBASE_URL}/lupa_materiais.json`, {
+      method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(MATERIAIS_DATA, dateReplacer)
+    });
+  } catch(e){
+    console.warn('[LUPA] Erro ao enviar Materiais para a nuvem:', e);
+    flash('⚠️ Materiais importado, mas não foi possível sincronizar com a nuvem agora (tente "🔄 Sincronizar Agora" no Painel Admin).', '#f59e0b', 7000);
+  }
+}
+async function pushDetProcToCloud(){
+  try {
+    await fetch(`${FIREBASE_URL}/lupa_detproc.json`, {
+      method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(DETPROC_DATA, dateReplacer)
+    });
+  } catch(e){
+    console.warn('[LUPA] Erro ao enviar Detalhamento/Processamento para a nuvem:', e);
+    flash('⚠️ Detalhamento/Processamento importado, mas não foi possível sincronizar com a nuvem agora (tente "🔄 Sincronizar Agora" no Painel Admin).', '#f59e0b', 7000);
+  }
+}
+async function pullMateriaisFromCloud(){
+  try {
+    const res = await fetch(`${FIREBASE_URL}/lupa_materiais.json`, { headers: jsonbinHeaders() });
+    if(!res.ok) return false;
+    const text = await res.text();
+    if(!text || text === 'null') return false;
+    MATERIAIS_DATA = JSON.parse(text, dateReviver);
+    return true;
+  } catch(e){ console.warn('[LUPA] Erro ao buscar Materiais da nuvem:', e); return false; }
+}
+async function pullDetProcFromCloud(){
+  try {
+    const res = await fetch(`${FIREBASE_URL}/lupa_detproc.json`, { headers: jsonbinHeaders() });
+    if(!res.ok) return false;
+    const text = await res.text();
+    if(!text || text === 'null') return false;
+    DETPROC_DATA = JSON.parse(text, dateReviver);
+    return true;
+  } catch(e){ console.warn('[LUPA] Erro ao buscar Detalhamento/Processamento da nuvem:', e); return false; }
+}
+// Busca Materiais + Detalhamento/Processamento da nuvem e re-renderiza as 3 sub-abas
+async function pullMateriaisDetProcAndRender(){
+  const [gotMat, gotDet] = await Promise.all([pullMateriaisFromCloud(), pullDetProcFromCloud()]);
+  if(gotMat || gotDet){
+    renderMateriaisTeste();
+    renderDetTeste();
+    renderProcTeste();
+  }
+  return gotMat || gotDet;
+}
+
 async function pushEdits() {
   // Salva sempre no localStorage primeiro (backup local imediato)
   saveLocalEdits();
@@ -5317,6 +5397,7 @@ async function recoverEdits() {
   if(btn) { btn.style.opacity='0.5'; btn.style.pointerEvents='none'; btn.textContent = '⏳ Recuperando...'; }
   try {
     await pullEditsAndMerge();
+    await pullMateriaisDetProcAndRender();
   } finally {
     if(btn) { btn.style.opacity=''; btn.style.pointerEvents=''; btn.textContent = '🔄 Recuperar Edições'; }
   }
@@ -5495,7 +5576,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     // Puxa nuvem e mescla com local
     await pullEditsAndMerge();
+    await pullMateriaisDetProcAndRender();
     setInterval(() => pullEdits(true), 300000); // 5 min — reduzido para poupar cota gratuita do JSONBin
+    setInterval(() => pullMateriaisDetProcAndRender(), 300000); // idem, para Materiais/Detalhamento/Processamento
   }
 });
 </script>
