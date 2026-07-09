@@ -362,6 +362,7 @@ h1{letter-spacing:.02em}
   </div>
   <div style="display:flex;align-items:center;gap:14px;padding:0 16px;font-size:.72rem;color:var(--muted)">
     <span id="sync-status">☁️ Aguardando configuração</span>
+    <span id="mat-sync-status" style="color:var(--muted)"></span>
     <span>|</span>
     <span>👤 <span id="sync-user-label">—</span></span>
     <span onclick="recoverEdits()" style="cursor:pointer;color:var(--teal);font-weight:700" title="Recuperar edições do localStorage e da nuvem" id="btn-recover">🔄 Recuperar Edições</span>
@@ -2901,8 +2902,9 @@ async function handleMateriaisImport(e) {
   const statusFilterEl = document.getElementById('mat-status-filter');
   if(statusFilterEl) statusFilterEl.value = '';
   renderMateriaisTeste();
-  pushMateriaisToCloud();
-  flash(`✅ Sistema de Materiais importado: ${Object.keys(MATERIAIS_DATA).length} registro(s) processado(s).`, '#22c55e', 5000);
+  flash(`✅ Sistema de Materiais importado localmente: ${Object.keys(MATERIAIS_DATA).length} registro(s). Enviando para a nuvem...`, '#1a6fad', 4000);
+  const ok = await pushMateriaisToCloud();
+  if(ok) flash(`☁️ Materiais sincronizado com a nuvem às ${new Date().toLocaleTimeString('pt-BR')}. Já pode fechar o Dashboard com segurança.`, '#22c55e', 7000);
   e.target.value = '';
 }
 
@@ -3499,9 +3501,9 @@ async function handleDetProcImport(e){
   DET_EXPAND_LEVEL = 0; PROC_EXPAND_LEVEL = 0;
   renderDetTeste();
   renderProcTeste();
-  pushDetProcToCloud();
-  pushMateriaisToCloud(); // pfNumeroEmitido foi atualizado em MATERIAIS_DATA acima
-  flash(`✅ Detalhamento & Processamento importado: ${Object.keys(DETPROC_DATA).length} registro(s) processado(s).`, '#22c55e', 5000);
+  flash(`✅ Detalhamento & Processamento importado localmente: ${Object.keys(DETPROC_DATA).length} registro(s). Enviando para a nuvem...`, '#1a6fad', 4000);
+  const [ok1, ok2] = await Promise.all([pushDetProcToCloud(), pushMateriaisToCloud()]); // pfNumeroEmitido foi atualizado em MATERIAIS_DATA acima
+  if(ok1 && ok2) flash(`☁️ Detalhamento/Processamento sincronizado com a nuvem às ${new Date().toLocaleTimeString('pt-BR')}. Já pode fechar o Dashboard com segurança.`, '#22c55e', 7000);
   e.target.value = '';
 }
 
@@ -4600,10 +4602,17 @@ function showTab(id, el) {
   if(id === 'graficos-esi' && !_chartRendered[id]){
     _chartRendered[id] = true; setTimeout(renderESICharts, 60);
   }
-  if(id === 'graficos-br' && !_chartRendered[id]){
-    _chartRendered[id] = true; setTimeout(renderBRCharts, 60);
+  if(id === 'graficos-br'){
+    // Este painel depende de Materiais (effSup) — busca a versão mais recente da nuvem
+    // sempre que a aba é aberta, em vez de confiar só no intervalo de 5 minutos.
+    pullMateriaisDetProcAndRender();
+    setTimeout(renderBRCharts, 60);
+  }
+  if(id === 'suprfab-teste'){
+    pullMateriaisDetProcAndRender();
   }
   if(id === 'fluxo'){
+    pullMateriaisDetProcAndRender();
     populateFluxoList();
     const cont = document.getElementById('fluxo-resultado');
     if(cont && !cont.innerHTML.trim()) cont.innerHTML = '<div class="flux-empty">Digite ou selecione uma SS para começar o rastreamento.</div>';
@@ -5212,24 +5221,71 @@ function dateReviver(key, value){
   if(value && typeof value === 'object' && value.__isDate) return new Date(value.iso);
   return value;
 }
+// Firebase Realtime Database recusa chaves com . $ # [ ] / — e várias colunas do Excel
+// têm exatamente esses caracteres (ex: "Vlr. Total (R$)", "Ensaios/Inspeções", "Escopo Fornec.").
+// Estas funções "traduzem" as chaves só na hora de enviar/receber da nuvem, sem afetar
+// o resto do código (que continua usando os nomes originais das colunas normalmente).
+const FB_KEY_MAP = [ [/\./g,'__DOT__'], [/\$/g,'__DOLLAR__'], [/#/g,'__HASH__'], [/\[/g,'__LB__'], [/\]/g,'__RB__'], [/\//g,'__SLASH__'] ];
+function fbEncodeKey(k){ let s=k; FB_KEY_MAP.forEach(([re,rep])=>{ s=s.replace(re,rep); }); return s; }
+function fbDecodeKey(k){ let s=k; s=s.replace(/__DOT__/g,'.').replace(/__DOLLAR__/g,'$').replace(/__HASH__/g,'#').replace(/__LB__/g,'[').replace(/__RB__/g,']').replace(/__SLASH__/g,'/'); return s; }
+function fbSanitizeDeep(value){
+  if(Array.isArray(value)) return value.map(fbSanitizeDeep);
+  if(value instanceof Date) return value;
+  if(value && typeof value === 'object'){
+    const out = {};
+    for(const k in value) out[fbEncodeKey(k)] = fbSanitizeDeep(value[k]);
+    return out;
+  }
+  return value;
+}
+function fbRestoreDeep(value){
+  if(Array.isArray(value)) return value.map(fbRestoreDeep);
+  if(value instanceof Date) return value;
+  if(value && typeof value === 'object'){
+    const out = {};
+    for(const k in value) out[fbDecodeKey(k)] = fbRestoreDeep(value[k]);
+    return out;
+  }
+  return value;
+}
 async function pushMateriaisToCloud(){
   try {
-    await fetch(`${FIREBASE_URL}/lupa_materiais.json`, {
-      method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(MATERIAIS_DATA, dateReplacer)
+    const body = JSON.stringify(fbSanitizeDeep(MATERIAIS_DATA), dateReplacer);
+    // 'keepalive' tem limite de ~64KB no navegador — acima disso, o fetch falha
+    // imediatamente se usarmos essa flag. Só vale a pena para payloads pequenos.
+    const useKeepalive = body.length < 60000;
+    const res = await fetch(`${FIREBASE_URL}/lupa_materiais.json`, {
+      method:'PUT', headers: jsonbinHeaders(), keepalive: useKeepalive, body
     });
+    if(!res.ok){
+      console.warn('[LUPA] Firebase respondeu erro ao enviar Materiais:', res.status);
+      flash(`⚠️ A nuvem recusou o envio de Materiais (erro ${res.status}). Tente "🔄 Sincronizar Agora" no Painel Admin.`, '#f59e0b', 7000);
+      return false;
+    }
+    return true;
   } catch(e){
     console.warn('[LUPA] Erro ao enviar Materiais para a nuvem:', e);
-    flash('⚠️ Materiais importado, mas não foi possível sincronizar com a nuvem agora (tente "🔄 Sincronizar Agora" no Painel Admin).', '#f59e0b', 7000);
+    flash(`⚠️ Materiais importado, mas não foi possível sincronizar com a nuvem agora (${e.message||e}). Tente "🔄 Sincronizar Agora" no Painel Admin.`, '#f59e0b', 8000);
+    return false;
   }
 }
 async function pushDetProcToCloud(){
   try {
-    await fetch(`${FIREBASE_URL}/lupa_detproc.json`, {
-      method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(DETPROC_DATA, dateReplacer)
+    const body = JSON.stringify(fbSanitizeDeep(DETPROC_DATA), dateReplacer);
+    const useKeepalive = body.length < 60000;
+    const res = await fetch(`${FIREBASE_URL}/lupa_detproc.json`, {
+      method:'PUT', headers: jsonbinHeaders(), keepalive: useKeepalive, body
     });
+    if(!res.ok){
+      console.warn('[LUPA] Firebase respondeu erro ao enviar Detalhamento/Processamento:', res.status);
+      flash(`⚠️ A nuvem recusou o envio de Detalhamento/Processamento (erro ${res.status}). Tente "🔄 Sincronizar Agora" no Painel Admin.`, '#f59e0b', 7000);
+      return false;
+    }
+    return true;
   } catch(e){
     console.warn('[LUPA] Erro ao enviar Detalhamento/Processamento para a nuvem:', e);
-    flash('⚠️ Detalhamento/Processamento importado, mas não foi possível sincronizar com a nuvem agora (tente "🔄 Sincronizar Agora" no Painel Admin).', '#f59e0b', 7000);
+    flash(`⚠️ Detalhamento/Processamento importado, mas não foi possível sincronizar com a nuvem agora (${e.message||e}). Tente "🔄 Sincronizar Agora" no Painel Admin.`, '#f59e0b', 8000);
+    return false;
   }
 }
 async function pullMateriaisFromCloud(){
@@ -5238,7 +5294,7 @@ async function pullMateriaisFromCloud(){
     if(!res.ok) return false;
     const text = await res.text();
     if(!text || text === 'null') return false;
-    MATERIAIS_DATA = JSON.parse(text, dateReviver);
+    MATERIAIS_DATA = fbRestoreDeep(JSON.parse(text, dateReviver));
     return true;
   } catch(e){ console.warn('[LUPA] Erro ao buscar Materiais da nuvem:', e); return false; }
 }
@@ -5248,7 +5304,7 @@ async function pullDetProcFromCloud(){
     if(!res.ok) return false;
     const text = await res.text();
     if(!text || text === 'null') return false;
-    DETPROC_DATA = JSON.parse(text, dateReviver);
+    DETPROC_DATA = fbRestoreDeep(JSON.parse(text, dateReviver));
     return true;
   } catch(e){ console.warn('[LUPA] Erro ao buscar Detalhamento/Processamento da nuvem:', e); return false; }
 }
@@ -5259,6 +5315,12 @@ async function pullMateriaisDetProcAndRender(){
     renderMateriaisTeste();
     renderDetTeste();
     renderProcTeste();
+  }
+  const el = document.getElementById('mat-sync-status');
+  if(el){
+    el.textContent = (gotMat||gotDet)
+      ? `📦 Materiais/Det./Proc. atualizado ${new Date().toLocaleTimeString('pt-BR')}`
+      : '📦 Materiais/Det./Proc.: nada na nuvem ainda';
   }
   return gotMat || gotDet;
 }
