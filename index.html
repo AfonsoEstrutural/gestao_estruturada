@@ -383,7 +383,7 @@ h1{letter-spacing:.02em}
   <div class="tab" onclick="showTab('cronograma',this)">📅 Cronograma</div>
   <div class="tab" onclick="showTab('graficos-esi',this)">📈 Gráficos Visão Geral</div>
   <div class="tab" onclick="showTab('graficos-br',this)">📊 Gráficos Etapas BR</div>
-  <div class="tab" onclick="showTab('suprfab-teste',this)" style="color:var(--warn)">🧪 Suprimento &amp; Fabricação (Teste)</div>
+  <div class="tab" onclick="showTab('suprfab-teste',this)">📦 Suprimento &amp; Fabricação</div>
   <div class="tab" onclick="showTab('fluxo',this)">🔗 Fluxo do Processo</div>
 </nav>
 
@@ -867,10 +867,10 @@ h1{letter-spacing:.02em}
 
   <div id="suprfab-sub-materiais">
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🧪 Sistema de Materiais — Aba de Teste (não afeta o Dashboard oficial)</div>
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📦 Sistema de Materiais</div>
       <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">
         Importe o arquivo "rcm_aplic_detalhado...xlsx" para visualizar o cruzamento por Registro, o status de suprimento calculado
-        e a sinalização de liberação para PF. Os dados aqui NÃO alteram a aba Tabela — é só para validarmos a lógica juntos.
+        e a sinalização de liberação para PF.
       </p>
       <p style="font-size:.72rem;color:var(--accent);margin-bottom:12px">🔐 A importação deste arquivo agora é feita pelo Painel Admin (botão "🔐 Admin" no topo).</p>
       <div id="materiais-resumo" style="margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
@@ -912,6 +912,7 @@ h1{letter-spacing:.02em}
         </select>
         <input id="mat-search-input" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyMatSearch(this.value)"
           style="flex:1;min-width:180px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+        <button onclick="limparFiltrosMateriais()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
       </div>
       <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
         <div onclick="toggleMatChartPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
@@ -931,7 +932,7 @@ h1{letter-spacing:.02em}
 
   <div id="suprfab-sub-detalhamento" style="display:none">
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🧪 Detalhamento &amp; Processamento — Aba de Teste (não afeta o Dashboard oficial)</div>
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📐 Detalhamento &amp; Processamento</div>
       <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">
         Depende dos dados já importados na sub-aba "Materiais" (usa os Registros "Liberado para PF"). Selecione os dois arquivos juntos:
         "Relatorio_Geral_Detalhamentos.xlsx" e "Apontamento_de_Exe._Fabricacao.xlsx".
@@ -949,6 +950,7 @@ h1{letter-spacing:.02em}
         </select>
         <input id="det-search-input" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyDetSearch(this.value)"
           style="flex:1;min-width:180px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+        <button onclick="limparFiltrosDetalhamento()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
       </div>
       <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
         <div onclick="toggleDetChartPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
@@ -977,6 +979,7 @@ h1{letter-spacing:.02em}
         </select>
         <input id="proc-search-input" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyProcSearch(this.value)"
           style="flex:1;min-width:180px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+        <button onclick="limparFiltrosProcessamento()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
       </div>
       <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
         <div onclick="toggleProcChartPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
@@ -1010,6 +1013,7 @@ h1{letter-spacing:.02em}
         onkeydown="if(event.key==='Enter') renderFluxo()">
       <datalist id="fluxo-ss-list"></datalist>
       <button onclick="renderFluxo()" style="background:var(--blue);border:none;color:#fff;border-radius:6px;padding:10px 20px;font-size:.82rem;font-weight:800;cursor:pointer;font-family:var(--font)">🔍 Rastrear</button>
+      <button onclick="limparFiltrosFluxo()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:6px;padding:10px 20px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
     </div>
   </div>
   <div id="fluxo-resultado"></div>
@@ -2996,6 +3000,21 @@ function toggleAllMatLevels(){
 
 // ── Busca livre (Materiais) — atua sobre os itens (nível 3) já filtrados ──
 let MAT_SEARCH = '';
+// Reseta todos os filtros da aba Materiais (Status do Registro, Disciplina, Tipo,
+// Escopo Fornec., Status Fornec. Item, OC Status e busca livre) de uma vez.
+function limparFiltrosMateriais(){
+  ['mat-status-filter','mat-disc-filter','mat-tipo-filter','mat-escopo-filter','mat-statusitem-filter','mat-ocstatus-filter'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  const searchEl = document.getElementById('mat-search-input');
+  if(searchEl) searchEl.value = '';
+  MAT_FILTERS = {};
+  applyMatStatusFilter('');
+  applyDisciplinaFilter('materiais-teste','');
+  applyMatSearch('');
+}
+
 function applyMatSearch(val){
   MAT_SEARCH = (val||'').trim().toLowerCase();
   // reconstrói a visibilidade base a partir dos filtros de coluna e status já ativos
@@ -3386,6 +3405,14 @@ function _fluxoStageInfo(kind, reg){
   }
 }
 
+// Reseta a busca da aba Fluxo do Processo
+function limparFiltrosFluxo(){
+  const input = document.getElementById('fluxo-ss-input');
+  if(input) input.value = '';
+  const cont = document.getElementById('fluxo-resultado');
+  if(cont) cont.innerHTML = '<div class="flux-empty">Digite ou selecione uma SS para começar o rastreamento.</div>';
+}
+
 function renderFluxo(){
   const input = document.getElementById('fluxo-ss-input');
   const val = (input ? input.value : '').trim();
@@ -3569,6 +3596,16 @@ function exportDetNivelAtual(){ exportNivelAtualGenerico('det-teste-head','det-t
 
 // ── Busca livre + gráfico simples (Detalhamento) ──────────────────────────────
 let DET_SEARCH = '';
+// Reseta os filtros da aba Detalhamento (Disciplina + busca livre)
+function limparFiltrosDetalhamento(){
+  const discEl = document.getElementById('det-disc-filter');
+  if(discEl) discEl.value = '';
+  const searchEl = document.getElementById('det-search-input');
+  if(searchEl) searchEl.value = '';
+  applyDisciplinaFilter('det-teste','');
+  applyDetSearch('');
+}
+
 function applyDetSearch(val){
   DET_SEARCH = (val||'').trim().toLowerCase();
   document.querySelectorAll('#det-teste-body tr[data-reg]').forEach(row=>{
@@ -3710,6 +3747,16 @@ function exportProcNivelAtual(){ exportNivelAtualGenerico('proc-teste-head','pro
 
 // ── Busca livre + gráfico simples (Processamento) ─────────────────────────────
 let PROC_SEARCH = '';
+// Reseta os filtros da aba Processamento (Disciplina + busca livre)
+function limparFiltrosProcessamento(){
+  const discEl = document.getElementById('proc-disc-filter');
+  if(discEl) discEl.value = '';
+  const searchEl = document.getElementById('proc-search-input');
+  if(searchEl) searchEl.value = '';
+  applyDisciplinaFilter('proc-teste','');
+  applyProcSearch('');
+}
+
 function applyProcSearch(val){
   PROC_SEARCH = (val||'').trim().toLowerCase();
   document.querySelectorAll('#proc-teste-body tr[data-reg]').forEach(row=>{
