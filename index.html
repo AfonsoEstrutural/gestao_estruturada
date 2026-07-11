@@ -385,6 +385,7 @@ h1{letter-spacing:.02em}
   <div class="tab" onclick="showTab('graficos-br',this)">📊 Gráficos Etapas BR</div>
   <div class="tab" onclick="showTab('suprfab-teste',this)">📦 Suprimento &amp; Fabricação</div>
   <div class="tab" onclick="showTab('fluxo',this)">🔗 Fluxo do Processo</div>
+  <div class="tab" onclick="showTab('evolucao',this)">🕒 Evolução</div>
 </nav>
 
 <main>
@@ -1019,6 +1020,35 @@ h1{letter-spacing:.02em}
   <div id="fluxo-resultado"></div>
 </div>
 
+<!-- ═══════════ EVOLUÇÃO SEMANAL ═══════════ -->
+<div class="section" id="evolucao">
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-title"><span class="dot" style="background:var(--teal)"></span>🕒 Evolução — Comparar Dois Marcos no Tempo</div>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px">
+      Compare o estado da campanha entre duas datas para ver o que avançou: KPIs agregados e a lista de registros
+      que mudaram de status. Marcos são salvos automaticamente uma vez por semana, e você pode salvar um marco manual
+      a qualquer momento pelo Painel Admin (🔐 Admin → 📸 Salvar Marco Agora).
+    </p>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:220px">
+        <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">De (mais antigo):</label>
+        <select id="evo-de" style="width:100%;font-size:.78rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px">
+          <option value="">Carregando...</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:220px">
+        <label style="font-size:.72rem;color:var(--muted);display:block;margin-bottom:4px">Até (mais recente):</label>
+        <select id="evo-ate" style="width:100%;font-size:.78rem;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px">
+          <option value="">Carregando...</option>
+        </select>
+      </div>
+      <button onclick="compararEvolucao()" style="background:var(--teal);border:none;color:#fff;border-radius:6px;padding:10px 20px;font-size:.82rem;font-weight:800;cursor:pointer;font-family:var(--font)">📊 Comparar</button>
+      <button onclick="populateEvolucaoSelects()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:10px 16px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">🔄 Atualizar Lista</button>
+    </div>
+  </div>
+  <div id="evo-resultado"></div>
+</div>
+
 <!-- ═══════════ CRONOGRAMA ═══════════ -->
 <div class="section" id="cronograma">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
@@ -1146,6 +1176,9 @@ h1{letter-spacing:.02em}
     <button onclick="document.getElementById('planImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(20,184,166,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📊 Atualizar Status Planejamento (Excel)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione um ou mais arquivos "UN-BUZ...xlsx". O mais recente prevalece em caso de conflito.</div>
     <input type="file" id="planImportInput" accept=".xlsx" multiple style="display:none" onchange="handlePlanImport(event)">
+    <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🕒 Evolução</div>
+    <button onclick="salvarMarcoManual()" style="width:100%;margin-bottom:14px;background:rgba(20,184,166,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📸 Salvar Marco Agora</button>
+
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🗑️ Manutenção</div>
     <button onclick="clearCloudEdits()" style="width:100%;margin-bottom:7px;background:rgba(239,68,68,.12);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">🗑️ Limpar Edições da Nuvem</button>
     <div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:6px">
@@ -4664,6 +4697,9 @@ function showTab(id, el) {
     const cont = document.getElementById('fluxo-resultado');
     if(cont && !cont.innerHTML.trim()) cont.innerHTML = '<div class="flux-empty">Digite ou selecione uma SS para começar o rastreamento.</div>';
   }
+  if(id === 'evolucao'){
+    populateEvolucaoSelects();
+  }
 }
 
 // ── BUILD PLAN SUP DATA (dinâmico, usa getData()) ────────────────────────────
@@ -5372,6 +5408,211 @@ async function pullMateriaisDetProcAndRender(){
   return gotMat || gotDet;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// ── EVOLUÇÃO SEMANAL — snapshots (fotos) do estado da campanha ao longo do tempo
+// ══════════════════════════════════════════════════════════════════════════
+// Cada snapshot guarda, por Registro (escopo ativo): status_plan, status_samc,
+// status_lupa, status_sup (efetivo, já cruzado com Materiais) e % de Processamento.
+// Chave 100% numérica/underscore para não esbarrar nas restrições de chave do Firebase.
+function pad2(n){ return String(n).padStart(2,'0'); }
+function snapshotKeyFromDate(d){
+  return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+}
+// Identificador de semana ISO (ano + número da semana), só dígitos/underscore/W.
+function isoWeekKey(d){
+  const dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (dt.getUTCDay() + 6) % 7; // segunda=0
+  dt.setUTCDate(dt.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(dt.getUTCFullYear(),0,4));
+  const week = 1 + Math.round(((dt - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay()+6)%7)) / 7);
+  return `${dt.getUTCFullYear()}_W${pad2(week)}`;
+}
+function buildSnapshotPayload(label, isAuto){
+  const data = getData(); // mesmo escopo ativo usado no resto do Dashboard
+  const registros = data.map(r => ({
+    registro: r.registro,
+    nro_ss: r.nro_ss,
+    disciplina: r.disciplina,
+    status_plan: r.status_plan,
+    status_samc: r.status_samc,
+    status_lupa: r.status_lupa,
+    status_sup: effSup(r),
+    fabricacao: r.fabricacao,
+    processamento: computeProcessamentoAvanco(r.registro)
+  }));
+  return {
+    timestamp: new Date().toISOString(),
+    label: label || (isAuto ? 'Automático (semanal)' : 'Marco manual'),
+    isAuto: !!isAuto,
+    totalAtivos: registros.length,
+    registros
+  };
+}
+async function pushSnapshot(key, payload){
+  try {
+    const res = await fetch(`${FIREBASE_URL}/lupa_snapshots/${key}.json`, {
+      method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch(e){ console.warn('[LUPA] Erro ao salvar snapshot:', e); return false; }
+}
+async function listSnapshots(){
+  try {
+    const res = await fetch(`${FIREBASE_URL}/lupa_snapshots.json`, { headers: jsonbinHeaders() });
+    if(!res.ok) return {};
+    const data = await res.json();
+    return data || {};
+  } catch(e){ console.warn('[LUPA] Erro ao listar snapshots:', e); return {}; }
+}
+// Salva o snapshot automático da semana, uma única vez por semana (não sobrescreve
+// se já existir um para a semana corrente, então funciona mesmo com várias pessoas abrindo).
+async function autoSnapshotIfNeeded(){
+  try {
+    const key = 'auto_' + isoWeekKey(new Date());
+    const res = await fetch(`${FIREBASE_URL}/lupa_snapshots/${key}.json`, { headers: jsonbinHeaders() });
+    const existing = res.ok ? await res.json() : null;
+    if(existing) return; // já existe um snapshot desta semana
+    const payload = buildSnapshotPayload('Automático (semanal)', true);
+    await pushSnapshot(key, payload);
+    console.log('[LUPA] Snapshot automático da semana salvo:', key);
+  } catch(e){ console.warn('[LUPA] Erro no snapshot automático:', e); }
+}
+// Botão manual — "📸 Salvar Marco Agora" (Painel Admin)
+async function salvarMarcoManual(){
+  const label = prompt('Nome/descrição deste marco (opcional):', '') || '';
+  const key = 'manual_' + snapshotKeyFromDate(new Date());
+  flash('📸 Salvando marco...', '#1a6fad', 3000);
+  const payload = buildSnapshotPayload(label, false);
+  const ok = await pushSnapshot(key, payload);
+  flash(ok ? `✅ Marco "${payload.label}" salvo com sucesso!` : '⚠️ Não foi possível salvar o marco agora. Tente de novo.', ok?'#22c55e':'#ef4444', 5000);
+  if(ok) populateEvolucaoSelects();
+}
+
+// ── Tela de Evolução: popula os seletores "De" / "Até" com os snapshots disponíveis ──
+let _evoSnapshotsCache = {};
+async function populateEvolucaoSelects(){
+  const de = document.getElementById('evo-de');
+  const ate = document.getElementById('evo-ate');
+  if(!de || !ate) return;
+  de.innerHTML = '<option value="">Carregando...</option>';
+  ate.innerHTML = '<option value="">Carregando...</option>';
+  _evoSnapshotsCache = await listSnapshots();
+  const entries = Object.entries(_evoSnapshotsCache)
+    .filter(([k,v])=>v && v.timestamp)
+    .sort((a,b)=> new Date(a[1].timestamp) - new Date(b[1].timestamp));
+  if(!entries.length){
+    de.innerHTML = '<option value="">Nenhum marco salvo ainda</option>';
+    ate.innerHTML = '<option value="">Nenhum marco salvo ainda</option>';
+    return;
+  }
+  const opts = entries.map(([k,v])=>{
+    const dt = new Date(v.timestamp).toLocaleString('pt-BR');
+    const tag = v.isAuto ? '🗓️' : '📸';
+    return `<option value="${k}">${tag} ${dt} — ${v.label||''} (${v.totalAtivos} reg.)</option>`;
+  }).join('');
+  de.innerHTML = opts;
+  ate.innerHTML = opts;
+  de.selectedIndex = 0;
+  ate.selectedIndex = entries.length - 1;
+}
+
+// ── Compara dois snapshots e renderiza KPIs + lista de registros que mudaram ──
+const EVO_CAMPOS = [
+  ['status_plan','Status Planejamento'],
+  ['status_samc','Status SAMC'],
+  ['status_lupa','Status LUPA'],
+  ['status_sup','Status Suprimento'],
+  ['fabricacao','Fabricação'],
+  ['processamento','Processamento (%)']
+];
+function compararEvolucao(){
+  const de = document.getElementById('evo-de');
+  const ate = document.getElementById('evo-ate');
+  const cont = document.getElementById('evo-resultado');
+  if(!de || !ate || !cont) return;
+  const snapA = _evoSnapshotsCache[de.value];
+  const snapB = _evoSnapshotsCache[ate.value];
+  if(!snapA || !snapB){ cont.innerHTML = '<div class="flux-empty">Selecione os dois marcos para comparar.</div>'; return; }
+  if(de.value === ate.value){ cont.innerHTML = '<div class="flux-empty">Selecione dois marcos diferentes.</div>'; return; }
+
+  const mapA = {}; snapA.registros.forEach(r=>mapA[r.registro]=r);
+  const mapB = {}; snapB.registros.forEach(r=>mapB[r.registro]=r);
+
+  // KPIs agregados
+  function contarPor(regs, campo){ const m={}; regs.forEach(r=>{ const v=r[campo]||'—'; m[v]=(m[v]||0)+1; }); return m; }
+  const kpiHtml = EVO_CAMPOS.filter(([c])=>c!=='processamento').map(([campo,label])=>{
+    const a = contarPor(snapA.registros, campo);
+    const b = contarPor(snapB.registros, campo);
+    const chaves = [...new Set([...Object.keys(a),...Object.keys(b)])].sort();
+    const linhas = chaves.map(k=>{
+      const va = a[k]||0, vb = b[k]||0, diff = vb-va;
+      if(va===0 && vb===0) return '';
+      const cor = diff>0 ? 'var(--green)' : diff<0 ? 'var(--danger)' : 'var(--muted)';
+      const sinal = diff>0 ? `+${diff}` : diff;
+      return `<div style="display:flex;justify-content:space-between;font-size:.74rem;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text)">${k}</span>
+        <span style="color:var(--muted)">${va} → ${vb} <strong style="color:${cor};margin-left:6px">${diff!==0?sinal:''}</strong></span>
+      </div>`;
+    }).join('');
+    return `<div class="flux-card" style="flex:1;min-width:260px">
+      <div style="font-size:.76rem;font-weight:800;color:var(--text);margin-bottom:8px">${label}</div>
+      ${linhas || '<div style="font-size:.72rem;color:var(--muted)">Sem dados</div>'}
+    </div>`;
+  }).join('');
+
+  // Total ativos + % processamento médio
+  const avgProc = regs => regs.length ? Math.round(regs.reduce((s,r)=>s+(typeof r.processamento==='number'?r.processamento:0),0)/regs.length) : 0;
+  const totA = snapA.totalAtivos, totB = snapB.totalAtivos;
+  const procA = avgProc(snapA.registros), procB = avgProc(snapB.registros);
+
+  // Registros que mudaram de status em qualquer campo acompanhado
+  const mudancas = [];
+  Object.keys(mapB).forEach(reg=>{
+    const rA = mapA[reg], rB = mapB[reg];
+    if(!rA){ mudancas.push({registro:reg, nro_ss:rB.nro_ss, disciplina:rB.disciplina, campo:'Novo registro', de:'—', para:'ativo'}); return; }
+    EVO_CAMPOS.forEach(([campo,label])=>{
+      if((rA[campo]||'') !== (rB[campo]||'')){
+        mudancas.push({registro:reg, nro_ss:rB.nro_ss, disciplina:rB.disciplina, campo:label, de:rA[campo]!=null?rA[campo]:'—', para:rB[campo]!=null?rB[campo]:'—'});
+      }
+    });
+  });
+  Object.keys(mapA).forEach(reg=>{ if(!mapB[reg]) mudancas.push({registro:reg, nro_ss:mapA[reg].nro_ss, disciplina:mapA[reg].disciplina, campo:'Saiu do escopo ativo', de:'ativo', para:'—'}); });
+
+  const tabelaMudancas = mudancas.length ? `
+    <div class="tbl-wrap" style="max-height:420px;overflow-y:auto;margin-top:14px">
+      <table>
+        <thead><tr><th>Registro</th><th>Nº SS</th><th>Disciplina</th><th>Campo</th><th>De</th><th>Para</th></tr></thead>
+        <tbody>${mudancas.map(m=>`<tr>
+          <td style="font-family:monospace;font-size:.72rem">${m.registro}</td>
+          <td style="font-size:.72rem">${m.nro_ss||''}</td>
+          <td style="font-size:.72rem">${m.disciplina||''}</td>
+          <td style="font-size:.72rem">${m.campo}</td>
+          <td style="font-size:.72rem;color:var(--muted)">${m.de}</td>
+          <td style="font-size:.72rem;color:var(--green);font-weight:700">${m.para}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : '<div class="flux-empty">Nenhuma mudança de status entre os dois marcos.</div>';
+
+  cont.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:.66rem;color:var(--muted);text-transform:uppercase">Registros Ativos</div>
+        <div style="font-size:1.3rem;font-weight:800;color:var(--text)">${totA} → ${totB} <span style="font-size:.8rem;color:${totB-totA>=0?'var(--green)':'var(--danger)'}">(${totB-totA>=0?'+':''}${totB-totA})</span></div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:.66rem;color:var(--muted);text-transform:uppercase">Processamento Médio</div>
+        <div style="font-size:1.3rem;font-weight:800;color:var(--text)">${procA}% → ${procB}% <span style="font-size:.8rem;color:${procB-procA>=0?'var(--green)':'var(--danger)'}">(${procB-procA>=0?'+':''}${procB-procA}pp)</span></div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:.66rem;color:var(--muted);text-transform:uppercase">Registros com Mudança</div>
+        <div style="font-size:1.3rem;font-weight:800;color:var(--accent)">${new Set(mudancas.map(m=>m.registro)).size}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">${kpiHtml}</div>
+    ${tabelaMudancas}
+  `;
+}
+
 async function pushEdits() {
   // Salva sempre no localStorage primeiro (backup local imediato)
   saveLocalEdits();
@@ -5389,47 +5630,18 @@ async function pushEdits() {
 async function _doPush() {
   try {
     const map = buildEditsMap();
-    const payload = JSON.stringify(map);
-    const sizeKB = Math.round(payload.length / 1024);
-
-    // Verifica tamanho antes de enviar (limite JSONBin free = 100KB)
-    if(payload.length > 95000) {
-      // Envia apenas as edições mais recentes (últimas 80KB)
-      const entries = Object.entries(map).sort((a,b)=>(b[1]._editedAt||'').localeCompare(a[1]._editedAt||''));
-      const trimmed = {};
-      let sz = 2;
-      for(const [k,v] of entries) {
-        const chunk = JSON.stringify({[k]:v}).length;
-        if(sz + chunk > 90000) break;
-        trimmed[k] = v;
-        sz += chunk;
-      }
-      flash(`⚠️ Payload grande (${sizeKB}KB). Enviando edições mais recentes para a nuvem. Dados completos salvos localmente.`, '#f59e0b', 5000);
-      const putRes = await fetch(`${FIREBASE_URL}/lupa_data.json`, {
-        method:'PUT', headers:jsonbinHeaders(), body:JSON.stringify(trimmed)
-      });
-      if(!putRes.ok) { const e=await putRes.json(); throw new Error(e.message||putRes.status); }
-      updateSyncStatus('☁️ Sincronizado (parcial) ' + new Date().toLocaleTimeString('pt-BR'), '#f59e0b');
-      return;
-    }
 
     // Payload dentro do limite — GET + merge + PUT
     const getRes = await fetch(`${FIREBASE_URL}/lupa_data.json`, { headers: jsonbinHeaders() });
     const current = getRes.ok ? ((await getRes.json()) || {}) : {};
     const merged = { ...current, ...map };
+    const mergedStr = JSON.stringify(merged);
+    const sizeKB = Math.round(mergedStr.length / 1024);
 
-    // Se o merge ultrapassar o limite, descarta entradas antigas
-    let mergedStr = JSON.stringify(merged);
-    if(mergedStr.length > 90000) {
-      const entries = Object.entries(merged).sort((a,b)=>(b[1]._editedAt||'').localeCompare(a[1]._editedAt||''));
-      const slim = {};
-      let sz = 2;
-      for(const [k,v] of entries) {
-        const chunk = JSON.stringify({[k]:v}).length + 1;
-        if(sz + chunk > 88000) break;
-        slim[k] = v; sz += chunk;
-      }
-      mergedStr = JSON.stringify(slim);
+    // Firebase Realtime Database aguenta payloads bem maiores que o antigo limite do
+    // JSONBin (100KB) — só avisamos (sem descartar nada) se o total ficar grande de verdade.
+    if(mergedStr.length > 4_000_000) {
+      flash(`⚠️ O total de edições está grande (${sizeKB}KB). Considere conversar com o suporte técnico sobre arquivar edições antigas.`, '#f59e0b', 6000);
     }
 
     const putRes = await fetch(`${FIREBASE_URL}/lupa_data.json`, {
@@ -5686,6 +5898,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Puxa nuvem e mescla com local
     await pullEditsAndMerge();
     await pullMateriaisDetProcAndRender();
+    autoSnapshotIfNeeded(); // salva a "foto" da semana, se ainda não existir uma
     setInterval(() => pullEdits(true), 300000); // 5 min — reduzido para poupar cota gratuita do JSONBin
     setInterval(() => pullMateriaisDetProcAndRender(), 300000); // idem, para Materiais/Detalhamento/Processamento
   }
