@@ -386,6 +386,7 @@ h1{letter-spacing:.02em}
   <div class="tab" onclick="showTab('suprfab-teste',this)">📦 Suprimento &amp; Fabricação</div>
   <div class="tab" onclick="showTab('fluxo',this)">🔗 Fluxo do Processo</div>
   <div class="tab" onclick="showTab('evolucao',this)">🕒 Evolução</div>
+  <div class="tab" onclick="showTab('lucar-teste',this)" style="color:var(--warn)">🧪 LUCAR/LUPA (Teste)</div>
 </nav>
 
 <main>
@@ -1049,6 +1050,83 @@ h1{letter-spacing:.02em}
   <div id="evo-resultado"></div>
 </div>
 
+<!-- ═══════════ LUCAR/LUPA (TESTE) ═══════════ -->
+<div class="section" id="lucar-teste">
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🧪 LUCAR/LUPA — Aba de Teste (não afeta o Dashboard oficial)</div>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">
+      Importe a planilha "P74-PPGM_I_LUCAR...xlsx" (aba "LUPA") pelo Painel Admin (🔐 Admin → 🧪 LUCAR/LUPA). O Sistema aplica
+      automaticamente os filtros de Situação (exclui Cancelado/Atendido), Escopo (UMS 3ª Fase), Gerência Executante
+      (contém PPGM-I, exceto PPGM-II/III) e Nº AS (contém "Estr"), e monta a Tabela Detalhada abaixo, já cruzada com as
+      colunas hoje existentes nas abas Tabela e Cronograma.
+    </p>
+    <div id="lucar-resumo" style="font-size:.78rem;color:var(--muted)"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;padding:0;overflow:hidden">
+    <div onclick="toggleLucarHistoricoPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
+      <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>📊 Histórico de Importações — Análise Comparativa</div>
+      <span id="lucar-historico-arrow" style="font-size:.8rem;color:var(--muted)">▼</span>
+    </div>
+    <div id="lucar-historico-panel" style="padding:14px">
+      <div class="tbl-wrap" style="max-height:300px;overflow-y:auto">
+        <table>
+          <thead><tr>
+            <th>Data da LUCAR</th><th>Registro Novo</th><th>Registro Removido</th><th>Total de Registros Ativos</th><th>Alteração na LUPA</th>
+          </tr></thead>
+          <tbody id="lucar-historico-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;padding:0;overflow:hidden">
+    <div onclick="toggleLucarFilterPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
+      <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>🔎 Filtros</div>
+      <span id="lucar-filter-arrow" style="font-size:.8rem;color:var(--muted)">▼</span>
+    </div>
+    <div id="lucar-filter-body" style="padding:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:12px">
+        <select id="lucar-f-disciplina" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Disciplina: Todas</option></select>
+        <select id="lucar-f-gerencia" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Gerência: Todas</option></select>
+        <select id="lucar-f-area" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Área/Sistema: Todas</option></select>
+        <select id="lucar-f-modulo" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Módulo: Todos</option></select>
+        <select id="lucar-f-setor" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Piso/Setor: Todos</option></select>
+        <select id="lucar-f-origem" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Origem: Todas</option></select>
+        <select id="lucar-f-tipoexig" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Tipo Exig.: Todos</option></select>
+        <select id="lucar-f-prioridade" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Prioridade: Todas</option></select>
+        <select id="lucar-f-samc" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status SAMC: Todos</option></select>
+        <select id="lucar-f-fab" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Fabricação: Todas</option></select>
+        <select id="lucar-f-plan" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status Planej.: Todos</option></select>
+        <select id="lucar-f-lupa" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status LUPA: Todos</option></select>
+        <select id="lucar-f-sup" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status Suprim.: Todos</option></select>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--border);padding-top:12px">
+        <input id="lucar-f-search" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyLucarFilters()"
+          style="flex:1;min-width:200px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+        <button onclick="limparFiltrosLucar()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
+      </div>
+      <div id="lucar-f-count" style="font-size:.72rem;color:var(--muted);margin-top:8px"></div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin:0"><span class="dot" style="background:var(--accent)"></span>📋 Tabela Detalhada (unificada: LUCAR + Tabela + Cronograma)</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="exportLucarCSV()" style="background:var(--blue);border:none;color:#fff;border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">⬇ CSV</button>
+        <button onclick="exportLucarXLS()" style="background:var(--green);border:none;color:#fff;border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">📗 Excel</button>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="max-height:640px;overflow-y:auto;overflow-x:auto">
+      <table>
+        <thead><tr id="lucar-teste-head"></tr></thead>
+        <tbody id="lucar-teste-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════ CRONOGRAMA ═══════════ -->
 <div class="section" id="cronograma">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
@@ -1176,6 +1254,10 @@ h1{letter-spacing:.02em}
     <button onclick="document.getElementById('planImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(20,184,166,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📊 Atualizar Status Planejamento (Excel)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione um ou mais arquivos "UN-BUZ...xlsx". O mais recente prevalece em caso de conflito.</div>
     <input type="file" id="planImportInput" accept=".xlsx" multiple style="display:none" onchange="handlePlanImport(event)">
+    <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🧪 LUCAR/LUPA</div>
+    <button onclick="document.getElementById('lucarImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(139,92,246,.15);border:1px solid #8b5cf6;color:#8b5cf6;border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Importar LUCAR/LUPA (Excel)</button>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione o arquivo "P74-PPGM_I_LUCAR...xlsx" (aba "LUPA"). Filtra automaticamente Escopo/Gerência/Nº AS.</div>
+    <input type="file" id="lucarImportInput" accept=".xlsx" style="display:none" onchange="handleLucarImport(event)">
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🕒 Evolução</div>
     <button onclick="salvarMarcoManual()" style="width:100%;margin-bottom:14px;background:rgba(20,184,166,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📸 Salvar Marco Agora</button>
 
@@ -3291,7 +3373,7 @@ function renderMateriaisTeste(){
       const somaTxt = isAdmin ? `&nbsp;·&nbsp; Vlr. Total (R$): ${d.somaValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}` : '';
       const temCotacao = d.linhas.some(l=>String(l['Status de Fornecimento do Item na Totalidade']||'').includes('Cotação'));
       const cotacaoNote = temCotacao ? ' <span style="background:rgba(245,158,11,.18);color:var(--warn);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens em Cotação</span>' : '';
-      const temIntegrado = d.linhas.some(l=>String(l['Status de Fornecimento do Item na Totalidade']||'').trim()==='Integrado');
+      const temIntegrado = d.linhas.some(l=>String(l['Status de Fornecimento do Item na Totalidade']||'').trim()==='Integrado' && String(l['Flag']||'').trim()!=='Atendido');
       const integradoNote = temIntegrado ? ' <span style="background:rgba(107,114,128,.18);color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens Integrados</span>' : '';
       html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" data-disc="${esc(d.disciplina)}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px">
@@ -4700,6 +4782,9 @@ function showTab(id, el) {
   if(id === 'evolucao'){
     populateEvolucaoSelects();
   }
+  if(id === 'lucar-teste'){
+    pullLucarFromCloud().then(got=>{ if(got) renderLucarTeste(); });
+  }
 }
 
 // ── BUILD PLAN SUP DATA (dinâmico, usa getData()) ────────────────────────────
@@ -5613,6 +5698,383 @@ function compararEvolucao(){
   `;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// ── LUCAR/LUPA (aba de teste) ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════
+let LUCAR_DATA = {};       // registro -> {registro, nro_ss, nome_tarefa, disciplina, nr13_venc, rti_venc, spie_venc,
+                           //              gerencia, area_sistema, modulo, setor, nota_item_med, origem, tag,
+                           //              servico_padrao, tipo_exigencia, prioridade}
+let LUCAR_HISTORICO = [];  // [{timestamp, registroNovo, registroRemovido, totalAtivos, alteracaoLupa}]
+
+// ── Filtros de linha (aplicados sobre a aba "LUPA" da planilha original) ──
+function lucarSituacaoAtiva(situacao){
+  const s = String(situacao||'').toUpperCase();
+  if(s.includes('CANCEL')) return false;   // cobre "(Cancelado)" e "SME CANCELAMENTO"
+  if(s.includes('ATENDID')) return false;  // cobre "(Atendido)"
+  return true;
+}
+function lucarEscopoValido(escopo){
+  return /UMS\s*3.{0,3}Fase/i.test(String(escopo||''));
+}
+function lucarGerenciaValida(g){
+  const s = String(g||'');
+  return s.includes('PPGM-I') && !s.includes('PPGM-II') && !s.includes('PPGM-III');
+}
+function lucarNumASValido(numAS){
+  return /estr/i.test(String(numAS||''));
+}
+
+// ── Transformações de coluna ──
+function lucarParseSSFromNumAS(numAS){
+  const m = /SS-?\s*0*(\d+)\s*\/\s*(\d{4})/i.exec(String(numAS||''));
+  return m ? `SS-${parseInt(m[1],10)}/${m[2]}` : '';
+}
+function lucarCleanNumPart(v){
+  const s = String(v==null?'':v).trim();
+  if(!s || s.toUpperCase()==='N/A') return '';
+  return /^\d+$/.test(s) ? String(parseInt(s,10)) : s;
+}
+function lucarNotaItemMedida(nota,item,medida){
+  return [lucarCleanNumPart(nota), lucarCleanNumPart(item), lucarCleanNumPart(medida)].filter(Boolean).join('-');
+}
+function lucarSplitModuloPiso(localPiso){
+  const s = String(localPiso||'').trim();
+  const m = /M\d+/.exec(s);
+  if(!m) return { modulo:'', setor: s };
+  return { modulo: m[0], setor: s.replace(m[0],'').trim() };
+}
+function lucarBuildRecord(row, colIdx){
+  const registroRaw = row[colIdx['Nº Registro']];
+  const registro = /^\d+(\.0+)?$/.test(String(registroRaw).trim()) ? String(parseInt(registroRaw,10)) : String(registroRaw||'').trim();
+  const nroSS = lucarParseSSFromNumAS(row[colIdx['Nº AS']]);
+  const resumo = String(row[colIdx['Resumo dos Serviços']]||'').trim();
+  const nomeTarefa = `${nroSS} - Registro: ${registro} - "${resumo}"`;
+  const tipoExig = String(row[colIdx['Tipo de Exigência']]||'').trim();
+  const vencRaw = row[colIdx['Data Vencimento Exigência']];
+  const vencFmt = fmtDataBR(vencRaw);
+  let nr13_venc='', rti_venc='', spie_venc='';
+  const tipoUp = tipoExig.toUpperCase();
+  if(tipoUp==='NR-13') nr13_venc = vencFmt;
+  else if(tipoUp==='SPIE') spie_venc = vencFmt;
+  else rti_venc = vencFmt;
+  const {modulo, setor} = lucarSplitModuloPiso(row[colIdx['Local/Piso']]);
+  return {
+    registro, nro_ss: nroSS, nome_tarefa: nomeTarefa,
+    disciplina: '', // preenchimento manual — preservado no reimport (ver handleLucarImport)
+    nr13_venc, rti_venc, spie_venc,
+    gerencia: String(row[colIdx['Gerência Executante']]||'').trim(),
+    area_sistema: String(row[colIdx['Área/Sistema']]||'').trim(),
+    modulo, setor,
+    nota_item_med: lucarNotaItemMedida(row[colIdx['Nota-Nº']], row[colIdx['Item da nota']], row[colIdx['Medida']]),
+    origem: String(row[colIdx['Origem']]||'').trim(),
+    tag: String(row[colIdx['TAG']]||'').trim(),
+    servico_padrao: String(row[colIdx['Serviço Padrão']]||'').trim(),
+    tipo_exigencia: tipoExig,
+    prioridade: String(row[colIdx['Prioridade do Serviço']]||'').trim()
+  };
+}
+
+const LUCAR_DISC_OPTIONS = ['PINT-RTI','CALD-RTI','PINT-PLANO','NR-13','PSV','CALD-TANQUE'];
+
+async function handleLucarImport(e){
+  const files = Array.from(e.target.files||[]);
+  if(!files.length) return;
+  const linhasBrutas = [];
+  for(const file of files){
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf,{type:'array', cellDates:true});
+      const sheetName = wb.SheetNames.includes('LUPA') ? 'LUPA' : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      // A dimensão (!ref) declarada no arquivo pode estar desatualizada (comum em planilhas
+      // exportadas/editadas por ferramentas automáticas) — recalcula o range real varrendo as células.
+      let maxRow = 0, maxCol = 0;
+      Object.keys(ws).forEach(k=>{
+        if(k[0]==='!') return;
+        const cell = XLSX.utils.decode_cell(k);
+        if(cell.r > maxRow) maxRow = cell.r;
+        if(cell.c > maxCol) maxCol = cell.c;
+      });
+      const rangeReal = { s:{r:0,c:0}, e:{r:maxRow,c:maxCol} };
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', range: rangeReal});
+      // Cabeçalho real fica na linha 5 (índice 4) da aba "LUPA"; dados a partir da linha 6.
+      const hdr = rows[4] || [];
+      const colIdx = {};
+      hdr.forEach((h,i)=>{ if(h!=null && h!=='') colIdx[String(h).trim()] = i; });
+      const REQUIRED = ['Nº Registro','Situação','Escopo','Resumo dos Serviços','Gerência Executante','Nº AS'];
+      const faltando = REQUIRED.filter(c=>colIdx[c]===undefined);
+      if(faltando.length){ flash(`⚠️ Colunas não encontradas em ${file.name}: ${faltando.join(', ')}. Confirme que é a aba "LUPA" original.`, '#ef4444', 7000); continue; }
+      for(let i=5;i<rows.length;i++){
+        const row = rows[i];
+        if(!row || row[colIdx['Nº Registro']]===''||row[colIdx['Nº Registro']]==null) continue;
+        linhasBrutas.push({row, colIdx});
+      }
+    } catch(err){ flash(`⚠️ Erro ao ler ${file.name}: ${err.message}`, '#ef4444', 6000); }
+  }
+  if(!linhasBrutas.length){ flash('⚠️ Nenhuma linha válida encontrada no arquivo.', '#ef4444', 5000); return; }
+
+  const novoLucarData = {};
+  linhasBrutas.forEach(({row,colIdx})=>{
+    if(!lucarSituacaoAtiva(row[colIdx['Situação']])) return;
+    if(!lucarEscopoValido(row[colIdx['Escopo']])) return;
+    if(!lucarGerenciaValida(row[colIdx['Gerência Executante']])) return;
+    if(!lucarNumASValido(row[colIdx['Nº AS']])) return;
+    const rec = lucarBuildRecord(row, colIdx);
+    if(!rec.registro || !rec.nro_ss) return;
+    if(LUCAR_DATA[rec.registro]) rec.disciplina = LUCAR_DATA[rec.registro].disciplina || ''; // preserva escolha manual
+    novoLucarData[rec.registro] = rec;
+  });
+
+  const regsAntes = new Set(Object.keys(LUCAR_DATA));
+  const regsDepois = new Set(Object.keys(novoLucarData));
+  const novos = [...regsDepois].filter(r=>!regsAntes.has(r));
+  const removidos = [...regsAntes].filter(r=>!regsDepois.has(r));
+  const jaHaviaImportacao = regsAntes.size > 0 || LUCAR_HISTORICO.length > 0;
+
+  LUCAR_DATA = novoLucarData;
+  LUCAR_HISTORICO.push({
+    timestamp: new Date().toISOString(),
+    registroNovo: novos.length,
+    registroRemovido: removidos.length,
+    totalAtivos: regsDepois.size,
+    alteracaoLupa: !jaHaviaImportacao ? 'N/A' : ((novos.length>0||removidos.length>0) ? 'Sim' : 'Não')
+  });
+
+  renderLucarTeste();
+  flash(`✅ LUCAR/LUPA importado localmente: ${regsDepois.size} registro(s) ativo(s) (${novos.length} novo(s), ${removidos.length} removido(s)). Enviando para a nuvem...`, '#1a6fad', 4000);
+  const [ok1, ok2] = await Promise.all([pushLucarDataToCloud(), pushLucarHistoricoToCloud()]);
+  if(ok1 && ok2) flash(`☁️ LUCAR/LUPA sincronizado às ${new Date().toLocaleTimeString('pt-BR')}. Já pode fechar o Dashboard com segurança.`, '#22c55e', 7000);
+  e.target.value = '';
+}
+
+// ── Sincronização em nuvem (mesmo Firebase, mesmo padrão de chaves seguras) ──
+async function pushLucarDataToCloud(){
+  try {
+    const body = JSON.stringify(fbSanitizeDeep(LUCAR_DATA));
+    const res = await fetch(`${FIREBASE_URL}/lupa_lucar_data.json`, { method:'PUT', headers: jsonbinHeaders(), body });
+    if(!res.ok){ flash(`⚠️ A nuvem recusou o envio do LUCAR/LUPA (erro ${res.status}).`, '#f59e0b', 7000); return false; }
+    return true;
+  } catch(e){ console.warn('[LUPA] Erro ao enviar LUCAR/LUPA:', e); flash(`⚠️ Não foi possível sincronizar o LUCAR/LUPA agora (${e.message||e}).`, '#f59e0b', 8000); return false; }
+}
+async function pushLucarHistoricoToCloud(){
+  try {
+    const res = await fetch(`${FIREBASE_URL}/lupa_lucar_historico.json`, { method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(LUCAR_HISTORICO) });
+    return res.ok;
+  } catch(e){ console.warn('[LUPA] Erro ao enviar histórico LUCAR:', e); return false; }
+}
+async function pullLucarFromCloud(){
+  try {
+    const [r1,r2] = await Promise.all([
+      fetch(`${FIREBASE_URL}/lupa_lucar_data.json`, { headers: jsonbinHeaders() }),
+      fetch(`${FIREBASE_URL}/lupa_lucar_historico.json`, { headers: jsonbinHeaders() })
+    ]);
+    let got = false;
+    if(r1.ok){ const t1 = await r1.text(); if(t1 && t1!=='null'){ LUCAR_DATA = fbRestoreDeep(JSON.parse(t1)); got = true; } }
+    if(r2.ok){ const t2 = await r2.text(); if(t2 && t2!=='null'){ LUCAR_HISTORICO = JSON.parse(t2); got = true; } }
+    return got;
+  } catch(e){ console.warn('[LUPA] Erro ao buscar LUCAR/LUPA da nuvem:', e); return false; }
+}
+
+// ── Render da aba de teste ──
+const LUCAR_COLS_UNIFICADAS = [
+  ['nro_ss','Nº SS'],['registro','Registro'],['nome_tarefa','Nome da Tarefa'],['disciplina','Disciplina'],
+  ['nr13_venc','NR13 Venc.'],['rti_venc','RTI Venc.'],['spie_venc','SPIE Venc.'],
+  ['gerencia','Gerência'],['area_sistema','Área/Sistema'],['modulo','Módulo'],['setor','Piso/Setor'],
+  ['nota_item_med','Nota/Item/Med.'],['origem','Origem'],['tag','TAG'],['servico_padrao','Serviço Padrão'],
+  ['tipo_exigencia','Tipo Exig.'],['prioridade','Prioridade'],
+  // colunas vindas da aba Tabela (quando o registro já existe em DATA_BR)
+  ['fonte','Fonte'],['status_samc','Status SAMC'],['fabricacao','Fabricação'],['status_plan','Status Planejamento'],
+  ['status_lupa','Status LUPA'],['status_sup','Status Suprimento'],['data_sup_tarde','Data Sup.+Tarde'],
+  ['esi_resp','ESI'],['br_resp','BR'],
+  ['observacoes','Observações'],['responsavel','Responsável']
+];
+function renderLucarHistorico(){
+  const body = document.getElementById('lucar-historico-body');
+  if(!body) return;
+  if(!LUCAR_HISTORICO.length){ body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:.78rem;padding:16px">Nenhuma importação registrada ainda.</td></tr>'; return; }
+  body.innerHTML = LUCAR_HISTORICO.map(h=>{
+    const dt = new Date(h.timestamp).toLocaleDateString('pt-BR');
+    const corAlt = h.alteracaoLupa==='Sim' ? 'var(--accent)' : h.alteracaoLupa==='Não' ? 'var(--muted)' : 'var(--blue)';
+    return `<tr>
+      <td style="font-weight:700">${dt}</td>
+      <td style="text-align:center">${h.registroNovo}</td>
+      <td style="text-align:center">${h.registroRemovido}</td>
+      <td style="text-align:center;font-weight:700">${h.totalAtivos}</td>
+      <td style="color:${corAlt};font-weight:700">${h.alteracaoLupa}</td>
+    </tr>`;
+  }).join('');
+}
+function renderLucarTeste(){
+  const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
+  const resumo = document.getElementById('lucar-resumo');
+  const headEl = document.getElementById('lucar-teste-head');
+  const bodyEl = document.getElementById('lucar-teste-body');
+  renderLucarHistorico();
+  const registros = Object.keys(LUCAR_DATA);
+  if(resumo) resumo.textContent = registros.length ? `${registros.length} registro(s) na última importação.` : 'Nenhum dado importado ainda.';
+  if(!headEl || !bodyEl) return;
+  if(!registros.length){ headEl.innerHTML=''; bodyEl.innerHTML = '<tr><td style="text-align:center;color:var(--muted);padding:16px">Importe a planilha LUCAR/LUPA pelo Painel Admin.</td></tr>'; return; }
+
+  headEl.innerHTML = LUCAR_COLS_UNIFICADAS.map(([k,label])=>`<th>${label}</th>`).join('');
+  const dataBrPorRegistro = {};
+  DATA_BR.forEach(r=>{ dataBrPorRegistro[String(r.registro)] = r; });
+
+  bodyEl.innerHTML = registros.map(reg=>{
+    const l = LUCAR_DATA[reg];
+    const t = dataBrPorRegistro[reg]; // pode não existir ainda na Tabela
+    const discOpts = LUCAR_DISC_OPTIONS.map(d=>`<option value="${d}" ${l.disciplina===d?'selected':''}>${d}</option>`).join('');
+    return `<tr data-disciplina="${esc(l.disciplina||'')}" data-gerencia="${esc(l.gerencia||'')}" data-area="${esc(l.area_sistema||'')}"
+      data-modulo="${esc(l.modulo||'')}" data-setor="${esc(l.setor||'')}" data-origem="${esc(l.origem||'')}"
+      data-tipoexig="${esc(l.tipo_exigencia||'')}" data-prioridade="${esc(l.prioridade||'')}"
+      data-fonte="${esc(t?(t.fonte||'BR'):'')}" data-samc="${esc(t?t.status_samc||'':'')}" data-fab="${esc(t?t.fabricacao||'':'')}"
+      data-plan="${esc(t?t.status_plan||'':'')}" data-lupa="${esc(t?t.status_lupa||'':'')}" data-sup="${esc(t?t.status_sup||'':'')}">
+      <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
+      <td style="font-family:monospace;font-size:.71rem">${l.registro}</td>
+      <td style="font-size:.7rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.nome_tarefa}">${l.nome_tarefa}</td>
+      <td><select onchange="lucarSetDisciplina('${reg}',this.value)" style="font-size:.7rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px"><option value="">—</option>${discOpts}</select></td>
+      <td style="font-size:.7rem">${l.nr13_venc||'—'}</td>
+      <td style="font-size:.7rem">${l.rti_venc||'—'}</td>
+      <td style="font-size:.7rem">${l.spie_venc||'—'}</td>
+      <td style="font-size:.7rem;white-space:nowrap">${l.gerencia||'—'}</td>
+      <td style="font-size:.7rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.area_sistema}">${l.area_sistema||'—'}</td>
+      <td style="font-size:.7rem">${l.modulo||'—'}</td>
+      <td style="font-size:.7rem">${l.setor||'—'}</td>
+      <td style="font-size:.71rem;white-space:nowrap">${l.nota_item_med||'—'}</td>
+      <td style="font-size:.7rem">${l.origem||'—'}</td>
+      <td style="font-size:.7rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.tag}">${l.tag||'—'}</td>
+      <td style="font-size:.68rem;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.servico_padrao}">${l.servico_padrao||'—'}</td>
+      <td style="font-size:.7rem;white-space:nowrap">${l.tipo_exigencia||'—'}</td>
+      <td style="font-size:.7rem;white-space:nowrap">${l.prioridade||'—'}</td>
+      <td style="font-size:.7rem">${t?(t.fonte||'BR'):'<span style="color:var(--muted)">— não está na Tabela —</span>'}</td>
+      <td style="font-size:.7rem">${t?t.status_samc||'—':'—'}</td>
+      <td style="font-size:.7rem">${t?t.fabricacao||'—':'—'}</td>
+      <td style="font-size:.7rem">${t?t.status_plan||'—':'—'}</td>
+      <td style="font-size:.7rem">${t?t.status_lupa||'—':'—'}</td>
+      <td style="font-size:.7rem">${t?(t.status_sup||'—'):'—'}</td>
+      <td style="font-size:.7rem">${t?fmtDataSupTardeBR(t.data_sup_tarde):'—'}</td>
+      <td class="sup-chk-col">${t?`<input type="checkbox" ${t.esi_resp?'checked':''} title="ESI responsável" onchange="saveSupField(event,'${t.registro}','esi_resp')" style="accent-color:#ef4444;width:15px;height:15px;cursor:pointer">`:'—'}</td>
+      <td class="sup-chk-col">${t?`<input type="checkbox" ${t.br_resp?'checked':''} title="BR responsável" onchange="saveSupField(event,'${t.registro}','br_resp')" style="accent-color:#1a6fad;width:15px;height:15px;cursor:pointer">`:'—'}</td>
+      <td style="font-size:.7rem">${t?(t.observacoes||''):''}</td>
+      <td style="font-size:.7rem">${t?(t.responsavel||''):''}</td>
+    </tr>`;
+  }).join('');
+  populateLucarFilters();
+  applyLucarFilters();
+}
+// Converte "yyyy-mm-dd" (formato do <input type="date">) para "dd/mm/yyyy" só para exibição/exportação.
+function fmtDataSupTardeBR(v){
+  if(!v) return '—';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : v;
+}
+function lucarSetDisciplina(registro, val){
+  if(LUCAR_DATA[registro]){ LUCAR_DATA[registro].disciplina = val; pushLucarDataToCloud(); }
+}
+
+// ── Painel de Filtros (retrátil) da Tabela Detalhada LUCAR/LUPA ──
+// ── Painel de Filtros (retrátil) da Tabela Detalhada LUCAR/LUPA ──
+function toggleLucarHistoricoPanel(){
+  const body = document.getElementById('lucar-historico-panel');
+  const arrow = document.getElementById('lucar-historico-arrow');
+  if(!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  if(arrow) arrow.textContent = collapsed ? '▼' : '▶';
+}
+function toggleLucarFilterPanel(){
+  const body = document.getElementById('lucar-filter-body');
+  const arrow = document.getElementById('lucar-filter-arrow');
+  if(!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? '' : 'none';
+  if(arrow) arrow.textContent = collapsed ? '▼' : '▶';
+}
+const LUCAR_FILTER_MAP = {
+  'lucar-f-disciplina':'disciplina', 'lucar-f-gerencia':'gerencia', 'lucar-f-area':'area',
+  'lucar-f-modulo':'modulo', 'lucar-f-setor':'setor', 'lucar-f-origem':'origem',
+  'lucar-f-tipoexig':'tipoexig', 'lucar-f-prioridade':'prioridade',
+  'lucar-f-samc':'samc', 'lucar-f-fab':'fab', 'lucar-f-plan':'plan', 'lucar-f-lupa':'lupa', 'lucar-f-sup':'sup'
+};
+// Popula os selects com os valores realmente presentes na tabela atual, preservando a seleção corrente.
+function populateLucarFilters(){
+  Object.entries(LUCAR_FILTER_MAP).forEach(([selectId, attr])=>{
+    const sel = document.getElementById(selectId);
+    if(!sel) return;
+    const cur = sel.value;
+    const label = sel.options[0] ? sel.options[0].textContent : '';
+    const vals = [...new Set([...document.querySelectorAll(`#lucar-teste-body tr[data-${attr}]`)]
+      .map(tr=>tr.dataset[attr])
+      .filter(Boolean))].sort();
+    sel.innerHTML = `<option value="">${label}</option>` + vals.map(v=>`<option value="${v.replace(/"/g,'&quot;')}" ${cur===v?'selected':''}>${v}</option>`).join('');
+    if(vals.includes(cur)) sel.value = cur;
+  });
+}
+function applyLucarFilters(){
+  const filtros = {};
+  Object.entries(LUCAR_FILTER_MAP).forEach(([selectId, attr])=>{
+    const sel = document.getElementById(selectId);
+    if(sel && sel.value) filtros[attr] = sel.value;
+  });
+  const searchEl = document.getElementById('lucar-f-search');
+  const termo = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  const rows = [...document.querySelectorAll('#lucar-teste-body tr')];
+  let visiveis = 0;
+  rows.forEach(row=>{
+    if(!row.dataset || Object.keys(row.dataset).length===0){ return; } // linha de aviso (sem dados)
+    let ok = true;
+    for(const attr in filtros){
+      if((row.dataset[attr]||'') !== filtros[attr]){ ok = false; break; }
+    }
+    if(ok && termo && !row.textContent.toLowerCase().includes(termo)) ok = false;
+    row.style.display = ok ? '' : 'none';
+    if(ok) visiveis++;
+  });
+  const countEl = document.getElementById('lucar-f-count');
+  if(countEl) countEl.textContent = `${visiveis} de ${rows.length} registro(s) exibido(s)`;
+}
+function limparFiltrosLucar(){
+  Object.keys(LUCAR_FILTER_MAP).forEach(selectId=>{
+    const sel = document.getElementById(selectId);
+    if(sel) sel.value = '';
+  });
+  const searchEl = document.getElementById('lucar-f-search');
+  if(searchEl) searchEl.value = '';
+  applyLucarFilters();
+}
+
+// ── Exportação CSV/Excel da Tabela Detalhada unificada ──
+function lucarExportRows(){
+  const dataBrPorRegistro = {};
+  DATA_BR.forEach(r=>{ dataBrPorRegistro[String(r.registro)] = r; });
+  const header = LUCAR_COLS_UNIFICADAS.map(([,label])=>label);
+  const rows = Object.keys(LUCAR_DATA).map(reg=>{
+    const l = LUCAR_DATA[reg]; const t = dataBrPorRegistro[reg];
+    return LUCAR_COLS_UNIFICADAS.map(([k])=>{
+      if(k==='data_sup_tarde') return t ? fmtDataSupTardeBR(t.data_sup_tarde).replace('—','') : '';
+      if(k==='esi_resp'||k==='br_resp') return t ? (t[k]?'Sim':'Não') : '';
+      if(k in l) return l[k]||'';
+      if(t && k in t) return t[k]||'';
+      return '';
+    });
+  });
+  return { header, rows };
+}
+function exportLucarCSV(){
+  const { header, rows } = lucarExportRows();
+  const esc = v=>`"${(v||'').toString().replace(/"/g,'""')}"`;
+  const csv = [header.map(esc).join(','), ...rows.map(r=>r.map(esc).join(','))].join('\r\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `LUCAR_LUPA_Tabela_Detalhada_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+}
+function exportLucarXLS(){
+  const { header, rows } = lucarExportRows();
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'LUCAR-LUPA');
+  XLSX.writeFile(wb, `LUCAR_LUPA_Tabela_Detalhada_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 async function pushEdits() {
   // Salva sempre no localStorage primeiro (backup local imediato)
   saveLocalEdits();
@@ -5898,6 +6360,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Puxa nuvem e mescla com local
     await pullEditsAndMerge();
     await pullMateriaisDetProcAndRender();
+    await pullLucarFromCloud();
     autoSnapshotIfNeeded(); // salva a "foto" da semana, se ainda não existir uma
     setInterval(() => pullEdits(true), 300000); // 5 min — reduzido para poupar cota gratuita do JSONBin
     setInterval(() => pullMateriaisDetProcAndRender(), 300000); // idem, para Materiais/Detalhamento/Processamento
