@@ -366,8 +366,6 @@ h1{letter-spacing:.02em}
     <span>|</span>
     <span>👤 <span id="sync-user-label">—</span></span>
     <span onclick="recoverEdits()" style="cursor:pointer;color:var(--teal);font-weight:700" title="Recuperar edições do localStorage e da nuvem" id="btn-recover">🔄 Recuperar Edições</span>
-    <span style="color:var(--border)">|</span>
-    <span onclick="clearCloudEdits()" style="cursor:pointer;color:var(--danger);font-weight:700" title="Apagar edições da nuvem">🗑️ Limpar edições</span>
   </div>
 </div>
 
@@ -1950,12 +1948,14 @@ async function getDefaultUsers() {
   ];
 }
 
-// ── Carregar usuários (localStorage → JSONBin) ────────────────────────────────
+// ── Carregar usuários (JSONBin/Firebase → localStorage como último recurso) ──
+// IMPORTANTE: a nuvem é sempre consultada primeiro. Antes, se já existisse QUALQUER
+// cache local (ex: só o "admin" de uma visita antiga), o Sistema nunca mais buscava a
+// nuvem — por isso usuários novos cadastrados pelo Admin (ex: Marcos Lemos, Daniele
+// Vasques) não apareciam em computadores que já tinham usado o Dashboard antes deles
+// existirem. Corrigido para sempre tentar a nuvem primeiro.
 async function loadUsers() {
   try {
-    const local = localStorage.getItem(USERS_STORAGE_KEY);
-    if (local) return JSON.parse(local);
-    // Tentar JSONBin se configurado
     if (JSONBIN_ID && JSONBIN_KEY) {
       const res = await fetch(`${FIREBASE_URL}/lupa_data.json`,
         { headers: jsonbinHeaders() });
@@ -1967,7 +1967,12 @@ async function loadUsers() {
         }
       }
     }
-  } catch(e) { console.warn('loadUsers:', e); }
+  } catch(e) { console.warn('loadUsers (nuvem indisponível, usando cache local se houver):', e); }
+  // Nuvem indisponível ou sem _users ainda — usa cache local como fallback
+  try {
+    const local = localStorage.getItem(USERS_STORAGE_KEY);
+    if (local) return JSON.parse(local);
+  } catch(e) { console.warn('loadUsers (cache local):', e); }
   const def = await getDefaultUsers();
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(def));
   return def;
@@ -5603,12 +5608,12 @@ async function populateEvolucaoSelects(){
 
 // ── Compara dois snapshots e renderiza KPIs + lista de registros que mudaram ──
 const EVO_CAMPOS = [
-  ['status_plan','Status Planejamento'],
-  ['status_samc','Status SAMC'],
   ['status_lupa','Status LUPA'],
+  ['status_samc','Status SAMC'],
+  ['status_plan','Status Planejamento'],
   ['status_sup','Status Suprimento'],
-  ['fabricacao','Fabricação'],
-  ['processamento','Processamento (%)']
+  ['processamento','Processamento (%)'],
+  ['fabricacao','Fabricação']
 ];
 function compararEvolucao(){
   const de = document.getElementById('evo-de');
@@ -5650,33 +5655,65 @@ function compararEvolucao(){
   const totA = snapA.totalAtivos, totB = snapB.totalAtivos;
   const procA = avgProc(snapA.registros), procB = avgProc(snapB.registros);
 
-  // Registros que mudaram de status em qualquer campo acompanhado
-  const mudancas = [];
+  // Registros que mudaram de status em qualquer campo acompanhado — agrupados por Fluxo/etapa
+  const novos = [];
+  const saidos = [];
+  const porCampo = {}; // label -> [{registro, nro_ss, disciplina, de, para}]
+  EVO_CAMPOS.forEach(([,label])=>{ porCampo[label] = []; });
+
   Object.keys(mapB).forEach(reg=>{
     const rA = mapA[reg], rB = mapB[reg];
-    if(!rA){ mudancas.push({registro:reg, nro_ss:rB.nro_ss, disciplina:rB.disciplina, campo:'Novo registro', de:'—', para:'ativo'}); return; }
+    if(!rA){ novos.push({registro:reg, nro_ss:rB.nro_ss, disciplina:rB.disciplina}); return; }
     EVO_CAMPOS.forEach(([campo,label])=>{
       if((rA[campo]||'') !== (rB[campo]||'')){
-        mudancas.push({registro:reg, nro_ss:rB.nro_ss, disciplina:rB.disciplina, campo:label, de:rA[campo]!=null?rA[campo]:'—', para:rB[campo]!=null?rB[campo]:'—'});
+        porCampo[label].push({registro:reg, nro_ss:rB.nro_ss, disciplina:rB.disciplina, de:rA[campo]!=null?rA[campo]:'—', para:rB[campo]!=null?rB[campo]:'—'});
       }
     });
   });
-  Object.keys(mapA).forEach(reg=>{ if(!mapB[reg]) mudancas.push({registro:reg, nro_ss:mapA[reg].nro_ss, disciplina:mapA[reg].disciplina, campo:'Saiu do escopo ativo', de:'ativo', para:'—'}); });
+  Object.keys(mapA).forEach(reg=>{ if(!mapB[reg]) saidos.push({registro:reg, nro_ss:mapA[reg].nro_ss, disciplina:mapA[reg].disciplina}); });
 
-  const tabelaMudancas = mudancas.length ? `
-    <div class="tbl-wrap" style="max-height:420px;overflow-y:auto;margin-top:14px">
+  const totalMudancas = novos.length + saidos.length + Object.values(porCampo).reduce((s,arr)=>s+arr.length,0);
+  const registrosImpactados = new Set([
+    ...novos.map(m=>m.registro), ...saidos.map(m=>m.registro),
+    ...Object.values(porCampo).flat().map(m=>m.registro)
+  ]).size;
+
+  function miniTabela(linhas, comDeParaCols){
+    return `<div class="tbl-wrap" style="max-height:280px;overflow-y:auto">
       <table>
-        <thead><tr><th>Registro</th><th>Nº SS</th><th>Disciplina</th><th>Campo</th><th>De</th><th>Para</th></tr></thead>
-        <tbody>${mudancas.map(m=>`<tr>
+        <thead><tr><th>Registro</th><th>Nº SS</th><th>Disciplina</th>${comDeParaCols?'<th>De</th><th>Para</th>':''}</tr></thead>
+        <tbody>${linhas.map(m=>`<tr>
           <td style="font-family:monospace;font-size:.72rem">${m.registro}</td>
           <td style="font-size:.72rem">${m.nro_ss||''}</td>
           <td style="font-size:.72rem">${m.disciplina||''}</td>
-          <td style="font-size:.72rem">${m.campo}</td>
-          <td style="font-size:.72rem;color:var(--muted)">${m.de}</td>
-          <td style="font-size:.72rem;color:var(--green);font-weight:700">${m.para}</td>
+          ${comDeParaCols?`<td style="font-size:.72rem;color:var(--muted)">${m.de}</td><td style="font-size:.72rem;color:var(--green);font-weight:700">${m.para}</td>`:''}
         </tr>`).join('')}</tbody>
       </table>
-    </div>` : '<div class="flux-empty">Nenhuma mudança de status entre os dois marcos.</div>';
+    </div>`;
+  }
+
+  let secoes = '';
+  if(novos.length){
+    secoes += `<div class="flux-card" style="margin-bottom:14px">
+      <div style="font-size:.8rem;font-weight:800;color:var(--green);margin-bottom:8px">🆕 Novos Registros — ${novos.length}</div>
+      ${miniTabela(novos, false)}
+    </div>`;
+  }
+  EVO_CAMPOS.forEach(([,label])=>{
+    const linhas = porCampo[label];
+    if(!linhas.length) return;
+    secoes += `<div class="flux-card" style="margin-bottom:14px">
+      <div style="font-size:.8rem;font-weight:800;color:var(--text);margin-bottom:8px">🔵 ${label} — ${linhas.length} registro(s) alterado(s)</div>
+      ${miniTabela(linhas, true)}
+    </div>`;
+  });
+  if(saidos.length){
+    secoes += `<div class="flux-card" style="margin-bottom:14px">
+      <div style="font-size:.8rem;font-weight:800;color:var(--danger);margin-bottom:8px">🚪 Saíram do Escopo Ativo — ${saidos.length}</div>
+      ${miniTabela(saidos, false)}
+    </div>`;
+  }
+  const tabelaMudancas = totalMudancas ? secoes : '<div class="flux-empty">Nenhuma mudança de status entre os dois marcos.</div>';
 
   cont.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
@@ -5690,10 +5727,10 @@ function compararEvolucao(){
       </div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
         <div style="font-size:.66rem;color:var(--muted);text-transform:uppercase">Registros com Mudança</div>
-        <div style="font-size:1.3rem;font-weight:800;color:var(--accent)">${new Set(mudancas.map(m=>m.registro)).size}</div>
+        <div style="font-size:1.3rem;font-weight:800;color:var(--accent)">${registrosImpactados}</div>
       </div>
     </div>
-    <div style="display:flex;gap:14px;flex-wrap:wrap">${kpiHtml}</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">${kpiHtml}</div>
     ${tabelaMudancas}
   `;
 }
