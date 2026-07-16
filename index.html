@@ -5482,12 +5482,35 @@ async function pullDetProcFromCloud(){
   } catch(e){ console.warn('[LUPA] Erro ao buscar Detalhamento/Processamento da nuvem:', e); return false; }
 }
 // Busca Materiais + Detalhamento/Processamento da nuvem e re-renderiza as 3 sub-abas
+// Reaplica os filtros e a busca ativos de Materiais/Detalhamento/Processamento — chamada
+// depois de qualquer atualização em segundo plano (ex: os 5 minutos), para que o
+// recarregamento dos dados não "desfaça" o que o usuário estava filtrando na tela.
+function reaplicarFiltrosMateriaisDetProc(){
+  const matStatusEl = document.getElementById('mat-status-filter');
+  if(matStatusEl) applyMatStatusFilter(matStatusEl.value);
+  Object.keys(MAT_FILTERS).forEach(k=>applyMatFilters(k, MAT_FILTERS[k]));
+  const matDiscEl = document.getElementById('mat-disc-filter');
+  if(matDiscEl) applyDisciplinaFilter('materiais-teste', matDiscEl.value);
+  const matSearchEl = document.getElementById('mat-search-input');
+  if(matSearchEl) applyMatSearch(matSearchEl.value);
+
+  const detDiscEl = document.getElementById('det-disc-filter');
+  if(detDiscEl) applyDisciplinaFilter('det-teste', detDiscEl.value);
+  const detSearchEl = document.getElementById('det-search-input');
+  if(detSearchEl) applyDetSearch(detSearchEl.value);
+
+  const procDiscEl = document.getElementById('proc-disc-filter');
+  if(procDiscEl) applyDisciplinaFilter('proc-teste', procDiscEl.value);
+  const procSearchEl = document.getElementById('proc-search-input');
+  if(procSearchEl) applyProcSearch(procSearchEl.value);
+}
 async function pullMateriaisDetProcAndRender(){
   const [gotMat, gotDet] = await Promise.all([pullMateriaisFromCloud(), pullDetProcFromCloud()]);
   if(gotMat || gotDet){
     renderMateriaisTeste();
     renderDetTeste();
     renderProcTeste();
+    reaplicarFiltrosMateriaisDetProc();
   }
   const el = document.getElementById('mat-sync-status');
   if(el){
