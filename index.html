@@ -1098,8 +1098,22 @@ h1{letter-spacing:.02em}
         <select id="lucar-f-plan" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status Planej.: Todos</option></select>
         <select id="lucar-f-lupa" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status LUPA: Todos</option></select>
         <select id="lucar-f-sup" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status Suprim.: Todos</option></select>
+        <select id="lucar-f-esi" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+          <option value="">ESI: Todos</option><option value="1">✅ Marcado</option><option value="0">— Não marcado</option>
+        </select>
+        <select id="lucar-f-br" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+          <option value="">BR: Todos</option><option value="1">✅ Marcado</option><option value="0">— Não marcado</option>
+        </select>
+        <select id="lucar-f-esibr" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+          <option value="">ESI + BR: Todos</option><option value="1">✅ Ambos marcados</option><option value="0">— Não ambos</option>
+        </select>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--border);padding-top:12px">
+        <select id="lucar-f-responsavel" onchange="applyLucarFilters()" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Responsável: Todos</option></select>
+        <label style="font-size:.72rem;color:var(--muted)">Data Sup.+Tarde — de:</label>
+        <input id="lucar-f-datasup-de" type="date" onchange="applyLucarFilters()" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+        <label style="font-size:.72rem;color:var(--muted)">até:</label>
+        <input id="lucar-f-datasup-ate" type="date" onchange="applyLucarFilters()" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
         <input id="lucar-f-search" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyLucarFilters()"
           style="flex:1;min-width:200px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
         <button onclick="limparFiltrosLucar()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
@@ -1488,6 +1502,84 @@ h1{letter-spacing:.02em}
     <div class="modal-actions">
       <button class="modal-btn cancel" onclick="closeCronoModal()">Cancelar</button>
       <button class="modal-btn save" onclick="saveCronoEdit()">💾 Salvar Alteração</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE EDIÇÃO — ABA LUCAR/LUPA (TESTE) — cobre campos LUCAR + Tabela num só popup -->
+<div class="modal-overlay" id="lucar-edit-modal" style="display:none" onclick="if(event.target===this)closeLucarEditModal()">
+  <div class="modal-box">
+    <div class="modal-title">✏️ Editar Registro <span id="lucar-modal-reg-label"></span></div>
+
+    <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 6px">📋 Campos do LUCAR</div>
+    <div class="modal-field"><label>Nº SS</label><input type="text" id="le-ss" readonly style="opacity:.6;cursor:not-allowed"></div>
+    <div class="modal-field"><label>Nome da Tarefa</label><input type="text" id="le-nome-tarefa"></div>
+    <div class="modal-field"><label>Disciplina</label>
+      <select id="le-disciplina">
+        <option value="">—</option>
+        <option>PINT-RTI</option><option>CALD-RTI</option><option>PINT-PLANO</option>
+        <option>NR-13</option><option>PSV</option><option>CALD-TANQUE</option>
+      </select>
+    </div>
+    <div class="modal-field"><label>NR13 Venc.</label><input type="text" id="le-nr13" placeholder="dd/mm/aaaa"></div>
+    <div class="modal-field"><label>RTI Venc.</label><input type="text" id="le-rti" placeholder="dd/mm/aaaa"></div>
+    <div class="modal-field"><label>SPIE Venc.</label><input type="text" id="le-spie" placeholder="dd/mm/aaaa"></div>
+    <div class="modal-field"><label>Gerência</label><input type="text" id="le-gerencia"></div>
+    <div class="modal-field"><label>Área/Sistema</label><input type="text" id="le-area-sistema"></div>
+    <div class="modal-field"><label>Módulo</label><input type="text" id="le-modulo"></div>
+    <div class="modal-field"><label>Piso/Setor</label><input type="text" id="le-setor"></div>
+    <div class="modal-field"><label>Nota/Item/Med.</label><input type="text" id="le-nota-item-med"></div>
+    <div class="modal-field"><label>Origem</label><input type="text" id="le-origem"></div>
+    <div class="modal-field"><label>TAG</label><input type="text" id="le-tag"></div>
+    <div class="modal-field"><label>Serviço Padrão</label><input type="text" id="le-servico-padrao"></div>
+    <div class="modal-field"><label>Tipo Exigência</label><input type="text" id="le-tipo-exig"></div>
+    <div class="modal-field"><label>Prioridade</label><input type="text" id="le-prioridade"></div>
+
+    <div id="le-tabela-section">
+      <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin:14px 0 6px">📊 Campos da Tabela</div>
+      <div class="modal-field"><label>Status SAMC</label>
+        <select id="le-samc">
+          <option>Em Andamento</option><option>Em Revisão</option>
+          <option>Aguardando Aprovação da Revisão</option><option>Aguardando a aprovação do fornecedor</option>
+          <option>Cancelada</option><option>Rejeitada</option>
+        </select>
+      </div>
+      <div class="modal-field"><label>Fabricação</label>
+        <select id="le-fab"><option>Sim</option><option>Não</option><option>Verificar</option></select>
+      </div>
+      <div class="modal-field"><label>Status Planejamento</label><select id="le-plan"></select></div>
+      <div class="modal-field"><label>Status LUPA</label>
+        <select id="le-lupa">
+          <option>Ativo</option><option>Novo</option><option>Despriorizado</option>
+          <option>Cancelado</option><option>Cancelar no SAMC</option>
+        </select>
+      </div>
+      <div class="modal-field"><label>Status Suprimento</label>
+        <select id="le-sup">
+          <option>Completo</option><option>Não Cadastrado</option><option>Minuta sem Materiais de Aplicação</option>
+          <option>Pendente ESI</option><option>Pendente ESI+BR</option><option>Pendente BR</option><option>LM Cadastrada</option>
+        </select>
+      </div>
+      <div class="modal-field"><label>Data Sup.+Tarde</label><input type="date" id="le-datasup"></div>
+      <div class="modal-field" style="display:flex;gap:20px;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="le-esi" style="width:16px;height:16px"> ESI</label>
+        <label style="display:flex;align-items:center;gap:6px;margin:0"><input type="checkbox" id="le-br" style="width:16px;height:16px"> BR</label>
+      </div>
+      <div class="modal-field"><label>Responsável</label><input type="text" id="le-responsavel"></div>
+      <div class="modal-field"><label>Observações</label>
+        <textarea id="le-obs" rows="3" style="width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:8px 11px;font-size:.82rem;font-family:var(--font);resize:vertical;outline:none;line-height:1.5"></textarea>
+      </div>
+    </div>
+    <div id="le-sem-tabela" style="display:none;background:rgba(107,114,128,.12);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-size:.74rem;color:var(--muted);margin:14px 0">
+      ℹ️ Este registro ainda não está na aba Tabela — os campos de status ficam disponíveis assim que ele for cadastrado lá.
+    </div>
+
+    <div style="background:rgba(26,111,173,.1);border:1px solid rgba(26,111,173,.3);border-radius:5px;padding:10px 12px;font-size:.74rem;color:#60a5fa;margin-bottom:4px">
+      ☁️ Ao salvar, a alteração é <strong>enviada à nuvem</strong> e ficará visível para toda a equipe ao sincronizar.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeLucarEditModal()">Cancelar</button>
+      <button class="modal-btn save" onclick="saveLucarEdit()">💾 Salvar Alteração</button>
     </div>
   </div>
 </div>
@@ -5881,7 +5973,12 @@ async function handleLucarImport(e){
     if(!lucarNumASValido(row[colIdx['Nº AS']])) return;
     const rec = lucarBuildRecord(row, colIdx);
     if(!rec.registro || !rec.nro_ss) return;
-    if(LUCAR_DATA[rec.registro]) rec.disciplina = LUCAR_DATA[rec.registro].disciplina || ''; // preserva escolha manual
+    if(LUCAR_DATA[rec.registro] && LUCAR_DATA[rec.registro].disciplina){
+      rec.disciplina = LUCAR_DATA[rec.registro].disciplina; // preserva escolha manual já feita
+    } else {
+      const jaNaTabela = DATA_BR.find(r=>String(r.registro)===rec.registro);
+      rec.disciplina = (jaNaTabela && jaNaTabela.disciplina) ? jaNaTabela.disciplina : '';
+    }
     novoLucarData[rec.registro] = rec;
   });
 
@@ -5975,19 +6072,23 @@ function renderLucarTeste(){
   if(!headEl || !bodyEl) return;
   if(!registros.length){ headEl.innerHTML=''; bodyEl.innerHTML = '<tr><td style="text-align:center;color:var(--muted);padding:16px">Importe a planilha LUCAR/LUPA pelo Painel Admin.</td></tr>'; return; }
 
-  headEl.innerHTML = LUCAR_COLS_UNIFICADAS.map(([k,label])=>`<th>${label}</th>`).join('');
+  headEl.innerHTML = '<th></th>' + LUCAR_COLS_UNIFICADAS.map(([k,label])=>`<th>${label}</th>`).join('');
   const dataBrPorRegistro = {};
   DATA_BR.forEach(r=>{ dataBrPorRegistro[String(r.registro)] = r; });
 
   bodyEl.innerHTML = registros.map(reg=>{
     const l = LUCAR_DATA[reg];
     const t = dataBrPorRegistro[reg]; // pode não existir ainda na Tabela
-    const discOpts = LUCAR_DISC_OPTIONS.map(d=>`<option value="${d}" ${l.disciplina===d?'selected':''}>${d}</option>`).join('');
-    return `<tr data-disciplina="${esc(l.disciplina||'')}" data-gerencia="${esc(l.gerencia||'')}" data-area="${esc(l.area_sistema||'')}"
+    const discEfetiva = l.disciplina || (t && t.disciplina) || '';
+    const discOpts = LUCAR_DISC_OPTIONS.map(d=>`<option value="${d}" ${discEfetiva===d?'selected':''}>${d}</option>`).join('');
+    return `<tr data-disciplina="${esc(discEfetiva)}" data-gerencia="${esc(l.gerencia||'')}" data-area="${esc(l.area_sistema||'')}"
       data-modulo="${esc(l.modulo||'')}" data-setor="${esc(l.setor||'')}" data-origem="${esc(l.origem||'')}"
       data-tipoexig="${esc(l.tipo_exigencia||'')}" data-prioridade="${esc(l.prioridade||'')}"
       data-fonte="${esc(t?(t.fonte||'BR'):'')}" data-samc="${esc(t?t.status_samc||'':'')}" data-fab="${esc(t?t.fabricacao||'':'')}"
-      data-plan="${esc(t?t.status_plan||'':'')}" data-lupa="${esc(t?t.status_lupa||'':'')}" data-sup="${esc(t?t.status_sup||'':'')}">
+      data-plan="${esc(t?t.status_plan||'':'')}" data-lupa="${esc(t?t.status_lupa||'':'')}" data-sup="${esc(t?t.status_sup||'':'')}"
+      data-esi="${t&&t.esi_resp?'1':'0'}" data-br="${t&&t.br_resp?'1':'0'}" data-esibr="${t&&t.esi_resp&&t.br_resp?'1':'0'}"
+      data-responsavel="${esc(t?t.responsavel||'':'')}" data-datasup="${t&&t.data_sup_tarde?t.data_sup_tarde:''}">
+      <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
       <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
       <td style="font-family:monospace;font-size:.71rem">${l.registro}</td>
       <td style="font-size:.7rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.nome_tarefa}">${l.nome_tarefa}</td>
@@ -6014,7 +6115,7 @@ function renderLucarTeste(){
       <td style="font-size:.7rem">${t?fmtDataSupTardeBR(t.data_sup_tarde):'—'}</td>
       <td class="sup-chk-col">${t?`<input type="checkbox" ${t.esi_resp?'checked':''} title="ESI responsável" onchange="saveSupField(event,'${t.registro}','esi_resp')" style="accent-color:#ef4444;width:15px;height:15px;cursor:pointer">`:'—'}</td>
       <td class="sup-chk-col">${t?`<input type="checkbox" ${t.br_resp?'checked':''} title="BR responsável" onchange="saveSupField(event,'${t.registro}','br_resp')" style="accent-color:#1a6fad;width:15px;height:15px;cursor:pointer">`:'—'}</td>
-      <td style="font-size:.7rem">${t?(t.observacoes||''):''}</td>
+      <td style="font-size:.7rem;min-width:390px;white-space:normal">${t?(t.observacoes||''):''}</td>
       <td style="font-size:.7rem">${t?(t.responsavel||''):''}</td>
     </tr>`;
   }).join('');
@@ -6029,6 +6130,104 @@ function fmtDataSupTardeBR(v){
 }
 function lucarSetDisciplina(registro, val){
   if(LUCAR_DATA[registro]){ LUCAR_DATA[registro].disciplina = val; pushLucarDataToCloud(); }
+}
+
+// ── Popup de edição unificado (LUCAR + Tabela) ──
+let _lucarEditRegistro = null;
+function openLucarEdit(registro){
+  const l = LUCAR_DATA[registro];
+  if(!l) return;
+  const idx = DATA_BR.findIndex(r=>String(r.registro)===String(registro));
+  const t = idx>=0 ? DATA_BR[idx] : null;
+  _lucarEditRegistro = registro;
+
+  document.getElementById('lucar-modal-reg-label').textContent = `Registro: ${registro}`;
+  document.getElementById('le-ss').value = l.nro_ss || '';
+  document.getElementById('le-nome-tarefa').value = l.nome_tarefa || '';
+  document.getElementById('le-disciplina').value = l.disciplina || (t && t.disciplina) || '';
+  document.getElementById('le-nr13').value = l.nr13_venc || '';
+  document.getElementById('le-rti').value = l.rti_venc || '';
+  document.getElementById('le-spie').value = l.spie_venc || '';
+  document.getElementById('le-gerencia').value = l.gerencia || '';
+  document.getElementById('le-area-sistema').value = l.area_sistema || '';
+  document.getElementById('le-modulo').value = l.modulo || '';
+  document.getElementById('le-setor').value = l.setor || '';
+  document.getElementById('le-nota-item-med').value = l.nota_item_med || '';
+  document.getElementById('le-origem').value = l.origem || '';
+  document.getElementById('le-tag').value = l.tag || '';
+  document.getElementById('le-servico-padrao').value = l.servico_padrao || '';
+  document.getElementById('le-tipo-exig').value = l.tipo_exigencia || '';
+  document.getElementById('le-prioridade').value = l.prioridade || '';
+
+  const planSel = document.getElementById('le-plan');
+  const emUso = [...new Set(DATA_BR.map(r=>r.status_plan).filter(Boolean))];
+  const todosPlan = [...new Set([...STATUS_PLAN_BASE, ...emUso])];
+  planSel.innerHTML = todosPlan.map(s=>`<option value="${String(s).replace(/"/g,'&quot;')}">${s}</option>`).join('');
+
+  document.getElementById('le-tabela-section').style.display = t ? '' : 'none';
+  document.getElementById('le-sem-tabela').style.display = t ? 'none' : '';
+  if(t){
+    document.getElementById('le-samc').value = t.status_samc || 'Em Andamento';
+    document.getElementById('le-fab').value = t.fabricacao || 'Verificar';
+    document.getElementById('le-plan').value = t.status_plan || '';
+    document.getElementById('le-lupa').value = t.status_lupa || 'Ativo';
+    document.getElementById('le-sup').value = t.status_sup || 'Não Cadastrado';
+    document.getElementById('le-datasup').value = t.data_sup_tarde || '';
+    document.getElementById('le-esi').checked = !!t.esi_resp;
+    document.getElementById('le-br').checked = !!t.br_resp;
+    document.getElementById('le-responsavel').value = t.responsavel || '';
+    document.getElementById('le-obs').value = t.observacoes || '';
+  }
+  document.getElementById('lucar-edit-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeLucarEditModal(){
+  document.getElementById('lucar-edit-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _lucarEditRegistro = null;
+}
+function saveLucarEdit(){
+  if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode editar.', '#ef4444', 3000); closeLucarEditModal(); return; }
+  const registro = _lucarEditRegistro;
+  if(!registro || !LUCAR_DATA[registro]) return;
+  const l = LUCAR_DATA[registro];
+  l.nome_tarefa    = document.getElementById('le-nome-tarefa').value;
+  l.disciplina     = document.getElementById('le-disciplina').value;
+  l.nr13_venc      = document.getElementById('le-nr13').value;
+  l.rti_venc       = document.getElementById('le-rti').value;
+  l.spie_venc      = document.getElementById('le-spie').value;
+  l.gerencia       = document.getElementById('le-gerencia').value;
+  l.area_sistema   = document.getElementById('le-area-sistema').value;
+  l.modulo         = document.getElementById('le-modulo').value;
+  l.setor          = document.getElementById('le-setor').value;
+  l.nota_item_med  = document.getElementById('le-nota-item-med').value;
+  l.origem         = document.getElementById('le-origem').value;
+  l.tag            = document.getElementById('le-tag').value;
+  l.servico_padrao = document.getElementById('le-servico-padrao').value;
+  l.tipo_exigencia = document.getElementById('le-tipo-exig').value;
+  l.prioridade     = document.getElementById('le-prioridade').value;
+
+  const idx = DATA_BR.findIndex(r=>String(r.registro)===String(registro));
+  if(idx>=0){
+    const t = DATA_BR[idx];
+    t.status_samc     = document.getElementById('le-samc').value;
+    t.fabricacao      = document.getElementById('le-fab').value;
+    t.status_plan     = document.getElementById('le-plan').value;
+    t.status_lupa     = document.getElementById('le-lupa').value;
+    t.status_sup      = document.getElementById('le-sup').value;
+    t.data_sup_tarde  = document.getElementById('le-datasup').value;
+    t.esi_resp        = document.getElementById('le-esi').checked;
+    t.br_resp         = document.getElementById('le-br').checked;
+    t.responsavel     = document.getElementById('le-responsavel').value;
+    t.observacoes     = document.getElementById('le-obs').value;
+    t._editedAt = new Date().toISOString();
+    t._editedBy = SYNC_USER;
+    pushEdits();
+  }
+  closeLucarEditModal();
+  renderLucarTeste();
+  pushLucarDataToCloud();
+  flash('✅ Registro atualizado!', '#22c55e', 3000);
 }
 
 // ── Painel de Filtros (retrátil) da Tabela Detalhada LUCAR/LUPA ──
@@ -6053,7 +6252,8 @@ const LUCAR_FILTER_MAP = {
   'lucar-f-disciplina':'disciplina', 'lucar-f-gerencia':'gerencia', 'lucar-f-area':'area',
   'lucar-f-modulo':'modulo', 'lucar-f-setor':'setor', 'lucar-f-origem':'origem',
   'lucar-f-tipoexig':'tipoexig', 'lucar-f-prioridade':'prioridade',
-  'lucar-f-samc':'samc', 'lucar-f-fab':'fab', 'lucar-f-plan':'plan', 'lucar-f-lupa':'lupa', 'lucar-f-sup':'sup'
+  'lucar-f-samc':'samc', 'lucar-f-fab':'fab', 'lucar-f-plan':'plan', 'lucar-f-lupa':'lupa', 'lucar-f-sup':'sup',
+  'lucar-f-responsavel':'responsavel'
 };
 // Popula os selects com os valores realmente presentes na tabela atual, preservando a seleção corrente.
 function populateLucarFilters(){
@@ -6075,6 +6275,15 @@ function applyLucarFilters(){
     const sel = document.getElementById(selectId);
     if(sel && sel.value) filtros[attr] = sel.value;
   });
+  // ESI / BR / ESI+BR — booleanos (1/0), comparados à parte do restante
+  ['esi','br','esibr'].forEach(attr=>{
+    const sel = document.getElementById(`lucar-f-${attr}`);
+    if(sel && sel.value) filtros[attr] = sel.value;
+  });
+  const deEl = document.getElementById('lucar-f-datasup-de');
+  const ateEl = document.getElementById('lucar-f-datasup-ate');
+  const dataDe = deEl && deEl.value ? deEl.value : null;
+  const dataAte = ateEl && ateEl.value ? ateEl.value : null;
   const searchEl = document.getElementById('lucar-f-search');
   const termo = searchEl ? searchEl.value.trim().toLowerCase() : '';
   const rows = [...document.querySelectorAll('#lucar-teste-body tr')];
@@ -6084,6 +6293,14 @@ function applyLucarFilters(){
     let ok = true;
     for(const attr in filtros){
       if((row.dataset[attr]||'') !== filtros[attr]){ ok = false; break; }
+    }
+    if(ok && (dataDe || dataAte)){
+      const d = row.dataset.datasup || '';
+      if(!d){ ok = false; }
+      else {
+        if(dataDe && d < dataDe) ok = false;
+        if(dataAte && d > dataAte) ok = false;
+      }
     }
     if(ok && termo && !row.textContent.toLowerCase().includes(termo)) ok = false;
     row.style.display = ok ? '' : 'none';
@@ -6097,6 +6314,8 @@ function limparFiltrosLucar(){
     const sel = document.getElementById(selectId);
     if(sel) sel.value = '';
   });
+  ['lucar-f-esi','lucar-f-br','lucar-f-esibr'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['lucar-f-datasup-de','lucar-f-datasup-ate'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const searchEl = document.getElementById('lucar-f-search');
   if(searchEl) searchEl.value = '';
   applyLucarFilters();
@@ -6112,6 +6331,7 @@ function lucarExportRows(){
     return LUCAR_COLS_UNIFICADAS.map(([k])=>{
       if(k==='data_sup_tarde') return t ? fmtDataSupTardeBR(t.data_sup_tarde).replace('—','') : '';
       if(k==='esi_resp'||k==='br_resp') return t ? (t[k]?'Sim':'Não') : '';
+      if(k==='disciplina') return l.disciplina || (t && t.disciplina) || '';
       if(k in l) return l[k]||'';
       if(t && k in t) return t[k]||'';
       return '';
