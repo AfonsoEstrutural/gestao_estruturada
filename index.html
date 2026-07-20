@@ -378,15 +378,14 @@ h1{letter-spacing:.02em}
   <div class="tab" onclick="showTab('disciplina',this)">⚙️ Disciplina</div>
   <div class="tab" onclick="showTab('alertas',this)">⚠️ Alertas</div>
   <div class="tab" onclick="showTab('tabela',this)">🗃️ Tabela</div>
-  <div class="tab" onclick="showTab('cronograma',this)">📅 Cronograma</div>
   <div class="tab" onclick="showTab('curvas',this)">📈 Curva S / KPIs</div>
   <div class="tab" onclick="showTab('folha-tarefa',this)">🗓️ Folha Tarefa</div>
+  <div class="tab" onclick="showTab('lucar-teste',this)">📅 Cronograma</div>
   <div class="tab" onclick="showTab('graficos-esi',this)">📈 Gráficos Visão Geral</div>
   <div class="tab" onclick="showTab('graficos-br',this)">📊 Gráficos Etapas BR</div>
   <div class="tab" onclick="showTab('suprfab-teste',this)">📦 Suprimento &amp; Fabricação</div>
   <div class="tab" onclick="showTab('fluxo',this)">🔗 Fluxo do Processo</div>
   <div class="tab" onclick="showTab('evolucao',this)">🕒 Evolução</div>
-  <div class="tab" onclick="showTab('lucar-teste',this)" style="color:var(--warn)">🧪 LUCAR/LUPA (Teste)</div>
 </nav>
 
 <main>
@@ -1089,15 +1088,15 @@ h1{letter-spacing:.02em}
   <div id="evo-resultado"></div>
 </div>
 
-<!-- ═══════════ LUCAR/LUPA (TESTE) ═══════════ -->
+<!-- ═══════════ CRONOGRAMA (LUCAR/LUPA) ═══════════ -->
 <div class="section" id="lucar-teste">
   <div class="card" style="margin-bottom:16px">
-    <div class="card-title"><span class="dot" style="background:var(--warn)"></span>🧪 LUCAR/LUPA — Aba de Teste (não afeta o Dashboard oficial)</div>
+    <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📅 Cronograma</div>
     <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">
       Importe a planilha "P74-PPGM_I_LUCAR...xlsx" (aba "LUPA") pelo Painel Admin (🔐 Admin → 🧪 LUCAR/LUPA). O Sistema aplica
       automaticamente os filtros de Situação (exclui Cancelado/Atendido), Escopo (UMS 3ª Fase), Gerência Executante
       (contém PPGM-I, exceto PPGM-II/III) e Nº AS (contém "Estr"), e monta a Tabela Detalhada abaixo, já cruzada com as
-      colunas hoje existentes nas abas Tabela e Cronograma.
+      colunas hoje existentes na aba Tabela.
     </p>
     <div id="lucar-resumo" style="font-size:.78rem;color:var(--muted)"></div>
   </div>
@@ -1553,13 +1552,13 @@ h1{letter-spacing:.02em}
   </div>
 </div>
 
-<!-- MODAL DE EDIÇÃO — ABA LUCAR/LUPA (TESTE) — cobre campos LUCAR + Tabela num só popup -->
+<!-- MODAL DE EDIÇÃO — ABA CRONOGRAMA (ex-LUCAR/LUPA) — cobre campos LUCAR + Tabela num só popup -->
 <div class="modal-overlay" id="lucar-edit-modal" style="display:none" onclick="if(event.target===this)closeLucarEditModal()">
   <div class="modal-box">
     <div class="modal-title">✏️ Editar Registro <span id="lucar-modal-reg-label"></span></div>
 
     <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 6px">📋 Campos do LUCAR</div>
-    <div class="modal-field"><label>Nº SS</label><input type="text" id="le-ss" readonly style="opacity:.6;cursor:not-allowed"></div>
+    <div class="modal-field"><label>Nº SS</label><input type="text" id="le-ss"></div>
     <div class="modal-field"><label>Nome da Tarefa</label><input type="text" id="le-nome-tarefa"></div>
     <div class="modal-field"><label>Disciplina</label>
       <select id="le-disciplina">
@@ -4309,12 +4308,19 @@ function agruparProgressoPorRegistro(tasks) {
     const temEtapaCriticaAtrasada = dados.tarefas.some(t =>
       t.isCritical && t.percentWork < 100 && t.finish && t.finish.slice(0, 10) < hoje
     );
+    // Nome da tarefa/etapa que o executor precisa fazer agora: a primeira etapa
+    // (em ordem de início) ainda não concluída. Se todas estiverem concluídas,
+    // mostra o nome da última etapa (a mais recente executada).
+    const etapasOrdenadas = [...dados.tarefas].sort((a,b) => (a.start||'').localeCompare(b.start||''));
+    const etapaPendente = etapasOrdenadas.find(t => t.percentWork < 100);
+    const tarefaAtual = etapaPendente ? etapaPendente.nome : (etapasOrdenadas[etapasOrdenadas.length-1]?.nome || null);
 
     resultado[reg] = {
       percentExecucao: dados.pesoTotal > 0 ? Math.round((dados.pesoConcluido / dados.pesoTotal) * 100) : 0,
       horasPlanejadas: Math.round(dados.pesoTotal * 100) / 100,
       dataPrevistaFim,
       temEtapaCriticaAtrasada,
+      tarefaAtual,
       ss: dados.ss,
       disciplina: dados.disciplina,
       qtdEtapas: dados.tarefas.length,
@@ -4352,7 +4358,12 @@ async function handleCronogramaXmlImport(e) {
       r.horas_planejadas = dadosCrono.horasPlanejadas;
       r.data_prevista_fim = dadosCrono.dataPrevistaFim;
       r.tem_etapa_critica_atrasada = dadosCrono.temEtapaCriticaAtrasada;
-      r._cronogramaAtualizadoEm = new Date().toISOString();
+      r.tarefa_atual = dadosCrono.tarefaAtual;
+      // IMPORTANTE: precisa ser exatamente "_editedAt" — é essa marca que faz o
+      // buildEditsMap() incluir o registro no envio para o Firebase. Sem isso,
+      // os dados ficam só na memória e somem ao recarregar a página.
+      r._editedAt = new Date().toISOString();
+      r._editedBy = 'Importação Cronograma (XML)';
       vinculados++;
     }
   });
@@ -4693,6 +4704,7 @@ function renderFolhaTarefa(){
     return `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.registro ?? ''}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.nro_ss ?? ''}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;max-width:280px">${r.tarefa_atual ?? '—'}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.disciplina ?? ''}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;color:${corData};font-weight:600">${new Date(r.data_prevista_fim).toLocaleDateString('pt-BR')}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right">${r.percent_execucao ?? 0}%</td>
@@ -4704,6 +4716,7 @@ function renderFolhaTarefa(){
       <thead><tr style="background:#f8fafc">
         <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Registro</th>
         <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Nº SS</th>
+        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Tarefa</th>
         <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Disciplina</th>
         <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Data Prevista</th>
         <th style="padding:8px 12px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">% Execução</th>
@@ -6002,7 +6015,7 @@ function buildEditsMap() {
     // Só envia campos que realmente mudaram em relação ao original
     const orig = JSON.parse(_ORIG[r.registro] || '{}');
     const diff = { _editedAt: r._editedAt, _editedBy: r._editedBy };
-    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade'].forEach(f=>{
+    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual'].forEach(f=>{
       if(r[f] !== orig[f]) diff[f] = r[f];
     });
     if(Object.keys(diff).length > 2) map[r.registro] = diff;
@@ -6767,6 +6780,7 @@ function saveLucarEdit(){
   const registro = _lucarEditRegistro;
   if(!registro || !LUCAR_DATA[registro]) return;
   const l = LUCAR_DATA[registro];
+  l.nro_ss         = document.getElementById('le-ss').value;
   l.nome_tarefa    = document.getElementById('le-nome-tarefa').value;
   l.disciplina     = document.getElementById('le-disciplina').value;
   l.nr13_venc      = document.getElementById('le-nr13').value;
@@ -6786,6 +6800,7 @@ function saveLucarEdit(){
   const idx = DATA_BR.findIndex(r=>String(r.registro)===String(registro));
   if(idx>=0){
     const t = DATA_BR[idx];
+    t.nro_ss          = document.getElementById('le-ss').value;
     t.status_samc     = document.getElementById('le-samc').value;
     t.fabricacao      = document.getElementById('le-fab').value;
     t.status_plan     = document.getElementById('le-plan').value;
