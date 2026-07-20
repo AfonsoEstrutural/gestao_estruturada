@@ -380,6 +380,7 @@ h1{letter-spacing:.02em}
   <div class="tab" onclick="showTab('tabela',this)">🗃️ Tabela</div>
   <div class="tab" onclick="showTab('cronograma',this)">📅 Cronograma</div>
   <div class="tab" onclick="showTab('curvas',this)">📈 Curva S / KPIs</div>
+  <div class="tab" onclick="showTab('folha-tarefa',this)">🗓️ Folha Tarefa</div>
   <div class="tab" onclick="showTab('graficos-esi',this)">📈 Gráficos Visão Geral</div>
   <div class="tab" onclick="showTab('graficos-br',this)">📊 Gráficos Etapas BR</div>
   <div class="tab" onclick="showTab('suprfab-teste',this)">📦 Suprimento &amp; Fabricação</div>
@@ -770,6 +771,18 @@ h1{letter-spacing:.02em}
     <div style="font-weight:700;color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Tabela da Curva</div>
     <div id="curva-tabela-container" style="overflow-x:auto"></div>
   </div>
+</div>
+<div class="section" id="folha-tarefa">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div style="font-weight:700;color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em">Tarefas por vencer</div>
+    <div style="display:flex;gap:6px">
+      <button class="folha-janela-btn" data-janela="7" onclick="setFolhaJanela(7)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">7 dias</button>
+      <button class="folha-janela-btn" data-janela="15" onclick="setFolhaJanela(15)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">15 dias</button>
+      <button class="folha-janela-btn" data-janela="30" onclick="setFolhaJanela(30)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">30 dias</button>
+    </div>
+  </div>
+  <div id="folha-tarefa-resumo" style="font-size:.78rem;color:var(--muted);margin-bottom:12px"></div>
+  <div id="folha-tarefa-container" style="overflow-x:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px"></div>
 </div>
 <div class="section" id="graficos-esi">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px">
@@ -4633,6 +4646,73 @@ async function renderCurvaSKPIs(){
   renderTabelaCurva(planejadaAgr, realizadaAgr);
 }
 
+// ── FOLHA TAREFA (7 / 15 / 30 dias) ─────────────────────────────────────────
+let _folhaJanela = 7;
+function setFolhaJanela(dias){
+  _folhaJanela = dias;
+  document.querySelectorAll('.folha-janela-btn').forEach(b => {
+    const ativo = Number(b.dataset.janela) === dias;
+    b.style.background = ativo ? 'var(--teal,#14b8a6)' : '#fff';
+    b.style.color = ativo ? '#fff' : '#111';
+    b.style.borderColor = ativo ? 'var(--teal,#14b8a6)' : '#e5e7eb';
+  });
+  renderFolhaTarefa();
+}
+// Seleciona os registros com data prevista de conclusão dentro da janela,
+// ainda não concluídos — ordenados do prazo mais próximo para o mais distante.
+function folhaTarefa(janelaDias){
+  const hoje = new Date().toISOString().slice(0,10);
+  const limite = new Date(); limite.setDate(limite.getDate() + janelaDias);
+  const limiteStr = limite.toISOString().slice(0,10);
+
+  return getData()
+    .filter(r => r.data_prevista_fim && (r.percent_execucao ?? 0) < 100)
+    .filter(r => {
+      const d = r.data_prevista_fim.slice(0,10);
+      return d >= hoje && d <= limiteStr;
+    })
+    .sort((a,b) => a.data_prevista_fim.localeCompare(b.data_prevista_fim));
+}
+function renderFolhaTarefa(){
+  const tarefas = folhaTarefa(_folhaJanela);
+  const resumoEl = document.getElementById('folha-tarefa-resumo');
+  const contEl = document.getElementById('folha-tarefa-container');
+  if(!contEl) return;
+
+  const criticas = tarefas.filter(r => r.tem_etapa_critica_atrasada).length;
+  if(resumoEl) resumoEl.textContent = `${tarefas.length} registro(s) com vencimento nos próximos ${_folhaJanela} dias` + (criticas ? ` · ${criticas} com etapa crítica em atraso` : '');
+
+  if(!tarefas.length){
+    contEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.82rem">Nenhuma tarefa com vencimento nessa janela — ou o cronograma ainda não foi importado.</div>';
+    return;
+  }
+  const hoje = new Date().toISOString().slice(0,10);
+  const linhas = tarefas.map(r => {
+    const atrasoVisual = r.data_prevista_fim.slice(0,10) < hoje;
+    const corData = atrasoVisual ? '#ef4444' : '#111';
+    return `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.registro ?? ''}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.nro_ss ?? ''}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.disciplina ?? ''}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;color:${corData};font-weight:600">${new Date(r.data_prevista_fim).toLocaleDateString('pt-BR')}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right">${r.percent_execucao ?? 0}%</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:center">${r.tem_etapa_critica_atrasada ? '⚠️' : ''}</td>
+    </tr>`;
+  }).join('');
+  contEl.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+      <thead><tr style="background:#f8fafc">
+        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Registro</th>
+        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Nº SS</th>
+        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Disciplina</th>
+        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Data Prevista</th>
+        <th style="padding:8px 12px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">% Execução</th>
+        <th style="padding:8px 12px;text-align:center;color:var(--muted);font-size:.72rem;text-transform:uppercase">Crítica</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
+}
+
 function dataUriToUint8Array(uri){
   const b64 = uri.split(',')[1];
   const bin = atob(b64);
@@ -5351,6 +5431,7 @@ function showTab(id, el) {
   if(backBtn) backBtn.style.display = (id==='tabela' && _prevTab && _prevTab!=='tabela') ? 'flex' : 'none';
   if(id === 'cronograma'){ setTimeout(renderCrono, 60); }
   if(id === 'curvas'){ setTimeout(async () => { await carregarBaselineCronograma(); setCurvaGranularidade(_curvaGranularidade); }, 60); }
+  if(id === 'folha-tarefa'){ setTimeout(() => setFolhaJanela(_folhaJanela), 60); }
   if(id === 'graficos-esi' && !_chartRendered[id]){
     _chartRendered[id] = true; setTimeout(renderESICharts, 60);
   }
