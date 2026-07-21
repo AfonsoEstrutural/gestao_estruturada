@@ -3105,10 +3105,12 @@ function fmtDataBR(v){
 async function handleMateriaisImport(e) {
   const files = Array.from(e.target.files||[]);
   if(!files.length) return;
-  // Ajuste item 2: cruzamento apenas com o escopo ATIVO (getData exclui cancelados)
-  const ativos = getData();
+  // Ajuste item 2: cruzamento com TODO o escopo (inclui cancelados), para exibir o
+  // indicador "SS Cancelada/Despriorizada" — mas os cancelados continuam fora dos
+  // percentuais/quantidades porque são tratados à parte no render (ver isCanceladoMat).
+  const ativos = getAllData();
   const infoPorRegistro = {};
-  ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'(sem disciplina)', nomeTarefa: r.nome_tarefa||'(sem nome de tarefa)', ss: r.nro_ss||'(sem SS)' }; });
+  ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'(sem disciplina)', nomeTarefa: r.nome_tarefa||'(sem nome de tarefa)', ss: r.nro_ss||'(sem SS)', isCancelado: CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1 }; });
   const registrosValidos = new Set(Object.keys(infoPorRegistro));
 
   const grouped = {};
@@ -3181,8 +3183,21 @@ async function handleMateriaisImport(e) {
     const prazoClienteMax = maxPrazo('Cliente');
     const somaValorTotal = linhas.reduce((acc,l)=> acc + (Number(l['Vlr. Total (R$)'])||0), 0);
 
-    const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:''};
-    MATERIAIS_DATA[registro] = { linhas, statusCalc, pfLiberado, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, ss: info.ss, prazoContratadaMax, prazoClienteMax, somaValorTotal };
+    // Percentual de suprimento por escopo e total — considera suprida a linha que
+    // isItemRecebido() já reconhece como tal (mesma regra usada no resto do sistema,
+    // incluindo o status "Atendido" por tratativa, não só "Recebido" literal).
+    function pctSuprimento(escopo){
+      const doEscopo = escopo ? linhas.filter(l=>(l['Escopo Fornec.']||'').toString().trim()===escopo) : linhas;
+      if(!doEscopo.length) return null;
+      const supridas = doEscopo.filter(isItemRecebido).length;
+      return Math.round((supridas/doEscopo.length)*100);
+    }
+    const pctContratada = pctSuprimento('Contratada');
+    const pctCliente = pctSuprimento('Cliente');
+    const pctTotalSuprimento = pctSuprimento(null);
+
+    const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:'', isCancelado:false};
+    MATERIAIS_DATA[registro] = { linhas, statusCalc, pfLiberado, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, ss: info.ss, prazoContratadaMax, prazoClienteMax, somaValorTotal, pctContratada, pctCliente, pctTotalSuprimento, isCancelado: info.isCancelado };
   });
 
   document.getElementById('materiais-resumo').innerHTML =
@@ -3353,6 +3368,7 @@ function getMatFilteredItemRows(){
   const discVal = document.getElementById('mat-disc-filter') ? document.getElementById('mat-disc-filter').value : '';
   const regHeaders = [...document.querySelectorAll('#materiais-teste-body tr[data-reg-header]')];
   const regsOk = new Set(regHeaders.filter(rh=>{
+    if(rh.dataset.cancelado==='1') return false; // excluído dos totais/percentuais (segue exibido, mas sinalizado)
     if(statusVal){
       const ok = statusVal==='PF' ? rh.dataset.pf==='1' : rh.dataset.statusCalc===statusVal;
       if(!ok) return false;
@@ -3547,10 +3563,11 @@ function renderMateriaisTeste(){
         const txt = fmtDataBR(p.data);
         return p.estimada ? `${txt}<span title="Data Estimada" style="color:var(--warn);cursor:help;font-weight:800">*</span>` : txt;
       };
-      const prazoTxt = `Contratada: ${fmtPrazoCampo(d.prazoContratadaMax)} &nbsp;·&nbsp; Cliente: ${fmtPrazoCampo(d.prazoClienteMax)}`; // item 14
-      const somaTxt = isAdmin ? `&nbsp;·&nbsp; Vlr. Total (R$): ${d.somaValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}` : '';
+      const prazoTxt = `Contratada: ${fmtPrazoCampo(d.prazoContratadaMax)}${d.pctContratada!=null?` (${d.pctContratada}% suprido)`:''} &nbsp;·&nbsp; Cliente: ${fmtPrazoCampo(d.prazoClienteMax)}${d.pctCliente!=null?` (${d.pctCliente}% suprido)`:''}`; // item 14
+      const somaTxt = isAdmin ? `&nbsp;·&nbsp; Vlr. Total (R$): ${d.somaValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}${d.pctTotalSuprimento!=null?` &nbsp;·&nbsp; % Suprimento Total: ${d.pctTotalSuprimento}%`:''}` : '';
       const temCotacao = d.linhas.some(l=>String(l['Status de Fornecimento do Item na Totalidade']||'').includes('Cotação'));
       const cotacaoNote = temCotacao ? ' <span style="background:rgba(245,158,11,.18);color:var(--warn);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens em Cotação</span>' : '';
+      const cancelBadgeMat = d.isCancelado ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
       const temIntegrado = d.linhas.some(l=>{
         const isIntegrado = String(l['Status de Fornecimento do Item na Totalidade']||'').trim()==='Integrado' && String(l['Flag']||'').trim()!=='Atendido';
         if(!isIntegrado) return false;
@@ -3558,9 +3575,9 @@ function renderMateriaisTeste(){
         return !temData; // só avisa se realmente não há nenhuma data reconhecida
       });
       const integradoNote = temIntegrado ? ' <span style="background:rgba(107,114,128,.18);color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens Integrados</span>' : '';
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" data-disc="${esc(d.disciplina)}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" data-disc="${esc(d.disciplina)}" data-cancelado="${d.isCancelado?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${d.isCancelado?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px">
-          <span class="arrow">▶</span> <strong>${regLabel}</strong> &nbsp;
+          <span class="arrow">▶</span> <strong>${regLabel}</strong>${cancelBadgeMat} &nbsp;
           <span style="background:${badgeColor[d.statusCalc]||'#6b9cc4'};color:#fff;padding:2px 8px;border-radius:4px;font-size:.7rem">${d.statusCalc}</span>
           ${d.pfLiberado?`<span style="background:#14b8a6;color:#fff;padding:2px 8px;border-radius:4px;font-size:.7rem;margin-left:6px">✅ Liberado para PF${d.pfNumeroEmitido?(' — PF Nº '+d.pfNumeroEmitido):''}</span>`:''}
           <div style="font-size:.68rem;color:var(--muted);margin-top:3px;margin-left:18px">${prazoTxt}${somaTxt}${cotacaoNote}${integradoNote}</div>
@@ -3807,8 +3824,8 @@ async function handleDetProcImport(e){
       apon
     };
     if(!DETPROC_DATA[registro]){
-      const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:'(sem SS)'};
-      DETPROC_DATA[registro] = { ss: info.ss, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, detalhamentos: [] };
+      const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:'(sem SS)', isCancelado:false};
+      DETPROC_DATA[registro] = { ss: info.ss, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, detalhamentos: [], isCancelado: info.isCancelado };
     }
     DETPROC_DATA[registro].detalhamentos.push(item);
   }
@@ -3860,8 +3877,9 @@ function renderDetTeste(){
       const d = DETPROC_DATA[reg];
       const regSlug = 'det_'+matSlug(reg);
       const regLabel = `${d.disciplina} — ${d.nomeTarefa}`;
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
-        <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${regLabel}</strong> &nbsp; <span style="font-size:.7rem;color:var(--muted)">${d.detalhamentos.length} detalhamento(s)</span></td></tr>`;
+      const cancelBadgeDet = d.isCancelado ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" data-cancelado="${d.isCancelado?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${d.isCancelado?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+        <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${regLabel}</strong>${cancelBadgeDet} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${d.detalhamentos.length} detalhamento(s)</span></td></tr>`;
       d.detalhamentos.forEach(it=>{
         const pfColor = it.statusPF==='PF Emitida' ? '#22c55e' : '#f59e0b';
         html += `<tr data-reg="${regSlug}" data-tipo="${esc(it.tipo||'')}" data-statuspf="${esc(it.statusPF||'')}" style="display:none">
@@ -3949,6 +3967,7 @@ function renderDetChart(){
   const matchesFilters = (reg, dataObj) => {
     const d = dataObj[reg];
     if(!d) return false;
+    if(d.isCancelado) return false; // excluído dos totais/percentuais, segue exibido (sinalizado) na tabela
     if(discVal && d.disciplina !== discVal) return false;
     if(DET_SEARCH){
       const texto = `${reg} ${d.disciplina||''} ${d.nomeTarefa||''} ${d.ss||''}`.toLowerCase();
@@ -4011,8 +4030,9 @@ function renderProcTeste(){
       const d = DETPROC_DATA[reg];
       const regSlug = 'proc_'+matSlug(reg);
       const itensComApon = d.detalhamentos.filter(it=>it.apon);
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" style="display:none;background:var(--bg2);cursor:pointer" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
-        <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${d.disciplina} — ${d.nomeTarefa}</strong> &nbsp; <span style="font-size:.7rem;color:var(--muted)">${itensComApon.length} item(ns) em execução</span></td></tr>`;
+      const cancelBadgeProc = d.isCancelado ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" data-cancelado="${d.isCancelado?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${d.isCancelado?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+        <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${d.disciplina} — ${d.nomeTarefa}</strong>${cancelBadgeProc} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${itensComApon.length} item(ns) em execução</span></td></tr>`;
       itensComApon.forEach(it=>{
         html += `<tr data-reg="${regSlug}" data-tipo="${esc(it.tipo||'')}" data-avanco="${Math.round(avancoToPct(it.apon['Avanço']))}" style="display:none">
           <td style="font-size:.68rem">${esc(it.nInterno)}</td>
@@ -4099,6 +4119,7 @@ function renderProcChart(){
   const discVal = document.getElementById('proc-disc-filter') ? document.getElementById('proc-disc-filter').value : '';
   const registros = Object.keys(MATERIAIS_DATA).filter(reg=>{
     const d = MATERIAIS_DATA[reg];
+    if(d.isCancelado) return false; // excluído dos totais/percentuais, segue exibido (sinalizado) na tabela
     if(discVal && d.disciplina !== discVal) return false;
     if(PROC_SEARCH){
       const dp = DETPROC_DATA[reg];
@@ -4254,6 +4275,7 @@ function parseCronogramaXml(xmlText) {
     const percentWork = Number(taskEl.querySelector('PercentWorkComplete')?.textContent || 0);
     const isCritical = taskEl.querySelector('Critical')?.textContent === '1';
     const work = parseMsWorkToHoras(taskEl.querySelector('Work')?.textContent);
+    const edt = taskEl.querySelector('OutlineNumber')?.textContent || '';
 
     const custom = {};
     taskEl.querySelectorAll('ExtendedAttribute').forEach(ext => {
@@ -4264,7 +4286,7 @@ function parseCronogramaXml(xmlText) {
     });
 
     tasks.push({
-      nome, start, finish, percentWork, isCritical, work,
+      nome, start, finish, percentWork, isCritical, work, edt,
       registro: custom['Registro'] || '',
       ss: custom['Nº SS'] || '',
       disciplina: custom['Disciplina'] || '',
@@ -4281,6 +4303,19 @@ function parseMsWorkToHoras(iso) {
   return Number(m[1]) + Number(m[2]) / 60;
 }
 
+// Compara duas EDTs no formato "1.1.1.2.1" numericamente segmento a segmento
+// (comparação de texto simples ordenaria "1.10" antes de "1.2", o que é errado).
+function compararEDT(a, b) {
+  const pa = (a||'').split('.').map(Number);
+  const pb = (b||'').split('.').map(Number);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const va = pa[i] || 0, vb = pb[i] || 0;
+    if (va !== vb) return va - vb;
+  }
+  return 0;
+}
+
 function agruparProgressoPorRegistro(tasks) {
   const porRegistro = {};
   tasks.forEach(t => {
@@ -4293,7 +4328,7 @@ function agruparProgressoPorRegistro(tasks) {
       const peso = t.work || 1;
       porRegistro[reg].pesoTotal += peso;
       porRegistro[reg].pesoConcluido += peso * (t.percentWork / 100);
-      porRegistro[reg].tarefas.push({ nome: t.nome, percentWork: t.percentWork, isCritical: t.isCritical, start: t.start, finish: t.finish });
+      porRegistro[reg].tarefas.push({ nome: t.nome, percentWork: t.percentWork, isCritical: t.isCritical, start: t.start, finish: t.finish, edt: t.edt });
     });
   });
 
@@ -4308,10 +4343,9 @@ function agruparProgressoPorRegistro(tasks) {
     const temEtapaCriticaAtrasada = dados.tarefas.some(t =>
       t.isCritical && t.percentWork < 100 && t.finish && t.finish.slice(0, 10) < hoje
     );
-    // Nome da tarefa/etapa que o executor precisa fazer agora: a primeira etapa
-    // (em ordem de início) ainda não concluída. Se todas estiverem concluídas,
-    // mostra o nome da última etapa (a mais recente executada).
-    const etapasOrdenadas = [...dados.tarefas].sort((a,b) => (a.start||'').localeCompare(b.start||''));
+    // Ordena as etapas pela EDT (ordem real do cronograma), não pela data de início —
+    // é essa ordem que a Folha Tarefa usa para listar o que precisa ser executado.
+    const etapasOrdenadas = [...dados.tarefas].sort((a,b) => compararEDT(a.edt, b.edt));
     const etapaPendente = etapasOrdenadas.find(t => t.percentWork < 100);
     const tarefaAtual = etapaPendente ? etapaPendente.nome : (etapasOrdenadas[etapasOrdenadas.length-1]?.nome || null);
 
@@ -4324,7 +4358,7 @@ function agruparProgressoPorRegistro(tasks) {
       ss: dados.ss,
       disciplina: dados.disciplina,
       qtdEtapas: dados.tarefas.length,
-      etapas: dados.tarefas,
+      etapas: etapasOrdenadas,
     };
   });
   return resultado;
@@ -4355,6 +4389,7 @@ async function handleCronogramaXmlImport(e) {
     if (dadosCrono) {
       r.percent_execucao = dadosCrono.percentExecucao;
       r.qtd_etapas_cronograma = dadosCrono.qtdEtapas;
+      r.etapas_cronograma = dadosCrono.etapas; // lista completa, já ordenada pela EDT — usada na Folha Tarefa
       r.horas_planejadas = dadosCrono.horasPlanejadas;
       r.data_prevista_fim = dadosCrono.dataPrevistaFim;
       r.tem_etapa_critica_atrasada = dadosCrono.temEtapaCriticaAtrasada;
@@ -4671,59 +4706,65 @@ function setFolhaJanela(dias){
 }
 // Seleciona os registros com data prevista de conclusão dentro da janela,
 // ainda não concluídos — ordenados do prazo mais próximo para o mais distante.
+// Para cada registro, seleciona só as ETAPAS (tarefas do cronograma) com data
+// prevista dentro da janela e ainda não concluídas — não o registro inteiro.
+// Um registro só aparece na Folha Tarefa se tiver ao menos uma etapa nessas condições.
 function folhaTarefa(janelaDias){
   const hoje = new Date().toISOString().slice(0,10);
   const limite = new Date(); limite.setDate(limite.getDate() + janelaDias);
   const limiteStr = limite.toISOString().slice(0,10);
 
   return getData()
-    .filter(r => r.data_prevista_fim && (r.percent_execucao ?? 0) < 100)
-    .filter(r => {
-      const d = r.data_prevista_fim.slice(0,10);
-      return d >= hoje && d <= limiteStr;
+    .filter(r => Array.isArray(r.etapas_cronograma) && r.etapas_cronograma.length)
+    .map(r => {
+      const etapasDoPeriodo = r.etapas_cronograma.filter(e => {
+        if ((e.percentWork ?? 0) >= 100) return false;
+        const d = (e.finish || '').slice(0,10);
+        return d && d >= hoje && d <= limiteStr;
+      }); // já vem em ordem de EDT, herdada do import
+      return { registro: r, etapasDoPeriodo };
     })
-    .sort((a,b) => a.data_prevista_fim.localeCompare(b.data_prevista_fim));
+    .filter(x => x.etapasDoPeriodo.length)
+    .sort((a,b) => a.etapasDoPeriodo[0].finish.localeCompare(b.etapasDoPeriodo[0].finish));
 }
 function renderFolhaTarefa(){
-  const tarefas = folhaTarefa(_folhaJanela);
+  const grupos = folhaTarefa(_folhaJanela);
   const resumoEl = document.getElementById('folha-tarefa-resumo');
   const contEl = document.getElementById('folha-tarefa-container');
   if(!contEl) return;
 
-  const criticas = tarefas.filter(r => r.tem_etapa_critica_atrasada).length;
-  if(resumoEl) resumoEl.textContent = `${tarefas.length} registro(s) com vencimento nos próximos ${_folhaJanela} dias` + (criticas ? ` · ${criticas} com etapa crítica em atraso` : '');
+  const totalTarefas = grupos.reduce((s,g)=>s+g.etapasDoPeriodo.length, 0);
+  const criticas = grupos.reduce((s,g)=>s+g.etapasDoPeriodo.filter(e=>e.isCritical).length, 0);
+  if(resumoEl) resumoEl.textContent = `${grupos.length} registro(s), ${totalTarefas} tarefa(s) com vencimento nos próximos ${_folhaJanela} dias` + (criticas ? ` · ${criticas} crítica(s)` : '');
 
-  if(!tarefas.length){
+  if(!grupos.length){
     contEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.82rem">Nenhuma tarefa com vencimento nessa janela — ou o cronograma ainda não foi importado.</div>';
     return;
   }
   const hoje = new Date().toISOString().slice(0,10);
-  const linhas = tarefas.map(r => {
-    const atrasoVisual = r.data_prevista_fim.slice(0,10) < hoje;
-    const corData = atrasoVisual ? '#ef4444' : '#111';
-    return `<tr>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.registro ?? ''}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.nro_ss ?? ''}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;max-width:280px">${r.tarefa_atual ?? '—'}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0">${r.disciplina ?? ''}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;color:${corData};font-weight:600">${new Date(r.data_prevista_fim).toLocaleDateString('pt-BR')}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:right">${r.percent_execucao ?? 0}%</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f0f0f0;text-align:center">${r.tem_etapa_critica_atrasada ? '⚠️' : ''}</td>
-    </tr>`;
+  const blocos = grupos.map(({registro:r, etapasDoPeriodo}) => {
+    const linhasTarefas = etapasDoPeriodo.map(e => {
+      const atrasada = (e.finish||'').slice(0,10) < hoje;
+      const corData = atrasada ? '#ef4444' : '#111';
+      return `<tr>
+        <td style="padding:6px 12px 6px 32px;border-bottom:1px solid #f5f5f5;color:var(--muted);font-size:.7rem;white-space:nowrap">${e.edt||''}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f5f5f5">${e.nome||''}${e.isCritical?' <span title="Etapa crítica" style="color:#ef4444">⚠️</span>':''}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f5f5f5;color:${corData};font-weight:600;white-space:nowrap">${new Date(e.finish).toLocaleDateString('pt-BR')}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #f5f5f5;text-align:right">${e.percentWork ?? 0}%</td>
+      </tr>`;
+    }).join('');
+    return `
+      <div style="border-bottom:2px solid #e5e7eb">
+        <div style="padding:10px 12px;background:#f8fafc;font-weight:700;font-size:.82rem">
+          ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}</span>
+        </div>
+        <div style="padding:6px 12px;font-size:.76rem;color:var(--muted);border-bottom:1px solid #f0f0f0">${r.nome_tarefa ?? ''}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+          <tbody>${linhasTarefas}</tbody>
+        </table>
+      </div>`;
   }).join('');
-  contEl.innerHTML = `
-    <table style="width:100%;border-collapse:collapse;font-size:.8rem">
-      <thead><tr style="background:#f8fafc">
-        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Registro</th>
-        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Nº SS</th>
-        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Tarefa</th>
-        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Disciplina</th>
-        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Data Prevista</th>
-        <th style="padding:8px 12px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">% Execução</th>
-        <th style="padding:8px 12px;text-align:center;color:var(--muted);font-size:.72rem;text-transform:uppercase">Crítica</th>
-      </tr></thead>
-      <tbody>${linhas}</tbody>
-    </table>`;
+  contEl.innerHTML = blocos;
 }
 
 function dataUriToUint8Array(uri){
@@ -6015,7 +6056,7 @@ function buildEditsMap() {
     // Só envia campos que realmente mudaram em relação ao original
     const orig = JSON.parse(_ORIG[r.registro] || '{}');
     const diff = { _editedAt: r._editedAt, _editedBy: r._editedBy };
-    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual'].forEach(f=>{
+    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual'].forEach(f=>{
       if(r[f] !== orig[f]) diff[f] = r[f];
     });
     if(Object.keys(diff).length > 2) map[r.registro] = diff;
@@ -6670,7 +6711,10 @@ function renderLucarTeste(){
     const t = dataBrPorRegistro[reg]; // pode não existir ainda na Tabela
     const discEfetiva = l.disciplina || (t && t.disciplina) || '';
     const discOpts = LUCAR_DISC_OPTIONS.map(d=>`<option value="${d}" ${discEfetiva===d?'selected':''}>${d}</option>`).join('');
-    return `<tr data-registro="${esc(reg)}" data-disciplina="${esc(discEfetiva)}" data-gerencia="${esc(l.gerencia||'')}" data-area="${esc(l.area_sistema||'')}"
+    const isCanceledCrono = t && (CANCEL_STATES.indexOf(t.status_plan) !== -1 || CANCEL_STATES.indexOf(t.status_samc) !== -1);
+    const rowStyleCrono = isCanceledCrono ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through' : '';
+    const cancelBadgeCrono = isCanceledCrono ? '<span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">SS CANCELADA/DESPRIORIZADA</span>' : '';
+    return `<tr style="${rowStyleCrono}" data-registro="${esc(reg)}" data-disciplina="${esc(discEfetiva)}" data-gerencia="${esc(l.gerencia||'')}" data-area="${esc(l.area_sistema||'')}"
       data-modulo="${esc(l.modulo||'')}" data-setor="${esc(l.setor||'')}" data-origem="${esc(l.origem||'')}"
       data-tipoexig="${esc(l.tipo_exigencia||'')}" data-prioridade="${esc(l.prioridade||'')}"
       data-fonte="${esc(t?(t.fonte||'BR'):'')}" data-samc="${esc(t?t.status_samc||'':'')}" data-fab="${esc(t?t.fabricacao||'':'')}"
@@ -6679,7 +6723,7 @@ function renderLucarTeste(){
       data-responsavel="${esc(t?t.responsavel||'':'')}" data-datasup="${t&&t.data_sup_tarde?t.data_sup_tarde:''}">
       <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
       <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
-      <td style="font-family:monospace;font-size:.71rem">${l.registro}</td>
+      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}</td>
       <td style="font-size:.7rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.nome_tarefa}">${l.nome_tarefa}</td>
       <td><select onchange="lucarSetDisciplina('${reg}',this.value)" style="font-size:.7rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px"><option value="">—</option>${discOpts}</select></td>
       <td style="font-size:.7rem">${l.nr13_venc||'—'}</td>
