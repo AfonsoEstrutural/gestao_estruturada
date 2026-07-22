@@ -774,7 +774,10 @@ h1{letter-spacing:.02em}
 <div class="section" id="folha-tarefa">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
     <div style="font-weight:700;color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em">Tarefas por vencer</div>
-    <div style="display:flex;gap:6px">
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <select id="folha-disc-filter" onchange="setFolhaDisciplina(this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-family:var(--font)">
+        <option value="">Todas as disciplinas</option>
+      </select>
       <button class="folha-janela-btn" data-janela="7" onclick="setFolhaJanela(7)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">7 dias</button>
       <button class="folha-janela-btn" data-janela="15" onclick="setFolhaJanela(15)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">15 dias</button>
       <button class="folha-janela-btn" data-janela="30" onclick="setFolhaJanela(30)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">30 dias</button>
@@ -1675,6 +1678,14 @@ var CANCEL_STATES = [
   'Cancelada',
   'Cancelado'
 ];
+// Checa o cancelamento SEMPRE ao vivo a partir do DATA_BR atual — nunca usar um
+// valor "isCancelado" congelado de uma importação anterior, porque o status pode
+// mudar depois (ex: de "SS Cancelada" para "Andamento") sem reimportar a planilha.
+function isRegistroCancelado(registro){
+  const r = DATA_BR.find(x => String(x.registro) === String(registro));
+  if(!r) return false;
+  return CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
+}
 
 var _adminIn = false;
 function checkAdminPwd() {
@@ -3567,7 +3578,7 @@ function renderMateriaisTeste(){
       const somaTxt = isAdmin ? `&nbsp;·&nbsp; Vlr. Total (R$): ${d.somaValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}${d.pctTotalSuprimento!=null?` &nbsp;·&nbsp; % Suprimento Total: ${d.pctTotalSuprimento}%`:''}` : '';
       const temCotacao = d.linhas.some(l=>String(l['Status de Fornecimento do Item na Totalidade']||'').includes('Cotação'));
       const cotacaoNote = temCotacao ? ' <span style="background:rgba(245,158,11,.18);color:var(--warn);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens em Cotação</span>' : '';
-      const cancelBadgeMat = d.isCancelado ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
+      const cancelBadgeMat = isRegistroCancelado(reg) ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
       const temIntegrado = d.linhas.some(l=>{
         const isIntegrado = String(l['Status de Fornecimento do Item na Totalidade']||'').trim()==='Integrado' && String(l['Flag']||'').trim()!=='Atendido';
         if(!isIntegrado) return false;
@@ -3575,7 +3586,7 @@ function renderMateriaisTeste(){
         return !temData; // só avisa se realmente não há nenhuma data reconhecida
       });
       const integradoNote = temIntegrado ? ' <span style="background:rgba(107,114,128,.18);color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens Integrados</span>' : '';
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" data-disc="${esc(d.disciplina)}" data-cancelado="${d.isCancelado?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${d.isCancelado?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" data-disc="${esc(d.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px">
           <span class="arrow">▶</span> <strong>${regLabel}</strong>${cancelBadgeMat} &nbsp;
           <span style="background:${badgeColor[d.statusCalc]||'#6b9cc4'};color:#fff;padding:2px 8px;border-radius:4px;font-size:.7rem">${d.statusCalc}</span>
@@ -3877,8 +3888,8 @@ function renderDetTeste(){
       const d = DETPROC_DATA[reg];
       const regSlug = 'det_'+matSlug(reg);
       const regLabel = `${d.disciplina} — ${d.nomeTarefa}`;
-      const cancelBadgeDet = d.isCancelado ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" data-cancelado="${d.isCancelado?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${d.isCancelado?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+      const cancelBadgeDet = isRegistroCancelado(reg) ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${regLabel}</strong>${cancelBadgeDet} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${d.detalhamentos.length} detalhamento(s)</span></td></tr>`;
       d.detalhamentos.forEach(it=>{
         const pfColor = it.statusPF==='PF Emitida' ? '#22c55e' : '#f59e0b';
@@ -3967,7 +3978,7 @@ function renderDetChart(){
   const matchesFilters = (reg, dataObj) => {
     const d = dataObj[reg];
     if(!d) return false;
-    if(d.isCancelado) return false; // excluído dos totais/percentuais, segue exibido (sinalizado) na tabela
+    if(isRegistroCancelado(reg)) return false; // excluído dos totais/percentuais, segue exibido (sinalizado) na tabela
     if(discVal && d.disciplina !== discVal) return false;
     if(DET_SEARCH){
       const texto = `${reg} ${d.disciplina||''} ${d.nomeTarefa||''} ${d.ss||''}`.toLowerCase();
@@ -4030,8 +4041,8 @@ function renderProcTeste(){
       const d = DETPROC_DATA[reg];
       const regSlug = 'proc_'+matSlug(reg);
       const itensComApon = d.detalhamentos.filter(it=>it.apon);
-      const cancelBadgeProc = d.isCancelado ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" data-cancelado="${d.isCancelado?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${d.isCancelado?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+      const cancelBadgeProc = isRegistroCancelado(reg) ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${d.disciplina} — ${d.nomeTarefa}</strong>${cancelBadgeProc} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${itensComApon.length} item(ns) em execução</span></td></tr>`;
       itensComApon.forEach(it=>{
         html += `<tr data-reg="${regSlug}" data-tipo="${esc(it.tipo||'')}" data-avanco="${Math.round(avancoToPct(it.apon['Avanço']))}" style="display:none">
@@ -4119,7 +4130,7 @@ function renderProcChart(){
   const discVal = document.getElementById('proc-disc-filter') ? document.getElementById('proc-disc-filter').value : '';
   const registros = Object.keys(MATERIAIS_DATA).filter(reg=>{
     const d = MATERIAIS_DATA[reg];
-    if(d.isCancelado) return false; // excluído dos totais/percentuais, segue exibido (sinalizado) na tabela
+    if(isRegistroCancelado(reg)) return false; // excluído dos totais/percentuais, segue exibido (sinalizado) na tabela
     if(discVal && d.disciplina !== discVal) return false;
     if(PROC_SEARCH){
       const dp = DETPROC_DATA[reg];
@@ -4264,11 +4275,36 @@ function parseCronogramaXml(xmlText) {
     if (fieldId) fieldMap[fieldId] = alias || fieldName || fieldId;
   });
 
+  // Nome de cada recurso (Resources > Resource) — usado para identificar quem
+  // está alocado em cada tarefa (não só a contagem, o nome de verdade).
+  const resourceNameMap = {};
+  doc.querySelectorAll('Resources > Resource').forEach(r => {
+    const uid = r.querySelector('UID')?.textContent;
+    const name = r.querySelector('Name')?.textContent || '';
+    if (uid) resourceNameMap[uid] = name;
+  });
+
+  // Para cada tarefa, lista os recursos alocados com nome + quantidade (Units do
+  // Assignment — no MS Project representa quantas pessoas/equipes daquele recurso
+  // a tarefa exige, ex: Units=2 → 2 pessoas do tipo "Soldador").
+  const recursosPorTarefa = {};
+  doc.querySelectorAll('Assignments > Assignment').forEach(a => {
+    const taskUid = a.querySelector('TaskUID')?.textContent;
+    const resourceUid = a.querySelector('ResourceUID')?.textContent;
+    const units = Number(a.querySelector('Units')?.textContent || 1);
+    if (!taskUid || !resourceUid) return;
+    const nome = resourceNameMap[resourceUid];
+    if (!nome) return; // ignora o recurso "0" (linha vazia/genérica do MS Project)
+    if (!recursosPorTarefa[taskUid]) recursosPorTarefa[taskUid] = [];
+    recursosPorTarefa[taskUid].push({ nome, quantidade: units });
+  });
+
   const tasks = [];
   doc.querySelectorAll('Tasks > Task').forEach(taskEl => {
     const isSummary = taskEl.querySelector('Summary')?.textContent === '1';
     if (isSummary) return;
 
+    const uid = taskEl.querySelector('UID')?.textContent || '';
     const nome = taskEl.querySelector('Name')?.textContent || '';
     const start = taskEl.querySelector('Start')?.textContent || '';
     const finish = taskEl.querySelector('Finish')?.textContent || '';
@@ -4276,6 +4312,7 @@ function parseCronogramaXml(xmlText) {
     const isCritical = taskEl.querySelector('Critical')?.textContent === '1';
     const work = parseMsWorkToHoras(taskEl.querySelector('Work')?.textContent);
     const edt = taskEl.querySelector('OutlineNumber')?.textContent || '';
+    const recursosDetalhe = recursosPorTarefa[uid] || [];
 
     const custom = {};
     taskEl.querySelectorAll('ExtendedAttribute').forEach(ext => {
@@ -4286,7 +4323,7 @@ function parseCronogramaXml(xmlText) {
     });
 
     tasks.push({
-      nome, start, finish, percentWork, isCritical, work, edt,
+      nome, start, finish, percentWork, isCritical, work, edt, recursosDetalhe,
       registro: custom['Registro'] || '',
       ss: custom['Nº SS'] || '',
       disciplina: custom['Disciplina'] || '',
@@ -4328,7 +4365,7 @@ function agruparProgressoPorRegistro(tasks) {
       const peso = t.work || 1;
       porRegistro[reg].pesoTotal += peso;
       porRegistro[reg].pesoConcluido += peso * (t.percentWork / 100);
-      porRegistro[reg].tarefas.push({ nome: t.nome, percentWork: t.percentWork, isCritical: t.isCritical, start: t.start, finish: t.finish, edt: t.edt });
+      porRegistro[reg].tarefas.push({ nome: t.nome, percentWork: t.percentWork, isCritical: t.isCritical, start: t.start, finish: t.finish, edt: t.edt, recursosDetalhe: t.recursosDetalhe, horas: Math.round((t.work||0)*100)/100 });
     });
   });
 
@@ -4389,6 +4426,14 @@ async function handleCronogramaXmlImport(e) {
     if (dadosCrono) {
       r.percent_execucao = dadosCrono.percentExecucao;
       r.qtd_etapas_cronograma = dadosCrono.qtdEtapas;
+      // Preserva o % Real Executado já digitado pela equipe (campo manual, nunca vem
+      // do MS Project) — casa a etapa antiga com a nova pela EDT, que é estável entre
+      // reimportações da mesma tarefa.
+      const etapasAntigas = r.etapas_cronograma || [];
+      dadosCrono.etapas.forEach(etapaNova => {
+        const antiga = etapasAntigas.find(e => e.edt === etapaNova.edt);
+        if (antiga && antiga.percentRealExecutado != null) etapaNova.percentRealExecutado = antiga.percentRealExecutado;
+      });
       r.etapas_cronograma = dadosCrono.etapas; // lista completa, já ordenada pela EDT — usada na Folha Tarefa
       r.horas_planejadas = dadosCrono.horasPlanejadas;
       r.data_prevista_fim = dadosCrono.dataPrevistaFim;
@@ -4693,7 +4738,23 @@ async function renderCurvaSKPIs(){
 }
 
 // ── FOLHA TAREFA (7 / 15 / 30 dias) ─────────────────────────────────────────
+// Salva o % Real Executado digitado pela equipe diretamente na etapa (campo
+// manual, nunca sobrescrito pela reimportação do cronograma — ver comentário
+// em handleCronogramaXmlImport).
+function salvarPercentRealExecutado(registro, edt, valor){
+  const r = DATA_BR.find(x => String(x.registro) === String(registro));
+  if(!r || !Array.isArray(r.etapas_cronograma)) return;
+  const etapa = r.etapas_cronograma.find(e => e.edt === edt);
+  if(!etapa) return;
+  const num = valor === '' ? null : Math.max(0, Math.min(100, Number(valor)));
+  etapa.percentRealExecutado = num;
+  r._editedAt = new Date().toISOString();
+  r._editedBy = SYNC_USER;
+  pushEdits();
+  flash('✅ % Real Executado salvo.', '#22c55e', 2500);
+}
 let _folhaJanela = 7;
+let _folhaDisciplina = '';
 function setFolhaJanela(dias){
   _folhaJanela = dias;
   document.querySelectorAll('.folha-janela-btn').forEach(b => {
@@ -4704,18 +4765,21 @@ function setFolhaJanela(dias){
   });
   renderFolhaTarefa();
 }
-// Seleciona os registros com data prevista de conclusão dentro da janela,
-// ainda não concluídos — ordenados do prazo mais próximo para o mais distante.
+function setFolhaDisciplina(disc){
+  _folhaDisciplina = disc;
+  renderFolhaTarefa();
+}
 // Para cada registro, seleciona só as ETAPAS (tarefas do cronograma) com data
 // prevista dentro da janela e ainda não concluídas — não o registro inteiro.
 // Um registro só aparece na Folha Tarefa se tiver ao menos uma etapa nessas condições.
-function folhaTarefa(janelaDias){
+function folhaTarefa(janelaDias, disciplina){
   const hoje = new Date().toISOString().slice(0,10);
   const limite = new Date(); limite.setDate(limite.getDate() + janelaDias);
   const limiteStr = limite.toISOString().slice(0,10);
 
   return getData()
     .filter(r => Array.isArray(r.etapas_cronograma) && r.etapas_cronograma.length)
+    .filter(r => !disciplina || r.disciplina === disciplina)
     .map(r => {
       const etapasDoPeriodo = r.etapas_cronograma.filter(e => {
         if ((e.percentWork ?? 0) >= 100) return false;
@@ -4727,44 +4791,102 @@ function folhaTarefa(janelaDias){
     .filter(x => x.etapasDoPeriodo.length)
     .sort((a,b) => a.etapasDoPeriodo[0].finish.localeCompare(b.etapasDoPeriodo[0].finish));
 }
+// Preenche o dropdown de disciplina só com as disciplinas que realmente têm
+// cronograma importado (senão apareceriam opções sem nenhuma tarefa possível).
+function populateFolhaDisciplinaFilter(){
+  const sel = document.getElementById('folha-disc-filter');
+  if(!sel) return;
+  const discs = [...new Set(getData().filter(r=>Array.isArray(r.etapas_cronograma) && r.etapas_cronograma.length).map(r=>r.disciplina).filter(Boolean))].sort();
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Todas as disciplinas</option>' + discs.map(d=>`<option value="${d}">${d}</option>`).join('');
+  sel.value = discs.includes(atual) ? atual : '';
+}
 function renderFolhaTarefa(){
-  const grupos = folhaTarefa(_folhaJanela);
+  const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
+  populateFolhaDisciplinaFilter();
+  const grupos = folhaTarefa(_folhaJanela, _folhaDisciplina);
   const resumoEl = document.getElementById('folha-tarefa-resumo');
   const contEl = document.getElementById('folha-tarefa-container');
   if(!contEl) return;
 
   const totalTarefas = grupos.reduce((s,g)=>s+g.etapasDoPeriodo.length, 0);
   const criticas = grupos.reduce((s,g)=>s+g.etapasDoPeriodo.filter(e=>e.isCritical).length, 0);
-  if(resumoEl) resumoEl.textContent = `${grupos.length} registro(s), ${totalTarefas} tarefa(s) com vencimento nos próximos ${_folhaJanela} dias` + (criticas ? ` · ${criticas} crítica(s)` : '');
+  if(resumoEl) resumoEl.textContent = `${grupos.length} registro(s), ${totalTarefas} tarefa(s) com vencimento nos próximos ${_folhaJanela} dias` + (criticas ? ` · ${criticas} crítica(s) (caminho crítico do MS Project)` : '');
 
   if(!grupos.length){
     contEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.82rem">Nenhuma tarefa com vencimento nessa janela — ou o cronograma ainda não foi importado.</div>';
     return;
   }
   const hoje = new Date().toISOString().slice(0,10);
-  const blocos = grupos.map(({registro:r, etapasDoPeriodo}) => {
-    const linhasTarefas = etapasDoPeriodo.map(e => {
+  const linhas = grupos.map(({registro:r, etapasDoPeriodo}) => {
+    const cabecalho = `<tr style="background:#f8fafc">
+      <td colspan="8" style="padding:10px 12px;font-weight:700;font-size:.82rem;border-top:2px solid #e5e7eb">
+        ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}</span>
+      </td></tr>`;
+    const resumo = `<tr>
+      <td colspan="8" style="padding:6px 12px;font-size:.76rem;color:var(--muted);border-bottom:1px solid #f0f0f0">${r.nome_tarefa ?? ''}</td>
+      </tr>`;
+
+    // Detecta tarefa "placeholder": quando a SS só tem UMA etapa no cronograma e o
+    // nome dela é igual ao resumo do serviço — ou seja, o cronograma ainda não foi
+    // detalhado em passos reais de execução (ex: Montagem, Pintura) para essa SS.
+    const semDetalhamento = etapasDoPeriodo.length === 1 &&
+      (etapasDoPeriodo[0].nome||'').trim() === (r.nome_tarefa||'').trim();
+    const avisoSemDetalhe = semDetalhamento ? `<tr>
+      <td colspan="8" style="padding:6px 12px;font-size:.72rem;color:#b45309;background:rgba(245,158,11,.08);border-bottom:1px solid #f0f0f0">
+        ⚠️ Esta SS ainda não tem detalhamento de etapas no cronograma (só a visão geral do serviço) — a data abaixo é da SS como um todo, não de um passo específico de execução.
+      </td></tr>` : '';
+
+    const tarefasRows = etapasDoPeriodo.map(e => {
       const atrasada = (e.finish||'').slice(0,10) < hoje;
       const corData = atrasada ? '#ef4444' : '#111';
+      const realValor = e.percentRealExecutado != null ? e.percentRealExecutado : '';
       return `<tr>
-        <td style="padding:6px 12px 6px 32px;border-bottom:1px solid #f5f5f5;color:var(--muted);font-size:.7rem;white-space:nowrap">${e.edt||''}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #f5f5f5">${e.nome||''}${e.isCritical?' <span title="Etapa crítica" style="color:#ef4444">⚠️</span>':''}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #f5f5f5;color:${corData};font-weight:600;white-space:nowrap">${new Date(e.finish).toLocaleDateString('pt-BR')}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #f5f5f5;text-align:right">${e.percentWork ?? 0}%</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;color:var(--muted);font-size:.7rem;white-space:nowrap">${r.registro ?? ''}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;color:var(--muted);font-size:.7rem;white-space:nowrap">${r.nro_ss ?? ''}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;color:var(--muted);font-size:.7rem;white-space:nowrap">${e.edt||''}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5">${e.nome||''}${e.isCritical?' <span title="Etapa crítica (caminho crítico do MS Project)" style="color:#ef4444">⚠️</span>':''}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;white-space:nowrap">${e.start?new Date(e.start).toLocaleDateString('pt-BR'):''}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;color:${corData};font-weight:600;white-space:nowrap">${e.finish?new Date(e.finish).toLocaleDateString('pt-BR'):''}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:right;white-space:nowrap">${e.horas ?? 0}h <span style="color:var(--muted);font-size:.65rem">(trabalho)</span></td>
+        <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;text-align:right">${e.percentWork ?? 0}%</td>
+        <td style="padding:6px 4px;border-bottom:1px solid #f5f5f5;text-align:right">
+          <input type="number" min="0" max="100" value="${realValor}" placeholder="—"
+                 style="width:56px;text-align:right;border:1px solid #d1d5db;border-radius:4px;padding:3px 5px;font-size:.78rem;font-family:var(--font)"
+                 onchange="salvarPercentRealExecutado('${esc(String(r.registro))}','${esc(e.edt||'')}', this.value)">%
+        </td>
       </tr>`;
     }).join('');
-    return `
-      <div style="border-bottom:2px solid #e5e7eb">
-        <div style="padding:10px 12px;background:#f8fafc;font-weight:700;font-size:.82rem">
-          ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}</span>
-        </div>
-        <div style="padding:6px 12px;font-size:.76rem;color:var(--muted);border-bottom:1px solid #f0f0f0">${r.nome_tarefa ?? ''}</div>
-        <table style="width:100%;border-collapse:collapse;font-size:.78rem">
-          <tbody>${linhasTarefas}</tbody>
-        </table>
-      </div>`;
+
+    // Resumo de recursos ao final do bloco do registro: nome + quantidade máxima
+    // exigida (pico), agregando os recursos de todas as etapas mostradas.
+    const recursosAgregados = {};
+    etapasDoPeriodo.forEach(e => (e.recursosDetalhe||[]).forEach(rec => {
+      recursosAgregados[rec.nome] = Math.max(recursosAgregados[rec.nome]||0, rec.quantidade);
+    }));
+    const recursosTxt = Object.entries(recursosAgregados).map(([nome,qtd])=>`${nome} (${qtd})`).join(' · ');
+    const linhaRecursos = recursosTxt ? `<tr>
+      <td colspan="8" style="padding:6px 12px;font-size:.72rem;color:var(--muted);border-bottom:2px solid #e5e7eb">👷 Recursos necessários: ${recursosTxt}</td>
+      </tr>` : '';
+
+    return cabecalho + resumo + avisoSemDetalhe + tarefasRows + linhaRecursos;
   }).join('');
-  contEl.innerHTML = blocos;
+
+  contEl.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+      <thead><tr style="background:#eef2f7">
+        <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.65rem;text-transform:uppercase">Registro</th>
+        <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.65rem;text-transform:uppercase">Nº SS</th>
+        <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.65rem;text-transform:uppercase">EDT</th>
+        <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.65rem;text-transform:uppercase">Tarefa</th>
+        <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.65rem;text-transform:uppercase">Início</th>
+        <th style="padding:8px 10px;text-align:left;color:var(--muted);font-size:.65rem;text-transform:uppercase">Término</th>
+        <th style="padding:8px 10px;text-align:right;color:var(--muted);font-size:.65rem;text-transform:uppercase">Horas</th>
+        <th style="padding:8px 10px;text-align:right;color:var(--muted);font-size:.65rem;text-transform:uppercase">% Execução</th>
+        <th style="padding:8px 10px;text-align:right;color:var(--muted);font-size:.65rem;text-transform:uppercase">% Real Executado</th>
+      </tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
 }
 
 function dataUriToUint8Array(uri){
@@ -6845,6 +6967,21 @@ function saveLucarEdit(){
   if(idx>=0){
     const t = DATA_BR[idx];
     t.nro_ss          = document.getElementById('le-ss').value;
+    t.nome_tarefa     = document.getElementById('le-nome-tarefa').value;
+    t.disciplina      = document.getElementById('le-disciplina').value;
+    t.nr13_venc       = document.getElementById('le-nr13').value;
+    t.rti_venc        = document.getElementById('le-rti').value;
+    t.spie_venc       = document.getElementById('le-spie').value;
+    t.gerencia        = document.getElementById('le-gerencia').value;
+    t.area_sistema    = document.getElementById('le-area-sistema').value;
+    t.modulo          = document.getElementById('le-modulo').value;
+    t.setor           = document.getElementById('le-setor').value;
+    t.nota_item_med   = document.getElementById('le-nota-item-med').value;
+    t.origem          = document.getElementById('le-origem').value;
+    t.tag             = document.getElementById('le-tag').value;
+    t.servico_padrao  = document.getElementById('le-servico-padrao').value;
+    t.tipo_exigencia  = document.getElementById('le-tipo-exig').value;
+    t.prioridade      = document.getElementById('le-prioridade').value;
     t.status_samc     = document.getElementById('le-samc').value;
     t.fabricacao      = document.getElementById('le-fab').value;
     t.status_plan     = document.getElementById('le-plan').value;
