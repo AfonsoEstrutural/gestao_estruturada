@@ -1103,6 +1103,11 @@ h1{letter-spacing:.02em}
     </p>
     <div id="lucar-resumo" style="font-size:.78rem;color:var(--muted)"></div>
   </div>
+  <div class="bulk-bar" id="bulk-bar-crono">
+    <span class="bulk-sel-count" id="bulk-count-crono">0 selecionado(s)</span>
+    <button class="export-btn" onclick="openLucarEditBulk()" style="background:var(--teal)">✏️ Editar selecionados</button>
+    <button class="export-btn" onclick="clearBulkSelCrono()" style="background:#6b7280">✕ Cancelar</button>
+  </div>
 
   <div class="card" style="margin-bottom:16px;padding:0;overflow:hidden">
     <div onclick="toggleLucarHistoricoPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
@@ -2208,7 +2213,7 @@ function enforceViewerRestrictions() {
   if (!_currentUser || _currentUser.perfil !== 'visualizador') return;
   // Botões de editar (Tabela e Cronograma) + barra de edição em massa + checkboxes de seleção
   document.querySelectorAll(
-    '.edit-cell-btn, #bulk-bar, .row-chk, .hdr-chk, #btn-recover, [onclick*="openEdit"], [onclick*="openCronoEdit"], [onclick*="applyBulkEdit"]'
+    '.edit-cell-btn, #bulk-bar, #bulk-bar-crono, .row-chk, .hdr-chk, .row-chk-crono, #hdr-chk-crono, #btn-recover, [onclick*="openEdit"], [onclick*="openCronoEdit"], [onclick*="applyBulkEdit"], [onclick*="openLucarEditBulk"]'
   ).forEach(el => { el.style.display = 'none'; });
   // Campos inline editáveis na Tabela (Data Sup.+Tarde, ESI, BR, Responsável)
   document.querySelectorAll('[onchange*="saveSupField"]').forEach(el => { el.disabled = true; el.style.opacity = '.5'; el.style.cursor = 'not-allowed'; });
@@ -2218,7 +2223,7 @@ function applyPerfilUI() {
   const p = _currentUser.perfil;
   // Ocultar edição para visualizadores
   const editEls = document.querySelectorAll(
-    '.edit-cell-btn, #bulk-bar, .row-chk, .hdr-chk, #btn-recover, [onclick*="openEdit"], [onclick*="applyBulkEdit"]'
+    '.edit-cell-btn, #bulk-bar, #bulk-bar-crono, .row-chk, .hdr-chk, .row-chk-crono, #hdr-chk-crono, #btn-recover, [onclick*="openEdit"], [onclick*="applyBulkEdit"], [onclick*="openLucarEditBulk"]'
   );
   editEls.forEach(el => { el.style.display = (p === 'visualizador') ? 'none' : ''; });
   // Mostrar seção de usuários só para admin
@@ -4774,22 +4779,36 @@ function setFolhaDisciplina(disc){
 // Um registro só aparece na Folha Tarefa se tiver ao menos uma etapa nessas condições.
 function folhaTarefa(janelaDias, disciplina){
   const hoje = new Date().toISOString().slice(0,10);
-  const limite = new Date(); limite.setDate(limite.getDate() + janelaDias);
+  const dadosFiltrados = getData()
+    .filter(r => Array.isArray(r.etapas_cronograma) && r.etapas_cronograma.length)
+    .filter(r => !disciplina || r.disciplina === disciplina);
+
+  // Âncora dinâmica: se não há nenhuma tarefa pendente entre hoje e a primeira
+  // tarefa real do cronograma (ex: campanha só começa daqui a 27 dias), a janela
+  // de "7/15/30 dias" passa a contar a partir dessa primeira tarefa pendente —
+  // senão a janela de 7/15 dias ficaria sempre vazia só por causa do vão inicial.
+  let primeiraPendente = null;
+  dadosFiltrados.forEach(r => r.etapas_cronograma.forEach(e => {
+    if ((e.percentWork ?? 0) >= 100) return;
+    const d = (e.finish || '').slice(0,10);
+    if (d && d >= hoje && (!primeiraPendente || d < primeiraPendente)) primeiraPendente = d;
+  }));
+  const ancora = (primeiraPendente && primeiraPendente > hoje) ? primeiraPendente : hoje;
+  const limite = new Date(ancora + 'T00:00:00'); limite.setDate(limite.getDate() + janelaDias);
   const limiteStr = limite.toISOString().slice(0,10);
 
-  return getData()
-    .filter(r => Array.isArray(r.etapas_cronograma) && r.etapas_cronograma.length)
-    .filter(r => !disciplina || r.disciplina === disciplina)
+  const grupos = dadosFiltrados
     .map(r => {
       const etapasDoPeriodo = r.etapas_cronograma.filter(e => {
         if ((e.percentWork ?? 0) >= 100) return false;
         const d = (e.finish || '').slice(0,10);
-        return d && d >= hoje && d <= limiteStr;
+        return d && d >= ancora && d <= limiteStr;
       }); // já vem em ordem de EDT, herdada do import
       return { registro: r, etapasDoPeriodo };
     })
     .filter(x => x.etapasDoPeriodo.length)
     .sort((a,b) => a.etapasDoPeriodo[0].finish.localeCompare(b.etapasDoPeriodo[0].finish));
+  return { grupos, ancora };
 }
 // Preenche o dropdown de disciplina só com as disciplinas que realmente têm
 // cronograma importado (senão apareceriam opções sem nenhuma tarefa possível).
@@ -4804,14 +4823,18 @@ function populateFolhaDisciplinaFilter(){
 function renderFolhaTarefa(){
   const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
   populateFolhaDisciplinaFilter();
-  const grupos = folhaTarefa(_folhaJanela, _folhaDisciplina);
+  const { grupos, ancora } = folhaTarefa(_folhaJanela, _folhaDisciplina);
   const resumoEl = document.getElementById('folha-tarefa-resumo');
   const contEl = document.getElementById('folha-tarefa-container');
   if(!contEl) return;
 
   const totalTarefas = grupos.reduce((s,g)=>s+g.etapasDoPeriodo.length, 0);
   const criticas = grupos.reduce((s,g)=>s+g.etapasDoPeriodo.filter(e=>e.isCritical).length, 0);
-  if(resumoEl) resumoEl.textContent = `${grupos.length} registro(s), ${totalTarefas} tarefa(s) com vencimento nos próximos ${_folhaJanela} dias` + (criticas ? ` · ${criticas} crítica(s) (caminho crítico do MS Project)` : '');
+  const hojeStr = new Date().toISOString().slice(0,10);
+  const anexoAncora = ancora > hojeStr
+    ? ` · sem tarefas entre hoje e ${new Date(ancora+'T00:00:00').toLocaleDateString('pt-BR')} — janela contada a partir do início real do trabalho`
+    : '';
+  if(resumoEl) resumoEl.textContent = `${grupos.length} registro(s), ${totalTarefas} tarefa(s) com vencimento nos próximos ${_folhaJanela} dias` + (criticas ? ` · ${criticas} crítica(s) (caminho crítico do MS Project)` : '') + anexoAncora;
 
   if(!grupos.length){
     contEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.82rem">Nenhuma tarefa com vencimento nessa janela — ou o cronograma ainda não foi importado.</div>';
@@ -6824,7 +6847,7 @@ function renderLucarTeste(){
   if(!headEl || !bodyEl) return;
   if(!registros.length){ headEl.innerHTML=''; bodyEl.innerHTML = '<tr><td style="text-align:center;color:var(--muted);padding:16px">Importe a planilha LUCAR/LUPA pelo Painel Admin.</td></tr>'; return; }
 
-  headEl.innerHTML = '<th></th>' + LUCAR_COLS_UNIFICADAS.map(([k,label])=>`<th>${label}</th>`).join('');
+  headEl.innerHTML = '<th><input type="checkbox" id="hdr-chk-crono" onchange="toggleAllChkCrono(this)" title="Selecionar todos"></th><th></th>' + LUCAR_COLS_UNIFICADAS.map(([k,label])=>`<th>${label}</th>`).join('');
   const dataBrPorRegistro = {};
   DATA_BR.forEach(r=>{ dataBrPorRegistro[String(r.registro)] = r; });
 
@@ -6843,6 +6866,7 @@ function renderLucarTeste(){
       data-plan="${esc(t?t.status_plan||'':'')}" data-lupa="${esc(t?t.status_lupa||'':'')}" data-sup="${esc(t?t.status_sup||'':'')}"
       data-esi="${t&&t.esi_resp?'1':'0'}" data-br="${t&&t.br_resp?'1':'0'}" data-esibr="${t&&t.esi_resp&&t.br_resp?'1':'0'}"
       data-responsavel="${esc(t?t.responsavel||'':'')}" data-datasup="${t&&t.data_sup_tarde?t.data_sup_tarde:''}">
+      <td><input type="checkbox" class="row-chk-crono" onchange="updateBulkBarCrono()"></td>
       <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
       <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
       <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}</td>
@@ -6887,14 +6911,70 @@ function lucarSetDisciplina(registro, val){
   if(LUCAR_DATA[registro]){ LUCAR_DATA[registro].disciplina = val; pushLucarDataToCloud(); }
 }
 
+// ── Seleção múltipla (Cronograma) — mesma ideia da Tabela, mas abre o popup
+// completo de edição em vez de uma barra com campos fixos, porque o Cronograma
+// tem campos demais para caber numa barra e o usuário quer todos disponíveis.
+function updateBulkBarCrono(){
+  const chks = document.querySelectorAll('#lucar-teste-body .row-chk-crono:checked');
+  const bar = document.getElementById('bulk-bar-crono'), cnt = document.getElementById('bulk-count-crono');
+  if(!bar || !cnt) return;
+  if(chks.length > 0){ bar.classList.add('visible'); cnt.textContent = chks.length + ' selecionado(s)'; }
+  else { bar.classList.remove('visible'); }
+}
+function toggleAllChkCrono(hdr){
+  document.querySelectorAll('#lucar-teste-body .row-chk-crono').forEach(chk => { chk.checked = hdr.checked; });
+  updateBulkBarCrono();
+}
+function clearBulkSelCrono(){
+  document.querySelectorAll('#lucar-teste-body .row-chk-crono').forEach(chk => { chk.checked = false; });
+  const hdr = document.getElementById('hdr-chk-crono'); if(hdr) hdr.checked = false;
+  updateBulkBarCrono();
+}
+
 // ── Popup de edição unificado (LUCAR + Tabela) ──
 let _lucarEditRegistro = null;
+let _lucarEditRegistros = null; // array = modo de edição múltipla (bulk)
+function openLucarEditBulk(){
+  const registros = [...document.querySelectorAll('#lucar-teste-body .row-chk-crono:checked')]
+    .map(chk => chk.closest('tr').dataset.registro);
+  if(!registros.length) return;
+  _lucarEditRegistros = registros;
+  _lucarEditRegistro = null;
+
+  document.getElementById('lucar-modal-reg-label').textContent = `Editando ${registros.length} registro(s) selecionado(s) — só os campos preenchidos abaixo serão alterados`;
+
+  // Todos os campos começam em branco/"não alterar" — diferente do modo de edição
+  // de uma linha só, aqui não faz sentido pré-preencher com o valor de um registro
+  // específico, já que os selecionados podem ter valores diferentes entre si.
+  ['le-ss','le-nome-tarefa','le-nr13','le-rti','le-spie','le-gerencia','le-area-sistema','le-modulo','le-setor',
+   'le-nota-item-med','le-origem','le-tag','le-servico-padrao','le-tipo-exig','le-prioridade','le-datasup','le-responsavel','le-obs']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+
+  const planSel = document.getElementById('le-plan');
+  const emUso = [...new Set(DATA_BR.map(r=>r.status_plan).filter(Boolean))];
+  const todosPlan = [...new Set([...STATUS_PLAN_BASE, ...emUso])];
+  planSel.innerHTML = '<option value="">— (não alterar)</option>' + todosPlan.map(s=>`<option value="${String(s).replace(/"/g,'&quot;')}">${s}</option>`).join('');
+
+  ['le-disciplina','le-samc','le-fab','le-lupa','le-sup'].forEach(id => {
+    const el = document.getElementById(id); if(!el) return;
+    if(!el.querySelector('option[value=""]')) el.insertAdjacentHTML('afterbegin', '<option value="">— (não alterar)</option>');
+    el.value = '';
+  });
+  document.getElementById('le-esi').checked = false;
+  document.getElementById('le-br').checked = false;
+
+  document.getElementById('le-tabela-section').style.display = '';
+  document.getElementById('le-sem-tabela').style.display = 'none';
+  document.getElementById('lucar-edit-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
 function openLucarEdit(registro){
   const l = LUCAR_DATA[registro];
   if(!l) return;
   const idx = DATA_BR.findIndex(r=>String(r.registro)===String(registro));
   const t = idx>=0 ? DATA_BR[idx] : null;
   _lucarEditRegistro = registro;
+  _lucarEditRegistros = null;
 
   document.getElementById('lucar-modal-reg-label').textContent = `Registro: ${registro}`;
   document.getElementById('le-ss').value = l.nro_ss || '';
@@ -6940,9 +7020,15 @@ function closeLucarEditModal(){
   document.getElementById('lucar-edit-modal').style.display = 'none';
   document.body.style.overflow = '';
   _lucarEditRegistro = null;
+  _lucarEditRegistros = null;
 }
 function saveLucarEdit(){
   if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode editar.', '#ef4444', 3000); closeLucarEditModal(); return; }
+
+  if(Array.isArray(_lucarEditRegistros) && _lucarEditRegistros.length){
+    return saveLucarEditBulk();
+  }
+
   const registro = _lucarEditRegistro;
   if(!registro || !LUCAR_DATA[registro]) return;
   const l = LUCAR_DATA[registro];
@@ -7000,6 +7086,44 @@ function saveLucarEdit(){
   renderLucarTeste();
   pushLucarDataToCloud();
   flash('✅ Registro atualizado!', '#22c55e', 3000);
+}
+// Aplica, em todos os registros selecionados, só os campos que o usuário
+// realmente preencheu (campo em branco / "— não alterar —" = mantém como estava
+// em cada registro, que podem ter valores diferentes entre si).
+function saveLucarEditBulk(){
+  const val = id => document.getElementById(id).value;
+  const campos = {
+    nro_ss: val('le-ss'), nome_tarefa: val('le-nome-tarefa'), disciplina: val('le-disciplina'),
+    nr13_venc: val('le-nr13'), rti_venc: val('le-rti'), spie_venc: val('le-spie'),
+    gerencia: val('le-gerencia'), area_sistema: val('le-area-sistema'), modulo: val('le-modulo'),
+    setor: val('le-setor'), nota_item_med: val('le-nota-item-med'), origem: val('le-origem'),
+    tag: val('le-tag'), servico_padrao: val('le-servico-padrao'), tipo_exigencia: val('le-tipo-exig'),
+    prioridade: val('le-prioridade'), status_samc: val('le-samc'), fabricacao: val('le-fab'),
+    status_plan: val('le-plan'), status_lupa: val('le-lupa'), status_sup: val('le-sup'),
+    data_sup_tarde: val('le-datasup'), responsavel: val('le-responsavel'), observacoes: val('le-obs'),
+  };
+  const camposPreenchidos = Object.entries(campos).filter(([,v]) => v !== '');
+  if(!camposPreenchidos.length){ flash('⚠️ Preencha ao menos um campo para aplicar.', '#f59e0b', 4000); return; }
+
+  let count = 0;
+  _lucarEditRegistros.forEach(registro => {
+    const l = LUCAR_DATA[registro];
+    const idx = DATA_BR.findIndex(r => String(r.registro) === String(registro));
+    const t = idx >= 0 ? DATA_BR[idx] : null;
+    camposPreenchidos.forEach(([campo, valor]) => {
+      if(l && campo in l) l[campo] = valor; // campos que também existem no objeto LUCAR (ex: disciplina, nome_tarefa)
+      if(t) t[campo] = valor; // DATA_BR aceita todos os campos da lista acima
+    });
+    if(t){ t._editedAt = new Date().toISOString(); t._editedBy = SYNC_USER; }
+    count++;
+  });
+
+  closeLucarEditModal();
+  clearBulkSelCrono();
+  renderLucarTeste();
+  pushLucarDataToCloud();
+  pushEdits();
+  flash(`✅ ${count} registro(s) atualizado(s) em massa.`, '#22c55e', 4000);
 }
 
 // ── Painel de Filtros (retrátil) da Tabela Detalhada LUCAR/LUPA ──
