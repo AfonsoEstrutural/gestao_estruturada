@@ -359,6 +359,12 @@ h1{letter-spacing:.02em}
     <span style="font-size:.8rem;font-weight:800;color:var(--text)">🔧 Fonte BR</span>
     <span style="font-size:.75rem;color:var(--muted);font-weight:500;padding:0 4px">380 registros</span>
     <span style="font-size:.72rem;color:var(--muted)">· Revisão Petrobras 19/05/2026</span>
+    <select id="fase-filtro-select" onchange="setFaseFiltro(this.value)" title="Escopo de fase exibido no sistema"
+            style="margin-left:6px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:.72rem;font-weight:700">
+      <option value="Fase 3" selected>Fase 3</option>
+      <option value="Fase 2">Fase 2 (remanescente)</option>
+      <option value="Todas as Fases">Todas as Fases</option>
+    </select>
   </div>
   <div style="display:flex;align-items:center;gap:14px;padding:0 16px;font-size:.72rem;color:var(--muted)">
     <span id="sync-status">☁️ Aguardando configuração</span>
@@ -1321,6 +1327,19 @@ h1{letter-spacing:.02em}
     <button onclick="salvarBaselineCronograma()" style="width:100%;margin-bottom:4px;background:rgba(37,99,235,.1);border:1px solid #2563eb;color:#2563eb;border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📌 Salvar Baseline do Cronograma</button>
     <div id="baseline-status" style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Carregando status da baseline...</div>
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🧪 LUCAR/LUPA</div>
+    <div class="modal-field" style="margin-bottom:8px"><label style="font-size:.7rem">Este arquivo representa:</label>
+      <select id="lucar-import-fase" style="width:100%;padding:6px;border-radius:5px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:.78rem">
+        <option value="Fase 3">Fase 3 (atualização normal — substitui o escopo atual)</option>
+        <option value="Fase 2">Fase 2 (escopo remanescente — soma ao que já existe, não substitui)</option>
+      </select>
+    </div>
+    <div class="modal-field" style="margin-bottom:8px;border:1px dashed var(--border);border-radius:6px;padding:8px">
+      <label style="font-size:.7rem;font-weight:700">📋 Declaração de Escopo — Fase 2</label>
+      <div style="font-size:.66rem;color:var(--muted);margin-bottom:6px">Só os registros declarados aqui entram quando você importar a LUPA como "Fase 2" — o resto do arquivo é ignorado. Um por linha: <code>registro;disciplina</code> (cole direto do Excel, aditivo — não apaga o que já foi declarado antes).</div>
+      <textarea id="escopo-fase2-input" rows="4" placeholder="320759;CALD-RTI&#10;340695;PINT-RTI" style="width:100%;padding:6px;border-radius:5px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:.76rem;font-family:monospace"></textarea>
+      <button onclick="salvarDeclaracaoEscopoFase2()" style="width:100%;margin-top:6px;background:rgba(217,119,6,.15);border:1px solid #b45309;color:#b45309;border-radius:5px;padding:7px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">💾 Salvar Declaração (aditivo)</button>
+      <div id="escopo-fase2-status" style="font-size:.66rem;color:var(--muted);margin-top:4px">Carregando...</div>
+    </div>
     <button onclick="document.getElementById('lucarImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(139,92,246,.15);border:1px solid #8b5cf6;color:#8b5cf6;border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Importar LUCAR/LUPA (Excel)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione o arquivo "P74-PPGM_I_LUCAR...xlsx" (aba "LUPA"). Filtra automaticamente Escopo/Gerência/Nº AS.</div>
     <input type="file" id="lucarImportInput" accept=".xlsx" style="display:none" onchange="handleLucarImport(event)">
@@ -1748,14 +1767,21 @@ function exportCronoCSV() {
 }
 function exportCronoXLS(){ exportCronoCSV(); flash('📗 Arquivo CSV gerado — compatível com Excel.','#22c55e',3000); }
 
+let _faseFiltro = 'Fase 3'; // Fase 3 (padrão, comportamento igual ao de sempre) | Fase 2 | Todas as Fases
+function matchesFase(r){
+  const fase = r.fase_origem || 'Fase 3';
+  return _faseFiltro === 'Todas as Fases' || fase === _faseFiltro;
+}
+function setFaseFiltro(v){ _faseFiltro = v; renderAll(); }
 function getAllData()  {
   // Correção automática: 'ADP Delineamento' (sem ON) é o mesmo status de 'ADP Delineamento ON'
   DATA_BR.forEach(r => { if (r.status_plan === 'ADP Delineamento') r.status_plan = 'ADP Delineamento ON'; });
-  return DATA_BR;
+  return DATA_BR.filter(matchesFase);
 }  // todos os registros — usado pela aba Tabela
 function getData() {                        // apenas escopo ativo — usado por todas as outras abas
   return DATA_BR.filter(function(r) {
-    return CANCEL_STATES.indexOf(r.status_plan) === -1 &&
+    return matchesFase(r) &&
+           CANCEL_STATES.indexOf(r.status_plan) === -1 &&
            CANCEL_STATES.indexOf(r.status_samc) === -1;
   });
 }
@@ -1948,17 +1974,36 @@ function donutSVG(containerId, data, palMap, clickKey, tooltipMap, clickMap, cli
   if (!el) return;
   const entries = Object.entries(data).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
   const total   = entries.reduce((s,[,v]) => s+v, 0);
-  if (!total) { el.innerHTML = '<p style="color:var(--muted);font-size:.8rem">Sem dados</p>'; return; }
+  if (!total) {
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="position:relative;flex-shrink:0">
+        <svg width="150" height="150" viewBox="0 0 150 150" style="overflow:visible">
+          <circle cx="${cx}" cy="${cy}" r="${(R+r)/2}" fill="none" stroke="var(--border,#ddd)" stroke-width="${R-r}"></circle>
+          <text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="18" font-weight="800" fill="var(--text)">0</text>
+          <text x="${cx}" y="${cy+10}" text-anchor="middle" font-size="9" fill="var(--muted)">total</text>
+        </svg>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:160px">
+        <span style="color:var(--muted);font-size:.75rem">Nenhum registro nessa etapa.</span>
+      </div>
+    </div>`;
+    return;
+  }
   const cx=75, cy=75, R=62, r=38;
   let angle = -Math.PI/2, paths='', legend='';
 
   entries.forEach(([k,v], i) => {
     const a   = (v / total) * 2 * Math.PI;
+    // Quando o pedaço é o círculo inteiro (só existe 1 status = 100%), o ponto
+    // inicial e final do arco coincidem e o SVG não desenha nada. Encurtamos o
+    // arco em uma fração mínima (imperceptível) só nesse caso, pra garantir que
+    // início ≠ fim e o navegador realmente desenhe o círculo.
+    const aDraw = (entries.length === 1) ? a - 0.001 : a;
     const x1  = cx + R*Math.cos(angle),    y1  = cy + R*Math.sin(angle);
-    const x2  = cx + R*Math.cos(angle+a),  y2  = cy + R*Math.sin(angle+a);
+    const x2  = cx + R*Math.cos(angle+aDraw),  y2  = cy + R*Math.sin(angle+aDraw);
     const xi1 = cx + r*Math.cos(angle),    yi1 = cy + r*Math.sin(angle);
-    const xi2 = cx + r*Math.cos(angle+a),  yi2 = cy + r*Math.sin(angle+a);
-    const lg  = a > Math.PI ? 1 : 0;
+    const xi2 = cx + r*Math.cos(angle+aDraw),  yi2 = cy + r*Math.sin(angle+aDraw);
+    const lg  = aDraw > Math.PI ? 1 : 0;
     const c   = gCol(k, palMap, i);
     const pct = Math.round(v / total * 100);
 
@@ -5444,13 +5489,14 @@ function renderTable() {
     const isCanceled = CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
     const rowStyle = isCanceled ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through' : '';
     const cancelBadge = isCanceled ? '<span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">CANCELADO</span>' : '';
+    const fase2Badge = (r.fase_origem === 'Fase 2') ? '<span style="font-size:.6rem;background:rgba(217,119,6,.15);color:#b45309;border:1px solid rgba(217,119,6,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">FASE 2 · REMANESCENTE</span>' : '';
     const effSup = getEffectiveSupData(r.registro);
     const supStatusView = effSup ? effSup.status : r.status_sup;
     const supDateView = effSup && effSup.dataTarde ? dateToISO(effSup.dataTarde) : (r.data_sup_tarde||'');
     return `<tr style="${rowStyle}" data-registro="${r.registro}" data-fonte="${r.fonte||'BR'}">
     <td class="check-col"><input type="checkbox" class="row-chk" onchange="updateBulkBar()"></td>
     <td><button class="edit-cell-btn" onclick="openEdit('${r.registro}','${r.fonte||'BR'}')">✏️</button></td>
-    <td style="font-family:monospace;font-size:.71rem">${r.registro}${cancelBadge}</td>
+    <td style="font-family:monospace;font-size:.71rem">${r.registro}${cancelBadge}${fase2Badge}</td>
     <td style="font-family:monospace;font-size:.71rem;font-weight:700;color:var(--accent)">${ss}</td>
     <td><span class="chip" style="background:var(--bg3);color:var(--text)">${r.fonte||'BR'}</span></td>
     <td>${chipSAMC(r.status_samc)}</td>
@@ -6201,7 +6247,7 @@ function buildEditsMap() {
     // Só envia campos que realmente mudaram em relação ao original
     const orig = JSON.parse(_ORIG[r.registro] || '{}');
     const diff = { _editedAt: r._editedAt, _editedBy: r._editedBy };
-    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual'].forEach(f=>{
+    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual','fase_origem'].forEach(f=>{
       if(r[f] !== orig[f]) diff[f] = r[f];
     });
     if(Object.keys(diff).length > 2) map[r.registro] = diff;
@@ -6632,6 +6678,11 @@ let LUCAR_DATA = {};       // registro -> {registro, nro_ss, nome_tarefa, discip
                            //              gerencia, area_sistema, modulo, setor, nota_item_med, origem, tag,
                            //              servico_padrao, tipo_exigencia, prioridade}
 let LUCAR_HISTORICO = [];  // [{timestamp, registroNovo, registroRemovido, totalAtivos, alteracaoLupa}]
+// registro -> disciplina — declarado manualmente pelo gestor (a Disciplina é um
+// padrão interno da Estrutural, não vem no documento do cliente). Usado para
+// restringir quais registros da LUPA de Fase 2 entram no sistema — só os que
+// estiverem aqui, mesmo que outros também batam nos filtros de escopo/gerência.
+let ESCOPO_FASE2 = {};
 
 // ── Filtros de linha (aplicados sobre a aba "LUPA" da planilha original) ──
 function lucarSituacaoAtiva(situacao){
@@ -6740,7 +6791,14 @@ async function handleLucarImport(e){
   }
   if(!linhasBrutas.length){ flash('⚠️ Nenhuma linha válida encontrada no arquivo.', '#ef4444', 5000); return; }
 
-  const novoLucarData = {};
+  const faseImportacao = document.getElementById('lucar-import-fase')?.value || 'Fase 3';
+
+  if(faseImportacao === 'Fase 2' && Object.keys(ESCOPO_FASE2).length === 0){
+    flash('⚠️ Nenhum registro declarado para a Fase 2 ainda. Preencha a "Declaração de Escopo" antes de importar.', '#ef4444', 7000);
+    return;
+  }
+
+  const novoLucarDataParcial = {};
   linhasBrutas.forEach(({row,colIdx})=>{
     if(!lucarSituacaoAtiva(row[colIdx['Situação']])) return;
     if(!lucarEscopoValido(row[colIdx['Escopo']])) return;
@@ -6748,32 +6806,64 @@ async function handleLucarImport(e){
     if(!lucarNumASValido(row[colIdx['Nº AS']])) return;
     const rec = lucarBuildRecord(row, colIdx);
     if(!rec.registro || !rec.nro_ss) return;
+    // Fase 2: só entra quem foi explicitamente declarado — o resto do arquivo é
+    // ignorado, mesmo que bata nos filtros de escopo/gerência acima.
+    if(faseImportacao === 'Fase 2' && !ESCOPO_FASE2[rec.registro]) return;
     if(LUCAR_DATA[rec.registro] && LUCAR_DATA[rec.registro].disciplina){
       rec.disciplina = LUCAR_DATA[rec.registro].disciplina; // preserva escolha manual já feita
+    } else if(faseImportacao === 'Fase 2' && ESCOPO_FASE2[rec.registro]){
+      rec.disciplina = ESCOPO_FASE2[rec.registro]; // disciplina declarada (padrão Estrutural, não vem do cliente)
     } else {
       const jaNaTabela = DATA_BR.find(r=>String(r.registro)===rec.registro);
       rec.disciplina = (jaNaTabela && jaNaTabela.disciplina) ? jaNaTabela.disciplina : '';
     }
-    novoLucarData[rec.registro] = rec;
+    rec.fase_origem = faseImportacao;
+    novoLucarDataParcial[rec.registro] = rec;
   });
 
-  const regsAntes = new Set(Object.keys(LUCAR_DATA));
-  const regsDepois = new Set(Object.keys(novoLucarData));
+  // Fase 3 = comportamento original (substitui TODO o LUCAR_DATA — é a fonte única
+  // de verdade da campanha atual). Fase 2 = ADITIVO — só mexe no subconjunto que já
+  // era Fase 2 antes, preservando os registros de Fase 3 (ou de outras fases) intactos.
+  let novoLucarData;
+  let regsAntes, regsDepois;
+  if(faseImportacao === 'Fase 2'){
+    const antesFase2 = Object.keys(LUCAR_DATA).filter(k => (LUCAR_DATA[k].fase_origem||'Fase 3') === 'Fase 2');
+    regsAntes = new Set(antesFase2);
+    regsDepois = new Set(Object.keys(novoLucarDataParcial));
+    novoLucarData = { ...LUCAR_DATA }; // mantém tudo que não é Fase 2
+    antesFase2.forEach(k => delete novoLucarData[k]); // remove a fase 2 antiga...
+    Object.assign(novoLucarData, novoLucarDataParcial); // ...e substitui só por essa nova leva
+  } else {
+    regsAntes = new Set(Object.keys(LUCAR_DATA));
+    regsDepois = new Set(Object.keys(novoLucarDataParcial));
+    novoLucarData = novoLucarDataParcial;
+  }
   const novos = [...regsDepois].filter(r=>!regsAntes.has(r));
   const removidos = [...regsAntes].filter(r=>!regsDepois.has(r));
   const jaHaviaImportacao = regsAntes.size > 0 || LUCAR_HISTORICO.length > 0;
 
   LUCAR_DATA = novoLucarData;
+  // Propaga a fase também para o DATA_BR (Tabela) dos registros desta leva —
+  // sem isso, o filtro global de Fase não bateria certo fora da aba Cronograma.
+  Object.keys(novoLucarDataParcial).forEach(reg => {
+    const t = DATA_BR.find(r => String(r.registro) === reg);
+    if(t && t.fase_origem !== faseImportacao){
+      t.fase_origem = faseImportacao;
+      t._editedAt = new Date().toISOString();
+      t._editedBy = SYNC_USER;
+    }
+  });
   LUCAR_HISTORICO.push({
     timestamp: new Date().toISOString(),
     registroNovo: novos.length,
     registroRemovido: removidos.length,
     totalAtivos: regsDepois.size,
+    fase: faseImportacao,
     alteracaoLupa: !jaHaviaImportacao ? 'N/A' : ((novos.length>0||removidos.length>0) ? 'Sim' : 'Não')
   });
 
   renderLucarTeste();
-  flash(`✅ LUCAR/LUPA importado localmente: ${regsDepois.size} registro(s) ativo(s) (${novos.length} novo(s), ${removidos.length} removido(s)). Enviando para a nuvem...`, '#1a6fad', 4000);
+  flash(`✅ LUCAR/LUPA (${faseImportacao}) importado localmente: ${regsDepois.size} registro(s) ativo(s) nessa fase (${novos.length} novo(s), ${removidos.length} removido(s)). Enviando para a nuvem...`, '#1a6fad', 4000);
   const [ok1, ok2] = await Promise.all([pushLucarDataToCloud(), pushLucarHistoricoToCloud()]);
   if(ok1 && ok2) flash(`☁️ LUCAR/LUPA sincronizado às ${new Date().toLocaleTimeString('pt-BR')}. Já pode fechar o Dashboard com segurança.`, '#22c55e', 7000);
   e.target.value = '';
@@ -6805,6 +6895,60 @@ async function pullLucarFromCloud(){
     if(r2.ok){ const t2 = await r2.text(); if(t2 && t2!=='null'){ LUCAR_HISTORICO = JSON.parse(t2); got = true; } }
     return got;
   } catch(e){ console.warn('[LUPA] Erro ao buscar LUCAR/LUPA da nuvem:', e); return false; }
+}
+async function pushEscopoFase2ToCloud(){
+  try {
+    const res = await fetch(`${FIREBASE_URL}/escopo_fase2.json`, { method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(ESCOPO_FASE2) });
+    return res.ok;
+  } catch(e){ console.warn('[FASE2] Erro ao enviar escopo Fase 2:', e); return false; }
+}
+async function pullEscopoFase2FromCloud(){
+  try {
+    const res = await fetch(`${FIREBASE_URL}/escopo_fase2.json`, { headers: jsonbinHeaders() });
+    if(res.ok){ const t = await res.text(); if(t && t!=='null'){ ESCOPO_FASE2 = JSON.parse(t); return true; } }
+    return false;
+  } catch(e){ console.warn('[FASE2] Erro ao buscar escopo Fase 2 da nuvem:', e); return false; }
+}
+// Salva a declaração de escopo (aditivo — os lotes anteriores continuam valendo).
+// Formato aceito por linha: "registro;disciplina", "registro,disciplina" ou
+// "registro<TAB>disciplina" (colar direto do Excel também funciona).
+async function salvarDeclaracaoEscopoFase2(){
+  const texto = document.getElementById('escopo-fase2-input').value.trim();
+  if(!texto){ flash('⚠️ Cole ao menos uma linha "registro; disciplina".', '#f59e0b', 5000); return; }
+
+  const linhas = texto.split('\n').map(l=>l.trim()).filter(Boolean);
+  let adicionados = 0, comErro = 0;
+  linhas.forEach(linha => {
+    const partes = linha.split(/[;,\t]/).map(p=>p.trim()).filter(Boolean);
+    if(partes.length < 2){ comErro++; return; }
+    const [registro, disciplina] = partes;
+    ESCOPO_FASE2[registro] = disciplina;
+
+    // Cria (ou atualiza) o registro correspondente no DATA_BR já com a fase e a disciplina.
+    let t = DATA_BR.find(r => String(r.registro) === registro);
+    if(!t){
+      t = { registro, nro_ss:'', nome_tarefa:'', disciplina:'', status_plan:'', status_samc:'', status_lupa:'', status_sup:'', fabricacao:'', observacoes:'' };
+      DATA_BR.push(t);
+    }
+    t.disciplina = disciplina;
+    t.fase_origem = 'Fase 2';
+    t._editedAt = new Date().toISOString();
+    t._editedBy = SYNC_USER;
+    adicionados++;
+  });
+
+  renderAll();
+  pushEdits();
+  const okEscopo = await pushEscopoFase2ToCloud();
+  document.getElementById('escopo-fase2-input').value = '';
+  atualizarStatusEscopoFase2();
+  flash(`✅ ${adicionados} registro(s) declarado(s) para a Fase 2` + (comErro?` (${comErro} linha(s) ignorada(s) — formato inválido)`:'') + (okEscopo?' · sincronizado.':' · ⚠️ falhou ao sincronizar, tente de novo.'), '#22c55e', 6000);
+}
+function atualizarStatusEscopoFase2(){
+  const el = document.getElementById('escopo-fase2-status');
+  if(!el) return;
+  const total = Object.keys(ESCOPO_FASE2).length;
+  el.textContent = total ? `${total} registro(s) já declarado(s) para a Fase 2.` : 'Nenhum registro declarado ainda.';
 }
 
 // ── Render da aba de teste ──
@@ -6859,6 +7003,7 @@ function renderLucarTeste(){
     const isCanceledCrono = t && (CANCEL_STATES.indexOf(t.status_plan) !== -1 || CANCEL_STATES.indexOf(t.status_samc) !== -1);
     const rowStyleCrono = isCanceledCrono ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through' : '';
     const cancelBadgeCrono = isCanceledCrono ? '<span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">SS CANCELADA/DESPRIORIZADA</span>' : '';
+    const fase2BadgeCrono = (l.fase_origem === 'Fase 2') ? '<span style="font-size:.6rem;background:rgba(217,119,6,.15);color:#b45309;border:1px solid rgba(217,119,6,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">FASE 2 · REMANESCENTE</span>' : '';
     return `<tr style="${rowStyleCrono}" data-registro="${esc(reg)}" data-disciplina="${esc(discEfetiva)}" data-gerencia="${esc(l.gerencia||'')}" data-area="${esc(l.area_sistema||'')}"
       data-modulo="${esc(l.modulo||'')}" data-setor="${esc(l.setor||'')}" data-origem="${esc(l.origem||'')}"
       data-tipoexig="${esc(l.tipo_exigencia||'')}" data-prioridade="${esc(l.prioridade||'')}"
@@ -6869,7 +7014,7 @@ function renderLucarTeste(){
       <td><input type="checkbox" class="row-chk-crono" onchange="updateBulkBarCrono()"></td>
       <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
       <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
-      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}</td>
+      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}${fase2BadgeCrono}</td>
       <td style="font-size:.7rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.nome_tarefa}">${l.nome_tarefa}</td>
       <td><select onchange="lucarSetDisciplina('${reg}',this.value)" style="font-size:.7rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px"><option value="">—</option>${discOpts}</select></td>
       <td style="font-size:.7rem">${l.nr13_venc||'—'}</td>
@@ -7547,6 +7692,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await pullLucarFromCloud();
     autoSnapshotIfNeeded(); // salva a "foto" da semana, se ainda não existir uma
     carregarBaselineCronograma(); // atualiza o texto de status da baseline no Painel Admin
+    pullEscopoFase2FromCloud().then(atualizarStatusEscopoFase2);
     setInterval(() => pullEdits(true), 300000); // 5 min — reduzido para poupar cota gratuita do JSONBin
     setInterval(() => pullMateriaisDetProcAndRender(), 300000); // idem, para Materiais/Detalhamento/Processamento
   }
