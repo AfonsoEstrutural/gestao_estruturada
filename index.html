@@ -1124,7 +1124,7 @@ h1{letter-spacing:.02em}
       <div class="tbl-wrap" style="max-height:300px;overflow-y:auto">
         <table>
           <thead><tr>
-            <th>Data da LUCAR</th><th>Registro Novo</th><th>Registro Removido</th><th>Total de Registros Ativos</th><th>Alteração na LUPA</th>
+            <th>Data da LUCAR</th><th>Registro Novo</th><th>Registro Removido</th><th>Total de Registros Ativos</th><th>Alteração na LUPA</th><th></th>
           </tr></thead>
           <tbody id="lucar-historico-body"></tbody>
         </table>
@@ -1772,7 +1772,34 @@ function matchesFase(r){
   const fase = r.fase_origem || 'Fase 3';
   return _faseFiltro === 'Todas as Fases' || fase === _faseFiltro;
 }
-function setFaseFiltro(v){ _faseFiltro = v; renderAll(); }
+function setFaseFiltro(v){
+  _faseFiltro = v;
+  // Um filtro deixado marcado (ex: Status SAMC) de quando se via outra fase pode
+  // esconder TUDO da fase nova (registros novos ainda sem esses status
+  // preenchidos) — evita a confusão de "a fase X não mostra nada" limpando os
+  // filtros da Tabela sempre que a fase muda.
+  if(typeof clearFilters === 'function') clearFilters();
+  renderAll();
+  renderActiveTabContent();
+}
+// renderAll() só atualiza os cards/resumos gerais — os gráficos e tabelas de
+// cada aba específica só recalculavam ao clicar na aba (showTab). Isso fazia o
+// filtro de Fase parecer "não funcionar" nos gráficos quando trocado com a aba
+// já aberta. Esta função replica, sob demanda, a mesma renderização que
+// showTab() dispara para a aba que estiver ativa no momento.
+function renderActiveTabContent(){
+  const activeSec = document.querySelector('.section.active');
+  if(!activeSec) return;
+  const id = activeSec.id;
+  if(id === 'tabela'){ renderTable(); }
+  if(id === 'cronograma'){ renderCrono(); }
+  if(id === 'curvas'){ setCurvaGranularidade(_curvaGranularidade); }
+  if(id === 'folha-tarefa'){ setFolhaJanela(_folhaJanela); }
+  if(id === 'graficos-esi'){ renderESICharts(); }
+  if(id === 'graficos-br'){ renderBRCharts(); }
+  if(id === 'suprfab-teste'){ pullMateriaisDetProcAndRender(); }
+  if(id === 'lucar-teste'){ renderLucarTeste(); }
+}
 function getAllData()  {
   // Correção automática: 'ADP Delineamento' (sem ON) é o mesmo status de 'ADP Delineamento ON'
   DATA_BR.forEach(r => { if (r.status_plan === 'ADP Delineamento') r.status_plan = 'ADP Delineamento ON'; });
@@ -1932,9 +1959,9 @@ const FAB_C   = {'Não':'#1a6fad','Sim':'#22c55e','Verificar':'#f59e0b'};
 const DISC_C  = {'CALD-RTI':'#1a6fad','CALD-TANQUE':'#14b8a6','NR-13':'#ef4444',
   'PINT-PLANO':'#8b5cf6','PINT-RTI':'#f5a623','PSV':'#22c55e'};
 const DELIN_C = {'Delineamento aprovado':'#22c55e','Delineamento pendente - ESI':'#f5a623',
-  'Delineamento pendente - BR':'#1a6fad','Cancelados / A Cancelar':'#ef4444'};
+  'Delineamento pendente - BR':'#1a6fad','Cancelados / A Cancelar':'#ef4444','Sem Status Definido':'#9ca3af'};
 const BOOK_C  = {'Book planejamento aprovado':'#22c55e',
-  'Book planejamento pendente - BR':'#1a6fad','Book Planejamento pendente - ESI':'#f5a623'};
+  'Book planejamento pendente - BR':'#1a6fad','Book Planejamento pendente - ESI':'#f5a623','Sem Status Definido':'#9ca3af'};
 
 function gCol(k, pm, i) { return (pm && pm[k]) || PAL[i % PAL.length]; }
 
@@ -1974,6 +2001,7 @@ function donutSVG(containerId, data, palMap, clickKey, tooltipMap, clickMap, cli
   if (!el) return;
   const entries = Object.entries(data).filter(([,v]) => v > 0).sort((a,b) => b[1]-a[1]);
   const total   = entries.reduce((s,[,v]) => s+v, 0);
+  const cx=75, cy=75, R=62, r=38;
   if (!total) {
     el.innerHTML = `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <div style="position:relative;flex-shrink:0">
@@ -1989,25 +2017,39 @@ function donutSVG(containerId, data, palMap, clickKey, tooltipMap, clickMap, cli
     </div>`;
     return;
   }
-  const cx=75, cy=75, R=62, r=38;
   let angle = -Math.PI/2, paths='', legend='';
 
   entries.forEach(([k,v], i) => {
     const a   = (v / total) * 2 * Math.PI;
-    // Quando o pedaço é o círculo inteiro (só existe 1 status = 100%), o ponto
-    // inicial e final do arco coincidem e o SVG não desenha nada. Encurtamos o
-    // arco em uma fração mínima (imperceptível) só nesse caso, pra garantir que
-    // início ≠ fim e o navegador realmente desenhe o círculo.
-    const aDraw = (entries.length === 1) ? a - 0.001 : a;
-    const x1  = cx + R*Math.cos(angle),    y1  = cy + R*Math.sin(angle);
-    const x2  = cx + R*Math.cos(angle+aDraw),  y2  = cy + R*Math.sin(angle+aDraw);
-    const xi1 = cx + r*Math.cos(angle),    yi1 = cy + r*Math.sin(angle);
-    const xi2 = cx + r*Math.cos(angle+aDraw),  yi2 = cy + r*Math.sin(angle+aDraw);
-    const lg  = aDraw > Math.PI ? 1 : 0;
     const c   = gCol(k, palMap, i);
     const pct = Math.round(v / total * 100);
 
-    // Tooltip nativo SVG (fallback)
+    // Quando o pedaço é o círculo inteiro (só existe 1 status = 100%), um arco
+    // único degenera (início = fim) e o navegador preenche como disco cheio, sem
+    // o furo do meio. A forma robusta de desenhar um anel completo em SVG é com
+    // DOIS arcos de 180° (nunca degeneram, porque início e fim nunca coincidem).
+    if (entries.length === 1) {
+      const xMidO = cx + R*Math.cos(angle+Math.PI), yMidO = cy + R*Math.sin(angle+Math.PI);
+      const xMidI = cx + r*Math.cos(angle+Math.PI), yMidI = cy + r*Math.sin(angle+Math.PI);
+      const x1  = cx + R*Math.cos(angle), y1  = cy + R*Math.sin(angle);
+      const xi1 = cx + r*Math.cos(angle), yi1 = cy + r*Math.sin(angle);
+      const tipItemsFull = tooltipMap && tooltipMap[k];
+      const tipTextFull  = tipItemsFull && tipItemsFull.length ? k+'|'+tipItemsFull.map(t=>t.label+':::'+t.count).join('~~') : k+'|'+k+': '+v+' ('+pct+'%)';
+      const hasClickFull = clickMap && clickMap[k];
+      const clickFnNameFull = clickFn || 'drillDownPlanMulti';
+      const clickAttrFull = hasClickFull
+        ? `onclick="${clickFnNameFull}(${JSON.stringify(clickMap[k])})" style="cursor:pointer"`
+        : (clickKey ? `onclick="drillDown('${clickKey}','${k.replace(/'/g,"\'")}')" style="cursor:pointer"` : '');
+      paths += `<path d="M${x1},${y1} A${R},${R} 0 1,1 ${xMidO},${yMidO} A${R},${R} 0 1,1 ${x1},${y1} L${xi1},${yi1} A${r},${r} 0 1,0 ${xMidI},${yMidI} A${r},${r} 0 1,0 ${xi1},${yi1} Z" fill="${c}" stroke="var(--card)" stroke-width="2" data-tip="${tipTextFull}" onmouseenter="showDonutTip(event,this)" onmousemove="_posDonutTip(event,this._tip)" onmouseleave="hideDonutTip(this)" ${clickAttrFull}></path>`;
+      legend += `<div style="display:flex;align-items:center;gap:6px;font-size:.78rem;margin-bottom:3px" ${clickAttrFull}><span style="width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0"></span><span style="flex:1">${k}</span><span style="color:var(--muted)">${v} (${pct}%)</span></div>`;
+      return;
+    }
+
+    const x1  = cx + R*Math.cos(angle),    y1  = cy + R*Math.sin(angle);
+    const x2  = cx + R*Math.cos(angle+a),  y2  = cy + R*Math.sin(angle+a);
+    const xi1 = cx + r*Math.cos(angle),    yi1 = cy + r*Math.sin(angle);
+    const xi2 = cx + r*Math.cos(angle+a),  yi2 = cy + r*Math.sin(angle+a);
+    const lg  = a > Math.PI ? 1 : 0;    // Tooltip nativo SVG (fallback)
     const tipItems = tooltipMap && tooltipMap[k];
     const tipText  = tipItems && tipItems.length ? k+'|'+tipItems.map(t=>t.label+':::'+t.count).join('~~') : k+'|'+k+': '+v+' ('+pct+'%)';
 
@@ -5884,8 +5926,8 @@ function renderBRCharts(discFilter) {
   }
 
   // ── DONUT 1: Delineamento ─────────────────────────────────────────────────
-  var delinData    = {'Delineamento aprovado':0,'Delineamento pendente - ESI':0,'Delineamento pendente - BR':0};
-  var delinESImap  = {}, delinBRmap = {}, delinAprovMap = {};
+  var delinData    = {'Delineamento aprovado':0,'Delineamento pendente - ESI':0,'Delineamento pendente - BR':0,'Sem Status Definido':0};
+  var delinESImap  = {}, delinBRmap = {}, delinAprovMap = {}, delinSemStatusMap = {};
   base.forEach(function(r) {
     var p = r.status_plan || '';
     if (DELIN_ESI_STATES.indexOf(p) !== -1) {
@@ -5897,18 +5939,30 @@ function renderBRCharts(discFilter) {
     } else if (DELIN_APROV_STATES.indexOf(p) !== -1) {
       delinData['Delineamento aprovado']++;
       delinAprovMap[p] = (delinAprovMap[p]||0) + 1;
+    } else {
+      // Registros sem status de planejamento ainda (ex: escopo recém-declarado,
+      // como itens remanescentes de outra fase) — sem esta categoria, eles
+      // ficavam invisíveis no gráfico mesmo contando no total do círculo.
+      delinData['Sem Status Definido']++;
+      delinSemStatusMap[p || '(vazio)'] = (delinSemStatusMap[p || '(vazio)']||0) + 1;
     }
   });
   var delinTooltip = {
     'Delineamento pendente - ESI': toTip(delinESImap),
     'Delineamento pendente - BR':  toTip(delinBRmap),
     'Delineamento aprovado':       toTip(delinAprovMap),
+    'Sem Status Definido':         toTip(delinSemStatusMap),
   };
   var delinClick = {
     'Delineamento pendente - ESI': Object.keys(delinESImap),
     'Delineamento pendente - BR':  Object.keys(delinBRmap),
     'Delineamento aprovado':       Object.keys(delinAprovMap),
+    'Sem Status Definido':         Object.keys(delinSemStatusMap),
   };
+  var elBadge = document.getElementById('graficos-br-badge');
+  if (elBadge) elBadge.textContent = 'BR · ' + base.length + ' iten(s)';
+  var elSubtitle = document.getElementById('graficos-br-subtitle');
+  if (elSubtitle) elSubtitle.textContent = base.length + ' registros · Total Registros ' + _faseFiltro;
   var el1 = document.getElementById('br-delin-count');
   if (el1) el1.textContent = '(' + base.length + ')';
 
@@ -6284,6 +6338,13 @@ function applyEditsMap(map) {
     if(idx >= 0) {
       const local = arr[idx]._editedAt || '';
       if(!local || edits._editedAt > local) { Object.assign(arr[idx], edits); count++; }
+    } else if(edits.fase_origem || edits.disciplina){
+      // Registro não existe no array local (ex: veio de "Declaração de Escopo" e
+      // este arquivo/sessão nunca teve esse registro no conjunto original) — sem
+      // isso, registros criados na hora "somem" ao abrir uma versão nova do
+      // sistema, porque só existem como edição salva, nunca como registro base.
+      arr.push({ registro, nro_ss:'', nome_tarefa:'', status_plan:'', status_samc:'', status_lupa:'', status_sup:'', fabricacao:'', observacoes:'', ...edits });
+      count++;
     }
   });
   return count;
@@ -6704,7 +6765,7 @@ function lucarNumASValido(numAS){
 
 // ── Transformações de coluna ──
 function lucarParseSSFromNumAS(numAS){
-  const m = /SS-?\s*0*(\d+)\s*\/\s*(\d{4})/i.exec(String(numAS||''));
+  const m = /SS[-_]?\s*0*(\d+)\s*\/\s*(\d{4})/i.exec(String(numAS||''));
   return m ? `SS-${parseInt(m[1],10)}/${m[2]}` : '';
 }
 function lucarCleanNumPart(v){
@@ -6798,12 +6859,44 @@ async function handleLucarImport(e){
     return;
   }
 
+  // "Atendido" é uma regra padrão (item já resolvido, normalmente não é mais
+  // trabalho ativo) — mas nem sempre isso é o que se quer (ex: itens declarados
+  // como remanescentes da Fase 2 podem estar nesse status e ainda precisar ser
+  // trabalhados). Em vez de decidir sozinho, o sistema pergunta sempre que essa
+  // regra for "contestada" — ou seja, sempre que houver linhas nessa condição
+  // dentro do que seria importado.
+  const linhasAtendidoRelevantes = linhasBrutas.filter(({row,colIdx}) => {
+    const situacao = String(row[colIdx['Situação']]||'').toUpperCase();
+    if(!situacao.includes('ATENDID')) return false;
+    if(faseImportacao === 'Fase 2'){
+      const registroRaw = row[colIdx['Nº Registro']];
+      const reg = /^\d+(\.0+)?$/.test(String(registroRaw).trim()) ? String(parseInt(registroRaw,10)) : String(registroRaw||'').trim();
+      return !!ESCOPO_FASE2[reg];
+    }
+    return lucarEscopoValido(row[colIdx['Escopo']]) && lucarGerenciaValida(row[colIdx['Gerência Executante']]) && lucarNumASValido(row[colIdx['Nº AS']]);
+  });
+  let incluirAtendidos = false;
+  if(linhasAtendidoRelevantes.length > 0){
+    incluirAtendidos = confirm(
+      `${linhasAtendidoRelevantes.length} registro(s) desta importação estão com a situação "Atendido".\n\n` +
+      `Por padrão esses itens não entram (a regra assume que "Atendido" = trabalho já resolvido).\n\n` +
+      `Deseja incluir esses ${linhasAtendidoRelevantes.length} registro(s) "Atendido" mesmo assim?`
+    );
+  }
+
   const novoLucarDataParcial = {};
   linhasBrutas.forEach(({row,colIdx})=>{
-    if(!lucarSituacaoAtiva(row[colIdx['Situação']])) return;
-    if(!lucarEscopoValido(row[colIdx['Escopo']])) return;
-    if(!lucarGerenciaValida(row[colIdx['Gerência Executante']])) return;
-    if(!lucarNumASValido(row[colIdx['Nº AS']])) return;
+    const situacaoTxt = String(row[colIdx['Situação']]||'').toUpperCase();
+    if(situacaoTxt.includes('CANCEL')) return; // cancelado nunca entra, independente da resposta acima
+    if(situacaoTxt.includes('ATENDID') && !incluirAtendidos) return;
+    // Os filtros de Escopo/Gerência/Nº AS abaixo são regras específicas da Fase 3
+    // (o texto "UMS 3ª Fase" não existe no arquivo remanescente da Fase 2). Na
+    // Fase 2, quem decide o que entra é só a lista declarada (ESCOPO_FASE2).
+    if(faseImportacao !== 'Fase 2'){
+      if(!lucarEscopoValido(row[colIdx['Escopo']])) return;
+      if(!lucarGerenciaValida(row[colIdx['Gerência Executante']])) return;
+      if(!lucarNumASValido(row[colIdx['Nº AS']])) return;
+    }
     const rec = lucarBuildRecord(row, colIdx);
     if(!rec.registro || !rec.nro_ss) return;
     // Fase 2: só entra quem foi explicitamente declarado — o resto do arquivo é
@@ -6821,37 +6914,62 @@ async function handleLucarImport(e){
     novoLucarDataParcial[rec.registro] = rec;
   });
 
-  // Fase 3 = comportamento original (substitui TODO o LUCAR_DATA — é a fonte única
-  // de verdade da campanha atual). Fase 2 = ADITIVO — só mexe no subconjunto que já
-  // era Fase 2 antes, preservando os registros de Fase 3 (ou de outras fases) intactos.
-  let novoLucarData;
-  let regsAntes, regsDepois;
-  if(faseImportacao === 'Fase 2'){
-    const antesFase2 = Object.keys(LUCAR_DATA).filter(k => (LUCAR_DATA[k].fase_origem||'Fase 3') === 'Fase 2');
-    regsAntes = new Set(antesFase2);
-    regsDepois = new Set(Object.keys(novoLucarDataParcial));
-    novoLucarData = { ...LUCAR_DATA }; // mantém tudo que não é Fase 2
-    antesFase2.forEach(k => delete novoLucarData[k]); // remove a fase 2 antiga...
-    Object.assign(novoLucarData, novoLucarDataParcial); // ...e substitui só por essa nova leva
-  } else {
-    regsAntes = new Set(Object.keys(LUCAR_DATA));
-    regsDepois = new Set(Object.keys(novoLucarDataParcial));
-    novoLucarData = novoLucarDataParcial;
-  }
+  // Cada importação mexe SÓ no subconjunto da fase que está sendo importada —
+  // os registros de outras fases (ex: Fase 2 remanescente, quando se importa
+  // Fase 3, ou vice-versa) são sempre preservados intactos.
+  const antesDestaFase = Object.keys(LUCAR_DATA).filter(k => (LUCAR_DATA[k].fase_origem||'Fase 3') === faseImportacao);
+  const regsAntes = new Set(antesDestaFase);
+  const regsDepois = new Set(Object.keys(novoLucarDataParcial));
+  const novoLucarData = { ...LUCAR_DATA }; // mantém tudo que não é dessa fase
+  antesDestaFase.forEach(k => delete novoLucarData[k]); // remove a leva antiga desta fase...
+  Object.assign(novoLucarData, novoLucarDataParcial);    // ...e substitui só por essa nova leva
   const novos = [...regsDepois].filter(r=>!regsAntes.has(r));
   const removidos = [...regsAntes].filter(r=>!regsDepois.has(r));
   const jaHaviaImportacao = regsAntes.size > 0 || LUCAR_HISTORICO.length > 0;
 
+  // Trava de segurança: se a importação for apagar praticamente tudo que já
+  // existia (ex: ia de 203 registros pra 0), isso quase sempre é sinal de erro
+  // (fase errada selecionada, arquivo errado, filtro não bateu em nada) — pede
+  // confirmação explícita em vez de aplicar direto e perder dados silenciosamente.
+  if(regsAntes.size >= 5 && regsDepois.size === 0){
+    const confirmar = confirm(
+      `⚠️ ATENÇÃO: essa importação (${faseImportacao}) vai remover TODOS os ${regsAntes.size} registro(s) que já estavam ativos nessa fase, e não vai trazer nenhum registro novo no lugar.\n\n` +
+      `Isso geralmente acontece quando a fase selecionada está errada, ou o arquivo não é o esperado.\n\n` +
+      `Confira o seletor "Este arquivo representa" antes de continuar.\n\n` +
+      `Tem certeza que quer continuar mesmo assim e REMOVER esses ${regsAntes.size} registro(s)?`
+    );
+    if(!confirmar){
+      flash('❌ Importação cancelada — nenhum dado foi alterado.', '#6b7280', 5000);
+      e.target.value = '';
+      return;
+    }
+  } else if(regsAntes.size >= 10 && regsDepois.size < regsAntes.size * 0.5){
+    const confirmar = confirm(
+      `⚠️ Essa importação (${faseImportacao}) vai reduzir de ${regsAntes.size} para ${regsDepois.size} registro(s) ativo(s) — uma queda de mais de 50%.\n\n` +
+      `Confirme que o arquivo e a fase selecionada estão corretos antes de continuar.\n\nContinuar mesmo assim?`
+    );
+    if(!confirmar){
+      flash('❌ Importação cancelada — nenhum dado foi alterado.', '#6b7280', 5000);
+      e.target.value = '';
+      return;
+    }
+  }
+
   LUCAR_DATA = novoLucarData;
-  // Propaga a fase também para o DATA_BR (Tabela) dos registros desta leva —
-  // sem isso, o filtro global de Fase não bateria certo fora da aba Cronograma.
+  // Propaga fase + Nº SS + Nome da Tarefa para o DATA_BR (Tabela) dos registros
+  // desta leva. Sem isso, abas que buscam essas informações no registro
+  // principal (Materiais, Detalhamento, Processamento, Fluxo do Processo) ficam
+  // com "sem SS"/"sem nome de tarefa" para registros novos (ex: Fase 2), mesmo
+  // a informação já existindo aqui no Cronograma.
   Object.keys(novoLucarDataParcial).forEach(reg => {
     const t = DATA_BR.find(r => String(r.registro) === reg);
-    if(t && t.fase_origem !== faseImportacao){
-      t.fase_origem = faseImportacao;
-      t._editedAt = new Date().toISOString();
-      t._editedBy = SYNC_USER;
-    }
+    const origem = novoLucarDataParcial[reg];
+    if(!t) return;
+    let mudou = false;
+    if(t.fase_origem !== faseImportacao){ t.fase_origem = faseImportacao; mudou = true; }
+    if(origem.nro_ss && t.nro_ss !== origem.nro_ss){ t.nro_ss = origem.nro_ss; mudou = true; }
+    if(origem.nome_tarefa && t.nome_tarefa !== origem.nome_tarefa){ t.nome_tarefa = origem.nome_tarefa; mudou = true; }
+    if(mudou){ t._editedAt = new Date().toISOString(); t._editedBy = SYNC_USER; }
   });
   LUCAR_HISTORICO.push({
     timestamp: new Date().toISOString(),
@@ -6864,6 +6982,16 @@ async function handleLucarImport(e){
 
   renderLucarTeste();
   flash(`✅ LUCAR/LUPA (${faseImportacao}) importado localmente: ${regsDepois.size} registro(s) ativo(s) nessa fase (${novos.length} novo(s), ${removidos.length} removido(s)). Enviando para a nuvem...`, '#1a6fad', 4000);
+  if(faseImportacao === 'Fase 2'){
+    const declarados = Object.keys(ESCOPO_FASE2);
+    const naoEncontrados = declarados.filter(reg => !novoLucarDataParcial[reg]);
+    if(naoEncontrados.length){
+      console.warn('[FASE2] Registros declarados mas não encontrados no arquivo importado:', naoEncontrados);
+      setTimeout(() => {
+        flash(`⚠️ ${naoEncontrados.length} de ${declarados.length} registro(s) declarado(s) para Fase 2 NÃO vieram nesse arquivo: ${naoEncontrados.slice(0,15).join(', ')}${naoEncontrados.length>15?'...':''} (lista completa no Console, F12).`, '#f59e0b', 12000);
+      }, 4200);
+    }
+  }
   const [ok1, ok2] = await Promise.all([pushLucarDataToCloud(), pushLucarHistoricoToCloud()]);
   if(ok1 && ok2) flash(`☁️ LUCAR/LUPA sincronizado às ${new Date().toLocaleTimeString('pt-BR')}. Já pode fechar o Dashboard com segurança.`, '#22c55e', 7000);
   e.target.value = '';
@@ -6967,8 +7095,8 @@ const LUCAR_COLS_UNIFICADAS = [
 function renderLucarHistorico(){
   const body = document.getElementById('lucar-historico-body');
   if(!body) return;
-  if(!LUCAR_HISTORICO.length){ body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);font-size:.78rem;padding:16px">Nenhuma importação registrada ainda.</td></tr>'; return; }
-  body.innerHTML = LUCAR_HISTORICO.map(h=>{
+  if(!LUCAR_HISTORICO.length){ body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);font-size:.78rem;padding:16px">Nenhuma importação registrada ainda.</td></tr>'; return; }
+  body.innerHTML = LUCAR_HISTORICO.map((h,i)=>{
     const dt = new Date(h.timestamp).toLocaleDateString('pt-BR');
     const corAlt = h.alteracaoLupa==='Sim' ? 'var(--accent)' : h.alteracaoLupa==='Não' ? 'var(--muted)' : 'var(--blue)';
     return `<tr>
@@ -6977,8 +7105,19 @@ function renderLucarHistorico(){
       <td style="text-align:center">${h.registroRemovido}</td>
       <td style="text-align:center;font-weight:700">${h.totalAtivos}</td>
       <td style="color:${corAlt};font-weight:700">${h.alteracaoLupa}</td>
+      <td style="text-align:center"><button onclick="excluirLinhaHistoricoLucar(${i})" title="Excluir esta linha do histórico" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.85rem">🗑️</button></td>
     </tr>`;
   }).join('');
+}
+// Remove uma linha específica do Histórico de Importações (ex: testes feitos
+// durante ajustes do sistema) — não desfaz a importação em si, só o registro
+// dela na tabela de histórico.
+function excluirLinhaHistoricoLucar(index){
+  if(!confirm('Excluir esta linha do Histórico de Importações? Isso não desfaz a importação, só remove o registro dela da tabela.')) return;
+  LUCAR_HISTORICO.splice(index, 1);
+  renderLucarHistorico();
+  pushLucarHistoricoToCloud();
+  flash('✅ Linha removida do histórico.', '#22c55e', 3000);
 }
 function renderLucarTeste(){
   const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
@@ -6986,10 +7125,16 @@ function renderLucarTeste(){
   const headEl = document.getElementById('lucar-teste-head');
   const bodyEl = document.getElementById('lucar-teste-body');
   renderLucarHistorico();
-  const registros = Object.keys(LUCAR_DATA);
-  if(resumo) resumo.textContent = registros.length ? `${registros.length} registro(s) na última importação.` : 'Nenhum dado importado ainda.';
+  const registros = Object.keys(LUCAR_DATA).filter(reg => {
+    const fase = LUCAR_DATA[reg].fase_origem || 'Fase 3';
+    return _faseFiltro === 'Todas as Fases' || fase === _faseFiltro;
+  });
+  const totalGeral = Object.keys(LUCAR_DATA).length;
+  if(resumo) resumo.textContent = totalGeral
+    ? (registros.length ? `${registros.length} registro(s) na última importação (${_faseFiltro}).` : `Nenhum registro de "${_faseFiltro}" — troque o filtro de Fase no topo para ver outros escopos.`)
+    : 'Nenhum dado importado ainda.';
   if(!headEl || !bodyEl) return;
-  if(!registros.length){ headEl.innerHTML=''; bodyEl.innerHTML = '<tr><td style="text-align:center;color:var(--muted);padding:16px">Importe a planilha LUCAR/LUPA pelo Painel Admin.</td></tr>'; return; }
+  if(!registros.length){ headEl.innerHTML=''; bodyEl.innerHTML = `<tr><td style="text-align:center;color:var(--muted);padding:16px">${totalGeral ? 'Nenhum registro para a fase selecionada — troque o filtro de Fase no topo.' : 'Importe a planilha LUCAR/LUPA pelo Painel Admin.'}</td></tr>`; return; }
 
   headEl.innerHTML = '<th><input type="checkbox" id="hdr-chk-crono" onchange="toggleAllChkCrono(this)" title="Selecionar todos"></th><th></th>' + LUCAR_COLS_UNIFICADAS.map(([k,label])=>`<th>${label}</th>`).join('');
   const dataBrPorRegistro = {};
