@@ -3211,7 +3211,12 @@ async function handleMateriaisImport(e) {
   // Ajuste item 2: cruzamento com TODO o escopo (inclui cancelados), para exibir o
   // indicador "SS Cancelada/Despriorizada" — mas os cancelados continuam fora dos
   // percentuais/quantidades porque são tratados à parte no render (ver isCanceladoMat).
-  const ativos = getAllData();
+  // IMPORTANTE: usa DATA_BR direto (não getAllData()) — a importação precisa
+  // reconhecer os registros de TODAS as fases, independente de qual fase estiver
+  // selecionada na tela no momento do import. Usar getAllData() aqui fazia com
+  // que, se o filtro estivesse em "Fase 3" (ou só "Fase 2"), toda linha da OUTRA
+  // fase fosse descartada como "fora do escopo" — mesmo existindo no sistema.
+  const ativos = DATA_BR;
   const infoPorRegistro = {};
   ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'(sem disciplina)', nomeTarefa: r.nome_tarefa||'(sem nome de tarefa)', ss: r.nro_ss||'(sem SS)', isCancelado: CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1 }; });
   const registrosValidos = new Set(Object.keys(infoPorRegistro));
@@ -6969,6 +6974,11 @@ async function handleLucarImport(e){
     if(t.fase_origem !== faseImportacao){ t.fase_origem = faseImportacao; mudou = true; }
     if(origem.nro_ss && t.nro_ss !== origem.nro_ss){ t.nro_ss = origem.nro_ss; mudou = true; }
     if(origem.nome_tarefa && t.nome_tarefa !== origem.nome_tarefa){ t.nome_tarefa = origem.nome_tarefa; mudou = true; }
+    // Sinaliza que este registro tem vínculo ativo com a LUPA/LUCAR — sem isso,
+    // o Fluxo do Processo mostrava "Sem status" na etapa LUPA/LUCAR mesmo
+    // encontrando a SS corretamente (o campo simplesmente nunca era preenchido
+    // para registros novos, como os da Fase 2).
+    if(t.status_lupa !== 'Ativo'){ t.status_lupa = 'Ativo'; mudou = true; }
     if(mudou){ t._editedAt = new Date().toISOString(); t._editedBy = SYNC_USER; }
   });
   LUCAR_HISTORICO.push({
