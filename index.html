@@ -6967,9 +6967,21 @@ async function handleLucarImport(e){
   // com "sem SS"/"sem nome de tarefa" para registros novos (ex: Fase 2), mesmo
   // a informação já existindo aqui no Cronograma.
   Object.keys(novoLucarDataParcial).forEach(reg => {
-    const t = DATA_BR.find(r => String(r.registro) === reg);
+    let t = DATA_BR.find(r => String(r.registro) === reg);
     const origem = novoLucarDataParcial[reg];
-    if(!t) return;
+    if(!t){
+      // Registro totalmente novo (ex: primeira importação de um item Fase 2) —
+      // sem criar a linha aqui, ela fica sem Nº SS na Tabela, e sem Nº SS a
+      // importação de Status Planejamento nunca consegue casar esse registro,
+      // deixando "Sem Status Definido" para sempre nos Gráficos Etapas BR.
+      t = {
+        registro: reg, nro_ss: '', nome_tarefa: '', disciplina: origem.disciplina || '',
+        nr13_venc:'', rti_venc:'', spie_venc:'', gerencia:'', area_sistema:'', modulo:'', setor:'',
+        nota_item_med:'', origem:'', tag:'', servico_padrao:'', tipo_exigencia:'', prioridade:'',
+        fonte:'BR', status_samc:'', fabricacao:'', status_plan:'', status_lupa:'', status_sup:'', observacoes:''
+      };
+      DATA_BR.push(t);
+    }
     let mudou = false;
     if(t.fase_origem !== faseImportacao){ t.fase_origem = faseImportacao; mudou = true; }
     if(origem.nro_ss && t.nro_ss !== origem.nro_ss){ t.nro_ss = origem.nro_ss; mudou = true; }
@@ -6991,6 +7003,7 @@ async function handleLucarImport(e){
   });
 
   renderLucarTeste();
+  pushEdits();
   flash(`✅ LUCAR/LUPA (${faseImportacao}) importado localmente: ${regsDepois.size} registro(s) ativo(s) nessa fase (${novos.length} novo(s), ${removidos.length} removido(s)). Enviando para a nuvem...`, '#1a6fad', 4000);
   if(faseImportacao === 'Fase 2'){
     const declarados = Object.keys(ESCOPO_FASE2);
@@ -7222,7 +7235,11 @@ function updateBulkBarCrono(){
   else { bar.classList.remove('visible'); }
 }
 function toggleAllChkCrono(hdr){
-  document.querySelectorAll('#lucar-teste-body .row-chk-crono').forEach(chk => { chk.checked = hdr.checked; });
+  document.querySelectorAll('#lucar-teste-body tr').forEach(tr => {
+    if(tr.style.display === 'none') return; // linha oculta pelo filtro atual — não entra na seleção
+    const chk = tr.querySelector('.row-chk-crono');
+    if(chk) chk.checked = hdr.checked;
+  });
   updateBulkBarCrono();
 }
 function clearBulkSelCrono(){
