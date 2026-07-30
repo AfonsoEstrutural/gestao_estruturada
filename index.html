@@ -929,36 +929,18 @@ h1{letter-spacing:.02em}
       <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
         <button onclick="toggleAllMatLevels()" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)" id="mat-expand-btn">🔽 Expandir Registros</button>
         <button onclick="exportMateriaisNivelAtual()" style="background:rgba(34,197,94,.15);border:1px solid var(--green);color:var(--green);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">⬇️ Exportar Nível Atual</button>
-        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Status do Registro:</label>
-        <select id="mat-status-filter" onchange="applyMatStatusFilter(this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
-          <option value="">Todos</option>
-          <option value="PF">✅ Liberado para PF</option>
-          <option value="Completo">Completo</option>
-          <option value="Pendente ESI">Pendente ESI</option>
-          <option value="Pendente BR">Pendente BR</option>
-          <option value="Pendente ESI+BR">Pendente ESI+BR</option>
-          <option value="Não Cadastrado">Não Cadastrado</option>
-        </select>
-        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Disciplina:</label>
-        <select id="mat-disc-filter" onchange="applyDisciplinaFilter('materiais-teste',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
-          <option value="">Todas</option>
-        </select>
-        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Tipo:</label>
-        <select id="mat-tipo-filter" onchange="applyMatFilters('Tipo',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
-          <option value="">Todos</option>
-        </select>
-        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Escopo Fornec.:</label>
-        <select id="mat-escopo-filter" onchange="applyMatFilters('Escopo Fornec.',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
-          <option value="">Todos</option>
-        </select>
-        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">Status Fornec. Item:</label>
-        <select id="mat-statusitem-filter" onchange="applyMatFilters('Status de Fornecimento do Item na Totalidade',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
-          <option value="">Todos</option>
-        </select>
-        <label style="font-size:.74rem;color:var(--muted);margin-left:8px">OC Status:</label>
-        <select id="mat-ocstatus-filter" onchange="applyMatFilters('OC Status',this.value)" style="font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
-          <option value="">Todos</option>
-        </select>
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleMatMs('ms-mat-status')" id="ms-mat-status-btn">Status do Registro ▾</button>
+          <div class="ms-drop" id="ms-mat-status" style="display:none"></div></div>
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleMatMs('ms-mat-disc')" id="ms-mat-disc-btn">Disciplina ▾</button>
+          <div class="ms-drop" id="ms-mat-disc" style="display:none"></div></div>
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleMatMs('ms-mat-tipo')" id="ms-mat-tipo-btn">Tipo ▾</button>
+          <div class="ms-drop" id="ms-mat-tipo" style="display:none"></div></div>
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleMatMs('ms-mat-escopo')" id="ms-mat-escopo-btn">Escopo Fornec. ▾</button>
+          <div class="ms-drop" id="ms-mat-escopo" style="display:none"></div></div>
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleMatMs('ms-mat-statusitem')" id="ms-mat-statusitem-btn">Status Fornec. Item ▾</button>
+          <div class="ms-drop" id="ms-mat-statusitem" style="display:none"></div></div>
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleMatMs('ms-mat-ocstatus')" id="ms-mat-ocstatus-btn">OC Status ▾</button>
+          <div class="ms-drop" id="ms-mat-ocstatus" style="display:none"></div></div>
         <input id="mat-search-input" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyMatSearch(this.value)"
           style="flex:1;min-width:180px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
         <button onclick="limparFiltrosMateriais()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
@@ -1099,6 +1081,12 @@ h1{letter-spacing:.02em}
 
 <!-- ═══════════ CRONOGRAMA (LUCAR/LUPA) ═══════════ -->
 <div class="section" id="lucar-teste">
+  <div id="btn-back-crono" style="display:none;align-items:center;gap:10px;margin-bottom:14px;padding:10px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:7px">
+    <button onclick="goBack()" style="background:var(--blue);border:none;color:#fff;border-radius:6px;padding:8px 18px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+      ← Voltar
+    </button>
+    <span id="back-crono-tab-label" style="font-size:.74rem;color:var(--muted);font-style:italic"></span>
+  </div>
   <div class="card" style="margin-bottom:16px">
     <div class="card-title"><span class="dot" style="background:var(--accent)"></span>📅 Cronograma</div>
     <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">
@@ -1852,7 +1840,7 @@ function donut(svgId, legId, data, colorMap) {
     const lg=a>Math.PI?1:0;
     const col=colorMap?colorMap[k]||COLORS[i%COLORS.length]:COLORS[i%COLORS.length];
     if(a>0.01) html+=`<path d="M${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1} Z" fill="${col}" stroke="var(--card)" stroke-width="2"/>`;
-    const dkey = svgId==='d-samc'?'status_samc':svgId==='d-sup'?'status_sup':null; li+=`<div class="leg-item" ${dkey?`onclick="drillDown('${dkey}','${"'+k+'"}')" title="Clique para filtrar na Tabela"`:''} style="${dkey?'cursor:pointer':''}"><div class="leg-dot" style="background:${col}"></div><span style="flex:1">${k}</span><span class="leg-pct">${v} (${pct(v,total)}%)</span></div>`;
+    const dkey = svgId==='d-samc'?'status_samc':svgId==='d-sup'?'status_sup':null; li+=`<div class="leg-item" ${dkey?`onclick="drillDown('${dkey}','${"'+k+'"}')" title="Clique para filtrar no Cronograma"`:''} style="${dkey?'cursor:pointer':''}"><div class="leg-dot" style="background:${col}"></div><span style="flex:1">${k}</span><span class="leg-pct">${v} (${pct(v,total)}%)</span></div>`;
     angle+=a;
   });
   svg.innerHTML=html;
@@ -1869,7 +1857,7 @@ function bars(id, entries, colorMap, narrow=false, drillKey=null) {
     const col = colorMap?colorMap[k]||COLORS[i%COLORS.length]:COLORS[i%COLORS.length];
     const short = k.length>42?k.slice(0,40)+'…':k;
     const click = drillKey ? `onclick="drillDown('${drillKey}','${k.replace(/'/g,"\\'")}')"`:'';
-    return `<div class="bar-row${drillKey?' clickable':''}" ${click} title="${drillKey?'Clique para filtrar na Tabela: '+k:''}">
+    return `<div class="bar-row${drillKey?' clickable':''}" ${click} title="${drillKey?'Clique para filtrar no Cronograma: '+k:''}">
       <div class="bar-lbl ${narrow?'narrow':''}" title="${k}">${short}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${pctV}%;background:${col}">${v>5?v:''}</div></div>
       <div class="bar-cnt">${v.toLocaleString('pt-BR')}</div>
@@ -1917,11 +1905,11 @@ function initDefaultTableFilters(){
   if (typeof updateMsBtn === 'function') updateMsBtn('ms-samc');
 }
 function kpi(lbl,val,sub,cls='c-blue',drillKey=null,drillVal=null){
-  const click = drillKey?`onclick="drillDown('${drillKey}','${drillVal||lbl}')" style="cursor:pointer" title="Clique para ver na Tabela"`:'';
+  const click = drillKey?`onclick="drillDown('${drillKey}','${drillVal||lbl}')" style="cursor:pointer" title="Clique para ver no Cronograma"`:'';
   return `<div class="kpi ${cls} ${drillKey?'clickable':''}" ${click}><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div></div>`;
 }
 function kpiMulti(lbl,val,sub,cls,statesArr){
-  const click = `onclick='drillDownPlanMulti(${JSON.stringify(statesArr)})' style="cursor:pointer" title="Clique para ver na Tabela"`;
+  const click = `onclick='drillDownPlanMulti(${JSON.stringify(statesArr)})' style="cursor:pointer" title="Clique para ver no Cronograma"`;
   return `<div class="kpi ${cls} clickable" ${click}><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div></div>`;
 }
 
@@ -2140,15 +2128,9 @@ function hideDonutTip() {
 
 // ── DRILL-DOWN MÚLTIPLO POR STATUS_PLAN ───────────────────────────────────────
 function drillDownPlanMulti(planStates) {
-  // Limpa todos os filtros
-  clearAllMs();
-  document.getElementById('f-text').value = '';
-  var fp = document.getElementById('f-plan'); if(fp) fp.value = '';
-  // Usa o campo texto para busca múltipla via regex (hack simples e eficaz)
-  // Melhor abordagem: marcar múltiplos valores via localStorage temporário
+  clearLucarDrillFilters();
   _planMultiFilter = planStates;
   _gotoTabela();
-  renderTable();
 }
 var _planMultiFilter = null;
 var _supMultiFilter  = null;
@@ -2156,16 +2138,11 @@ var _supMultiFilter  = null;
 function drillDownSupMulti(planStates) {
   // Chamado pelo clique no donut da 3ª Etapa (Suprimento)
   // planStates = array de status_plan que compõem aquela fatia de suprimento
-  clearAllMs();
-  _planMultiFilter = null;
-  _supMultiFilter  = null;
-  var ft = document.getElementById('f-text'); if(ft) ft.value = '';
-  var fp = document.getElementById('f-plan'); if(fp) fp.value = '';
+  clearLucarDrillFilters();
   if(Array.isArray(planStates) && planStates.length) {
     _planMultiFilter = planStates;
   }
   _gotoTabela();
-  renderTable();
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2794,7 +2771,7 @@ function renderPerfil() {
   document.getElementById('pfil-sup-bars').innerHTML=(supOrder.map(function(k){
     var v=supCnt[k]||0; if(!v) return '';
     return '<div class="bar-row clickable" onclick="perfilFilterSup(&quot;'+k+'&quot;)">'+
-      '<div class="bar-lbl" style="min-width:140px;max-width:140px" title="Clique para ver na Tabela">'+(supLbl[k]||k)+'</div>'+
+      '<div class="bar-lbl" style="min-width:140px;max-width:140px" title="Clique para ver no Cronograma">'+(supLbl[k]||k)+'</div>'+
       '<div class="bar-track"><div class="bar-fill" style="width:'+pct(v,supN2)+'%;background:'+(supColMap[k]||'var(--blue)')+'">'+
         (v>4?v:'')+
       '</div></div>'+
@@ -3057,7 +3034,7 @@ function renderAll() {
       const topStat = Object.keys(g).sort((a,b)=>g[b]-g[a])[0]||'';
       const pctMain = Math.round((g[topStat]||0)/tot*100);
       const dEsc=d.replace(/'/g,"\\'");
-      return `<div class="bar-row clickable" onclick="drillDown('disciplina','${dEsc}')" title="Ver na Tabela: ${d}">
+      return `<div class="bar-row clickable" onclick="drillDown('disciplina','${dEsc}')" title="Ver no Cronograma: ${d}">
         <div class="bar-lbl narrow" title="${d}">${d}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${pctMain}%;background:${colorMap&&colorMap[topStat]||COLORS[discs.indexOf(d)%COLORS.length]}">${pctMain}%</div></div>
         <div class="bar-cnt">${tot}</div>
@@ -3076,7 +3053,7 @@ function renderAll() {
       const tot = Object.values(g).reduce((a,b)=>a+b,0);
       const pctSim = tot ? Math.round(simCount/tot*100) : 0;
       const dEsc = d.replace(/'/g,"\\'");
-      return `<div class="bar-row clickable" onclick="drillDown('disciplina','${dEsc}')" title="Ver na Tabela: ${d}">
+      return `<div class="bar-row clickable" onclick="drillDown('disciplina','${dEsc}')" title="Ver no Cronograma: ${d}">
         <div class="bar-lbl narrow" title="${d}">${d}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${pctSim}%;background:#22c55e">${pctSim}%</div></div>
         <div class="bar-cnt">${simCount}/${tot}</div>
@@ -3313,8 +3290,7 @@ async function handleMateriaisImport(e) {
   MAT_EXPAND_LEVEL = 0;
   const expandBtn = document.getElementById('mat-expand-btn');
   if(expandBtn) expandBtn.textContent = '🔽 Expandir Registros';
-  const statusFilterEl = document.getElementById('mat-status-filter');
-  if(statusFilterEl) statusFilterEl.value = '';
+  document.querySelectorAll('.mat-ms-chk[data-group="ms-mat-status"]').forEach(chk=>{ chk.checked=false; });
   renderMateriaisTeste();
   flash(`✅ Sistema de Materiais importado localmente: ${Object.keys(MATERIAIS_DATA).length} registro(s). Enviando para a nuvem...`, '#1a6fad', 4000);
   const ok = await pushMateriaisToCloud();
@@ -3322,36 +3298,132 @@ async function handleMateriaisImport(e) {
   e.target.value = '';
 }
 
-let MAT_FILTERS = {}; // item 16 — { 'Tipo': 'Fabricação', ... }
+let MAT_FILTERS = { tipo:[], escopo:[], statusitem:[], ocstatus:[] }; // item 1 — cada chave agora é um array (multi-seleção)
+let MAT_STATUS_SEL = []; // valores marcados no checkbox "Status do Registro" (pode incluir o valor especial 'PF')
+let MAT_DISC_SEL = [];   // valores marcados no checkbox "Disciplina"
 let MAT_EXPAND_LEVEL = 0; // item 17 — 0=recolhido · 1=Registros · 2=Registros+LM's
 
-function applyMatFilters(colKey, val){
-  MAT_FILTERS[colKey] = val;
-  const anyActive = Object.values(MAT_FILTERS).some(v=>v);
-  const regRows = document.querySelectorAll('#materiais-teste-body tr[data-reg]');
-  regRows.forEach(row=>{
+// ── Item 1: filtros da aba Materiais convertidos para checkbox multi-seleção (mesma lógica da Tabela) ──
+const MAT_MS_LABELS = {
+  'ms-mat-status':'Status do Registro', 'ms-mat-disc':'Disciplina', 'ms-mat-tipo':'Tipo',
+  'ms-mat-escopo':'Escopo Fornec.', 'ms-mat-statusitem':'Status Fornec. Item', 'ms-mat-ocstatus':'OC Status'
+};
+function toggleMatMs(id){
+  const drop=document.getElementById(id);
+  const isOpen=drop.style.display!=='none';
+  document.querySelectorAll('#suprfab-sub-materiais .ms-drop').forEach(d=>{d.style.display='none';});
+  document.querySelectorAll('#suprfab-sub-materiais .ms-btn').forEach(b=>{b.classList.remove('active');});
+  if(!isOpen){
+    drop.style.display='block';
+    document.getElementById(id+'-btn').classList.add('active');
+    setTimeout(()=>{
+      function closeMs(e){
+        const btn=document.getElementById(id+'-btn');
+        if(!drop.contains(e.target)&&e.target!==btn){
+          drop.style.display='none'; btn.classList.remove('active');
+          document.removeEventListener('click',closeMs);
+        }
+      }
+      document.addEventListener('click',closeMs);
+    },10);
+  }
+}
+function updateMatMsBtn(id){
+  const checked=document.querySelectorAll(`.mat-ms-chk[data-group="${id}"]:checked`);
+  const btn=document.getElementById(id+'-btn'); if(!btn) return;
+  const lbl = MAT_MS_LABELS[id]||id;
+  if(checked.length===0){btn.textContent=lbl+' ▾';btn.style.borderColor='';btn.style.color='';}
+  else{btn.textContent=`${lbl} (${checked.length}) ▾`;btn.style.borderColor='var(--blue)';btn.style.color='var(--blue)';}
+}
+function getMatMsVals(group){
+  return [...document.querySelectorAll(`.mat-ms-chk[data-group="${group}"]:checked`)].map(c=>c.value);
+}
+// Preenche um dropdown de checkbox com os valores realmente presentes nos dados, preservando
+// o que já estava marcado (essencial para o item 3 — o filtro sobrevive a um re-render/sync).
+function fillMatMsGroup(groupId, vals, labelFn){
+  const drop = document.getElementById(groupId);
+  if(!drop) return;
+  const marcados = new Set(getMatMsVals(groupId));
+  drop.innerHTML = vals.map(v=>{
+    const escV = String(v).replace(/"/g,'&quot;');
+    const checked = marcados.has(v) ? 'checked' : '';
+    const label = labelFn ? labelFn(v) : v;
+    return `<label style="display:grid;grid-template-columns:1fr 20px;align-items:center;gap:10px;padding:5px 14px;cursor:pointer;font-size:.75rem;text-align:left;direction:ltr">${label}<input type="checkbox" class="mat-ms-chk" data-group="${groupId}" value="${escV}" ${checked}></label>`;
+  }).join('');
+  updateMatMsBtn(groupId);
+}
+document.addEventListener('change', function(e){
+  if(e.target.classList.contains('mat-ms-chk')){
+    updateMatMsBtn(e.target.dataset.group);
+    applyMatFilters();
+  }
+});
+
+function applyMatFilters(){
+  MAT_FILTERS = {
+    tipo: getMatMsVals('ms-mat-tipo'),
+    escopo: getMatMsVals('ms-mat-escopo'),
+    statusitem: getMatMsVals('ms-mat-statusitem'),
+    ocstatus: getMatMsVals('ms-mat-ocstatus')
+  };
+  MAT_STATUS_SEL = getMatMsVals('ms-mat-status');
+  MAT_DISC_SEL = getMatMsVals('ms-mat-disc');
+  const anyColActive = Object.values(MAT_FILTERS).some(arr=>arr.length);
+  const anyActive = anyColActive || MAT_STATUS_SEL.length>0 || MAT_DISC_SEL.length>0;
+
+  // nível 3 — Itens (LM's)
+  document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(row=>{
     let visivel = true;
-    for(const k in MAT_FILTERS){
-      if(MAT_FILTERS[k] && row.dataset[({'Tipo':'tipo','Escopo Fornec.':'escopo','Status de Fornecimento do Item na Totalidade':'statusitem','OC Status':'ocstatus'})[k]] !== MAT_FILTERS[k]) visivel = false;
-    }
+    if(MAT_FILTERS.tipo.length && !MAT_FILTERS.tipo.includes(row.dataset.tipo)) visivel=false;
+    if(MAT_FILTERS.escopo.length && !MAT_FILTERS.escopo.includes(row.dataset.escopo)) visivel=false;
+    if(MAT_FILTERS.statusitem.length && !MAT_FILTERS.statusitem.includes(row.dataset.statusitem)) visivel=false;
+    if(MAT_FILTERS.ocstatus.length && !MAT_FILTERS.ocstatus.includes(row.dataset.ocstatus)) visivel=false;
     row.dataset.matMatch = visivel ? '1' : '0';
   });
-  // se algum filtro está ativo, expande tudo para revelar os resultados; senão, mantém como está
+
+  // nível 2 — Registro (Status do Registro + Disciplina)
+  document.querySelectorAll('#materiais-teste-body tr[data-reg-header]').forEach(row=>{
+    let match = true;
+    if(MAT_STATUS_SEL.length){
+      const ok = MAT_STATUS_SEL.some(v => v==='PF' ? row.dataset.pf==='1' : row.dataset.statusCalc===v);
+      if(!ok) match=false;
+    }
+    if(match && MAT_DISC_SEL.length && !MAT_DISC_SEL.includes(row.dataset.disc)) match=false;
+    row.dataset.matStatusMatch = match ? '1' : '0';
+  });
+
   if(anyActive){
+    // se algum filtro está ativo, expande no mínimo até Registro para revelar os resultados
+    if(MAT_EXPAND_LEVEL < 1){ MAT_EXPAND_LEVEL = 1; }
     document.querySelectorAll('#materiais-teste-body tr[data-ss], #materiais-teste-body tr[data-reg]').forEach(r=>{ r.style.display=''; });
     document.querySelectorAll('#materiais-teste-body .arrow').forEach(a=>{ a.textContent='▼'; });
+    const btn = document.getElementById('mat-expand-btn');
+    if(btn) btn.textContent = MAT_EXPAND_LEVEL>=2 ? '🔼 Recolher Tudo' : '🔽 Expandir LM\'s';
   }
+
+  document.querySelectorAll('#materiais-teste-body tr[data-reg-header]').forEach(row=>{
+    row.style.display = (row.dataset.matStatusMatch==='0') ? 'none' : (anyActive ? '' : row.style.display);
+    if(row.dataset.matStatusMatch==='0'){
+      document.querySelectorAll(`#materiais-teste-body tr[data-reg="${row.dataset.regHeader}"]`).forEach(lm=>{ lm.style.display='none'; });
+    }
+  });
   document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(row=>{
+    const regHdr = document.querySelector(`#materiais-teste-body tr[data-reg-header="${row.dataset.reg}"]`);
+    if(regHdr && regHdr.style.display==='none') return; // já escondido pelo Status do Registro/Disciplina
     row.style.display = (row.dataset.matMatch==='0') ? 'none' : (anyActive ? '' : row.style.display);
   });
-  // esconde ramos (Registro/SS) sem nenhum item visível quando há filtro ativo
-  if(anyActive){
+
+  // esconde ramos (Registro/SS) sem nenhum item visível quando há filtro de coluna ativo
+  if(anyColActive){
     document.querySelectorAll('#materiais-teste-body tr[data-reg-header]').forEach(regHdr=>{
+      if(regHdr.style.display==='none') return;
       const slug = regHdr.dataset.regHeader;
       const filhos = document.querySelectorAll(`#materiais-teste-body tr[data-reg="${slug}"]`);
       const temVisivel = [...filhos].some(f=>f.style.display!=='none');
       regHdr.style.display = temVisivel ? '' : 'none';
     });
+  }
+  if(anyActive){
     document.querySelectorAll('#materiais-teste-body tr[data-ss-header]').forEach(ssHdr=>{
       const slug = ssHdr.dataset.ssHeader;
       const filhos = document.querySelectorAll(`#materiais-teste-body tr[data-reg-header][data-ss="${slug}"]`);
@@ -3359,78 +3431,7 @@ function applyMatFilters(colKey, val){
       ssHdr.style.display = temVisivel ? '' : 'none';
     });
   }
-  renderMatChart();
-}
 
-function applyMatStatusFilter(val){
-  const regHeaders = document.querySelectorAll('#materiais-teste-body tr[data-reg-header]');
-  regHeaders.forEach(row=>{
-    const match = !val || (val==='PF' ? row.dataset.pf==='1' : row.dataset.statusCalc===val);
-    row.dataset.matStatusMatch = match ? '1' : '0';
-  });
-  if(val){
-    // expande no mínimo até o nível de Registro para revelar o resultado do filtro
-    if(MAT_EXPAND_LEVEL < 1){ MAT_EXPAND_LEVEL = 1; }
-    document.querySelectorAll('#materiais-teste-body tr[data-ss]').forEach(r=>{ r.style.display=''; });
-    document.querySelectorAll('#materiais-teste-body tr[data-ss-header] .arrow').forEach(a=>{ a.textContent='▼'; });
-    const btn = document.getElementById('mat-expand-btn');
-    if(btn) btn.textContent = MAT_EXPAND_LEVEL>=2 ? '🔼 Recolher Tudo' : '🔽 Expandir LM\'s';
-  }
-  regHeaders.forEach(row=>{
-    row.style.display = (row.dataset.matStatusMatch==='0') ? 'none' : '';
-    if(row.dataset.matStatusMatch==='0'){
-      document.querySelectorAll(`#materiais-teste-body tr[data-reg="${row.dataset.regHeader}"]`).forEach(lm=>{ lm.style.display='none'; });
-    }
-  });
-  // esconde SS sem nenhum registro visível
-  document.querySelectorAll('#materiais-teste-body tr[data-ss-header]').forEach(ssHdr=>{
-    const slug = ssHdr.dataset.ssHeader;
-    const filhos = document.querySelectorAll(`#materiais-teste-body tr[data-reg-header][data-ss="${slug}"]`);
-    const temVisivel = [...filhos].some(f=>f.style.display!=='none');
-    ssHdr.style.display = (val && !temVisivel) ? 'none' : '';
-  });
-  renderMatChart();
-}
-
-function toggleAllMatLevels(){
-  // 0 = tudo recolhido · 1 = Registros visíveis · 2 = Registros + LM's visíveis
-  MAT_EXPAND_LEVEL = (MAT_EXPAND_LEVEL + 1) % 3;
-  document.querySelectorAll('#materiais-teste-body tr[data-ss]').forEach(r=>{ r.style.display = MAT_EXPAND_LEVEL>=1 ? '' : 'none'; });
-  document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(r=>{ r.style.display = MAT_EXPAND_LEVEL>=2 ? '' : 'none'; });
-  document.querySelectorAll('#materiais-teste-body tr[data-ss-header] .arrow').forEach(a=>{ a.textContent = MAT_EXPAND_LEVEL>=1 ? '▼' : '▶'; });
-  document.querySelectorAll('#materiais-teste-body tr[data-reg-header] .arrow').forEach(a=>{ a.textContent = MAT_EXPAND_LEVEL>=2 ? '▼' : '▶'; });
-  const btn = document.getElementById('mat-expand-btn');
-  if(btn){
-    if(MAT_EXPAND_LEVEL===0) btn.textContent = '🔽 Expandir Registros';
-    else if(MAT_EXPAND_LEVEL===1) btn.textContent = '🔽 Expandir LM\'s';
-    else btn.textContent = '🔼 Recolher Tudo';
-  }
-  renderMatChart();
-}
-
-// ── Busca livre (Materiais) — atua sobre os itens (nível 3) já filtrados ──
-let MAT_SEARCH = '';
-// Reseta todos os filtros da aba Materiais (Status do Registro, Disciplina, Tipo,
-// Escopo Fornec., Status Fornec. Item, OC Status e busca livre) de uma vez.
-function limparFiltrosMateriais(){
-  ['mat-status-filter','mat-disc-filter','mat-tipo-filter','mat-escopo-filter','mat-statusitem-filter','mat-ocstatus-filter'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el) el.value = '';
-  });
-  const searchEl = document.getElementById('mat-search-input');
-  if(searchEl) searchEl.value = '';
-  MAT_FILTERS = {};
-  applyMatStatusFilter('');
-  applyDisciplinaFilter('materiais-teste','');
-  applyMatSearch('');
-}
-
-function applyMatSearch(val){
-  MAT_SEARCH = (val||'').trim().toLowerCase();
-  // reconstrói a visibilidade base a partir dos filtros de coluna e status já ativos
-  const statusEl = document.getElementById('mat-status-filter');
-  applyMatStatusFilter(statusEl ? statusEl.value : '');
-  Object.keys(MAT_FILTERS).forEach(k=>applyMatFilters(k, MAT_FILTERS[k]));
   if(MAT_SEARCH){
     // a busca precisa forçar a exibição de tudo que combina, mesmo que a árvore
     // esteja recolhida por padrão — por isso avaliamos e definimos display nos dois sentidos.
@@ -3456,7 +3457,42 @@ function applyMatSearch(val){
       if(anyVisible){ const ar = ssHdr.querySelector('.arrow'); if(ar) ar.textContent='▼'; }
     });
   }
+
   renderMatChart();
+}
+
+function toggleAllMatLevels(){
+  // 0 = tudo recolhido · 1 = Registros visíveis · 2 = Registros + LM's visíveis
+  MAT_EXPAND_LEVEL = (MAT_EXPAND_LEVEL + 1) % 3;
+  document.querySelectorAll('#materiais-teste-body tr[data-ss]').forEach(r=>{ r.style.display = MAT_EXPAND_LEVEL>=1 ? '' : 'none'; });
+  document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(r=>{ r.style.display = MAT_EXPAND_LEVEL>=2 ? '' : 'none'; });
+  document.querySelectorAll('#materiais-teste-body tr[data-ss-header] .arrow').forEach(a=>{ a.textContent = MAT_EXPAND_LEVEL>=1 ? '▼' : '▶'; });
+  document.querySelectorAll('#materiais-teste-body tr[data-reg-header] .arrow').forEach(a=>{ a.textContent = MAT_EXPAND_LEVEL>=2 ? '▼' : '▶'; });
+  const btn = document.getElementById('mat-expand-btn');
+  if(btn){
+    if(MAT_EXPAND_LEVEL===0) btn.textContent = '🔽 Expandir Registros';
+    else if(MAT_EXPAND_LEVEL===1) btn.textContent = '🔽 Expandir LM\'s';
+    else btn.textContent = '🔼 Recolher Tudo';
+  }
+  renderMatChart();
+}
+
+// ── Busca livre (Materiais) — atua sobre os itens (nível 3) já filtrados ──
+let MAT_SEARCH = '';
+// Reseta todos os filtros da aba Materiais (Status do Registro, Disciplina, Tipo,
+// Escopo Fornec., Status Fornec. Item, OC Status e busca livre) de uma vez.
+function limparFiltrosMateriais(){
+  document.querySelectorAll('#suprfab-sub-materiais .mat-ms-chk').forEach(chk=>{ chk.checked=false; });
+  Object.keys(MAT_MS_LABELS).forEach(id=>updateMatMsBtn(id));
+  const searchEl = document.getElementById('mat-search-input');
+  if(searchEl) searchEl.value = '';
+  MAT_SEARCH = '';
+  applyMatFilters();
+}
+
+function applyMatSearch(val){
+  MAT_SEARCH = (val||'').trim().toLowerCase();
+  applyMatFilters();
 }
 
 // ── Gráfico retrátil de % de Fornecimento por Categoria (Materiais) ──
@@ -3472,26 +3508,22 @@ function toggleMatChartPanel(){
 
 // ── Helper compartilhado: retorna os itens (nível 3) que passam em todos os filtros ativos ──
 function getMatFilteredItemRows(){
-  const statusVal = document.getElementById('mat-status-filter') ? document.getElementById('mat-status-filter').value : '';
-  const discVal = document.getElementById('mat-disc-filter') ? document.getElementById('mat-disc-filter').value : '';
   const regHeaders = [...document.querySelectorAll('#materiais-teste-body tr[data-reg-header]')];
   const regsOk = new Set(regHeaders.filter(rh=>{
     if(rh.dataset.cancelado==='1') return false; // excluído dos totais/percentuais (segue exibido, mas sinalizado)
-    if(statusVal){
-      const ok = statusVal==='PF' ? rh.dataset.pf==='1' : rh.dataset.statusCalc===statusVal;
+    if(MAT_STATUS_SEL.length){
+      const ok = MAT_STATUS_SEL.some(v => v==='PF' ? rh.dataset.pf==='1' : rh.dataset.statusCalc===v);
       if(!ok) return false;
     }
-    if(discVal && rh.dataset.disc !== discVal) return false;
+    if(MAT_DISC_SEL.length && !MAT_DISC_SEL.includes(rh.dataset.disc)) return false;
     return true;
   }).map(rh=>rh.dataset.regHeader));
   return [...document.querySelectorAll('#materiais-teste-body tr[data-reg]')].filter(r=>{
     if(!regsOk.has(r.dataset.reg)) return false;
-    for(const k in MAT_FILTERS){
-      if(MAT_FILTERS[k]){
-        const attr = ({'Tipo':'tipo','Escopo Fornec.':'escopo','Status de Fornecimento do Item na Totalidade':'statusitem','OC Status':'ocstatus'})[k];
-        if(r.dataset[attr] !== MAT_FILTERS[k]) return false;
-      }
-    }
+    if(MAT_FILTERS.tipo.length && !MAT_FILTERS.tipo.includes(r.dataset.tipo)) return false;
+    if(MAT_FILTERS.escopo.length && !MAT_FILTERS.escopo.includes(r.dataset.escopo)) return false;
+    if(MAT_FILTERS.statusitem.length && !MAT_FILTERS.statusitem.includes(r.dataset.statusitem)) return false;
+    if(MAT_FILTERS.ocstatus.length && !MAT_FILTERS.ocstatus.includes(r.dataset.ocstatus)) return false;
     if(MAT_SEARCH && !r.textContent.toLowerCase().includes(MAT_SEARCH)) return false;
     return true;
   });
@@ -3606,7 +3638,6 @@ function updateMatObs(registro, idx, val){
 }
 
 function renderMateriaisTeste(){
-  populateDiscFilter('mat-disc-filter', MATERIAIS_DATA);
   const isAdmin = _currentUser && _currentUser.perfil === 'admin';
   const headEl = document.getElementById('materiais-teste-head');
   const bodyEl = document.getElementById('materiais-teste-body');
@@ -3617,22 +3648,22 @@ function renderMateriaisTeste(){
   if(!registros.length){
     if(headEl) headEl.innerHTML = '';
     bodyEl.innerHTML = `<tr><td colspan="${colspan}" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr>`;
+    fillMatMsGroup('ms-mat-status', []); fillMatMsGroup('ms-mat-disc', []);
+    fillMatMsGroup('ms-mat-tipo', []); fillMatMsGroup('ms-mat-escopo', []);
+    fillMatMsGroup('ms-mat-statusitem', []); fillMatMsGroup('ms-mat-ocstatus', []);
     return;
   }
-  // valores únicos para os filtros (item 16)
+  // valores únicos para os filtros (item 16), agora populando os dropdowns de checkbox (item 1)
   const allLinhas = registros.flatMap(r=>MATERIAIS_DATA[r].linhas);
-  const uniq = key => [...new Set(allLinhas.map(l=>(l[key]||'').toString().trim()).filter(Boolean))];
-  function fillColFilter(selectId, colKey){
-    const sel = document.getElementById(selectId);
-    if(!sel) return;
-    const cur = MAT_FILTERS[colKey]||'';
-    const vals = uniq(colKey).sort();
-    sel.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v.replace(/"/g,'&quot;')}" ${cur===v?'selected':''}>${v}</option>`).join('');
-  }
-  fillColFilter('mat-tipo-filter','Tipo');
-  fillColFilter('mat-escopo-filter','Escopo Fornec.');
-  fillColFilter('mat-statusitem-filter','Status de Fornecimento do Item na Totalidade');
-  fillColFilter('mat-ocstatus-filter','OC Status');
+  const uniq = key => [...new Set(allLinhas.map(l=>(l[key]||'').toString().trim()).filter(Boolean))].sort();
+  fillMatMsGroup('ms-mat-tipo', uniq('Tipo'));
+  fillMatMsGroup('ms-mat-escopo', uniq('Escopo Fornec.'));
+  fillMatMsGroup('ms-mat-statusitem', uniq('Status de Fornecimento do Item na Totalidade'));
+  fillMatMsGroup('ms-mat-ocstatus', uniq('OC Status'));
+  const discVals = [...new Set(registros.map(r=>MATERIAIS_DATA[r].disciplina).filter(Boolean))].sort();
+  fillMatMsGroup('ms-mat-disc', discVals);
+  const statusVals = [...new Set(registros.map(r=>MATERIAIS_DATA[r].statusCalc).filter(Boolean))].sort();
+  fillMatMsGroup('ms-mat-status', ['PF', ...statusVals], v => v==='PF' ? '✅ Liberado para PF' : v);
   if(headEl){
     headEl.innerHTML =
       `<th>Item (Nº LM / Descrição)</th>
@@ -3713,7 +3744,7 @@ function renderMateriaisTeste(){
     });
   });
   bodyEl.innerHTML = html;
-  renderMatChart();
+  applyMatFilters();
 }
 
 
@@ -5439,28 +5470,43 @@ function clearAllMs(){
   document.querySelectorAll('.ms-chk').forEach(el=>{el.checked=false;});
   ['ms-samc','ms-disc','ms-sup','ms-fab'].forEach(id=>updateMsBtn(id));
 }
+// Mapa filterKey -> id do select de filtro correspondente na aba Cronograma.
+// status_plan/status_lupa agora usam o select exato da Cronograma em vez de
+// cair no campo de busca livre (que era o comportamento na Tabela).
+const LUCAR_DRILL_MAP = {
+  'status_samc':'lucar-f-samc', 'disciplina':'lucar-f-disciplina',
+  'status_sup':'lucar-f-sup', 'fabricacao':'lucar-f-fab',
+  'status_plan':'lucar-f-plan', 'status_lupa':'lucar-f-lupa'
+};
+function clearLucarDrillFilters(){
+  Object.keys(LUCAR_FILTER_MAP).forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const s = document.getElementById('lucar-f-search'); if(s) s.value='';
+  _planMultiFilter = null; _supMultiFilter = null;
+}
 function drillDown(filterKey,filterValue){
-  clearAllMs(); document.getElementById('f-text').value='';
-  if(MS_MAP[filterKey]) setMsSingle(MS_MAP[filterKey],filterValue);
-  else if(filterKey==='status_plan'||filterKey==='status_lupa') document.getElementById('f-text').value=filterValue;
+  clearLucarDrillFilters();
+  const selId = LUCAR_DRILL_MAP[filterKey];
+  if(selId){ const sel=document.getElementById(selId); if(sel) sel.value = filterValue; }
   _gotoTabela();
 }
 function drillDownMulti(rowKey,rowVal,colKey,colVal){
-  clearAllMs(); document.getElementById('f-text').value='';
-  if(MS_MAP[rowKey]) setMsSingle(MS_MAP[rowKey],rowVal);
-  if(MS_MAP[colKey]) setMsSingle(MS_MAP[colKey],colVal);
-  if(!MS_MAP[rowKey]&&(rowKey==='status_plan'||rowKey==='status_lupa')) document.getElementById('f-text').value=rowVal;
+  clearLucarDrillFilters();
+  const sel1 = LUCAR_DRILL_MAP[rowKey]; if(sel1){ const e1=document.getElementById(sel1); if(e1) e1.value = rowVal; }
+  const sel2 = LUCAR_DRILL_MAP[colKey]; if(sel2){ const e2=document.getElementById(sel2); if(e2) e2.value = colVal; }
   _gotoTabela();
 }
 function _gotoTabela() {
+  // A Cronograma (lucar-teste) está substituindo a Tabela como destino do
+  // drill-down dos gráficos — mantém o nome da função por compatibilidade
+  // com quem já a chama, mas o destino agora é a aba Cronograma.
   var tabEl = null;
   document.querySelectorAll('.tab').forEach(function(t){
     var oc = t.getAttribute('onclick')||'';
-    if(oc.indexOf("'tabela'") !== -1) tabEl = t;
+    if(oc.indexOf("'lucar-teste'") !== -1) tabEl = t;
   });
-  showTab('tabela', tabEl);
-  renderTable();
-  var lbl = document.getElementById('back-tab-label');
+  showTab('lucar-teste', tabEl);
+  applyLucarFilters();
+  var lbl = document.getElementById('back-crono-tab-label');
   var names = {visao:'Visão Geral',samc:'Status SAMC',planejamento:'Planejamento',
     suprimento:'Suprimento',disciplina:'Disciplina',alertas:'Alertas',
     'graficos-esi':'Gráficos Visão Geral','graficos-br':'Gráficos Etapas BR'};
@@ -5721,6 +5767,8 @@ function showTab(id, el) {
   if(el) el.classList.add('active');
   var backBtn = document.getElementById('btn-back-tab');
   if(backBtn) backBtn.style.display = (id==='tabela' && _prevTab && _prevTab!=='tabela') ? 'flex' : 'none';
+  var backBtnCrono = document.getElementById('btn-back-crono');
+  if(backBtnCrono) backBtnCrono.style.display = (id==='lucar-teste' && _prevTab && _prevTab!=='lucar-teste') ? 'flex' : 'none';
   if(id === 'cronograma'){ setTimeout(renderCrono, 60); }
   if(id === 'curvas'){ setTimeout(async () => { await carregarBaselineCronograma(); setCurvaGranularidade(_curvaGranularidade); }, 60); }
   if(id === 'folha-tarefa'){ setTimeout(() => setFolhaJanela(_folhaJanela), 60); }
@@ -6463,14 +6511,10 @@ async function pullDetProcFromCloud(){
 // depois de qualquer atualização em segundo plano (ex: os 5 minutos), para que o
 // recarregamento dos dados não "desfaça" o que o usuário estava filtrando na tela.
 function reaplicarFiltrosMateriaisDetProc(){
-  const matStatusEl = document.getElementById('mat-status-filter');
-  if(matStatusEl) applyMatStatusFilter(matStatusEl.value);
-  Object.keys(MAT_FILTERS).forEach(k=>applyMatFilters(k, MAT_FILTERS[k]));
-  const matDiscEl = document.getElementById('mat-disc-filter');
-  if(matDiscEl) applyDisciplinaFilter('materiais-teste', matDiscEl.value);
-  const matSearchEl = document.getElementById('mat-search-input');
-  if(matSearchEl) applyMatSearch(matSearchEl.value);
-
+  // Item 1/3: os filtros de checkbox da aba Materiais já são reaplicados sozinhos
+  // dentro de renderMateriaisTeste() (chamada logo antes disto), preservando o que
+  // estava marcado. Aqui só sobra reaplicar os filtros de Detalhamento/Processamento,
+  // que continuam no formato de select simples.
   const detDiscEl = document.getElementById('det-disc-filter');
   if(detDiscEl) applyDisciplinaFilter('det-teste', detDiscEl.value);
   const detSearchEl = document.getElementById('det-search-input');
@@ -7516,6 +7560,8 @@ function applyLucarFilters(){
       }
     }
     if(ok && termo && !row.textContent.toLowerCase().includes(termo)) ok = false;
+    // Filtro múltiplo por status_plan (vindo do clique nos donuts de Gráficos Etapas BR)
+    if(ok && _planMultiFilter && _planMultiFilter.length && !_planMultiFilter.includes(row.dataset.plan||'')) ok = false;
     row.style.display = ok ? '' : 'none';
     if(ok) visiveis++;
   });
@@ -7531,6 +7577,7 @@ function limparFiltrosLucar(){
   ['lucar-f-datasup-de','lucar-f-datasup-ate'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const searchEl = document.getElementById('lucar-f-search');
   if(searchEl) searchEl.value = '';
+  _planMultiFilter = null; _supMultiFilter = null;
   applyLucarFilters();
 }
 
