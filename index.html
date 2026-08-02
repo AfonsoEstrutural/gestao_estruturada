@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>P74-UMS-2024 FASE 3 - Campanha 2026/2027</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 <style>
 /* ── TOKENS ─────────────────────────────────── */
@@ -923,6 +924,7 @@ h1{letter-spacing:.02em}
       </p>
       <p style="font-size:.72rem;color:var(--accent);margin-bottom:12px">🔐 A importação deste arquivo agora é feita pelo Painel Admin (botão "🔐 Admin" no topo).</p>
       <div id="materiais-resumo" style="margin-top:10px;font-size:.78rem;color:var(--muted)"></div>
+      <div id="materiais-fase-resumo" style="margin-top:2px;font-size:.74rem;color:var(--blue);font-weight:600"></div>
       <div id="mat-summary-card" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px"></div>
     </div>
     <div class="card">
@@ -944,6 +946,7 @@ h1{letter-spacing:.02em}
         <input id="mat-search-input" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyMatSearch(this.value)"
           style="flex:1;min-width:180px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
         <button onclick="limparFiltrosMateriais()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
+        <button id="mat-cancel-view-btn" onclick="toggleMatCancelView()" title="Por padrão as SS canceladas ficam fora dos filtros; clique para ver só elas, isoladas" style="background:rgba(107,114,128,.12);border:1px solid var(--muted);color:var(--muted);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🚫 Ver SS Canceladas</button>
       </div>
       <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
         <div onclick="toggleMatChartPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
@@ -1381,6 +1384,27 @@ h1{letter-spacing:.02em}
   </div>
 </div>
 
+<!-- LUCAR REVIEW-CANCEL MODAL -->
+<div class="modal-overlay" id="lucar-review-cancel-modal" style="display:none">
+  <div class="modal-box" style="max-width:720px">
+    <div class="modal-title">⚠️ Registros ausentes na LUCAR importada (<span id="lucar-review-fase-label"></span>)</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      Os registros abaixo estavam ativos nesta fase e não vieram nesta importação. Marque os que devem
+      ser cancelados (Status SAMC = "SS Cancelada") e desmarque os que você sabe que devem continuar ativos
+      (ex: ausência por erro no arquivo do cliente).
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="lucarReviewMarcarTodos(true)">Marcar todos</button>
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="lucarReviewMarcarTodos(false)">Desmarcar todos</button>
+    </div>
+    <div id="lucar-review-list" style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="lucarReviewConfirmar(false)">Continuar sem cancelar nenhum</button>
+      <button class="modal-btn save" onclick="lucarReviewConfirmar(true)">✅ Aplicar cancelamentos selecionados</button>
+    </div>
+  </div>
+</div>
+
 <!-- EDIT MODAL -->
 <div class="modal-overlay" id="edit-modal" style="display:none" onclick="if(event.target===this)closeModal()">
   <div class="modal-box">
@@ -1785,7 +1809,7 @@ function renderActiveTabContent(){
   if(id === 'folha-tarefa'){ setFolhaJanela(_folhaJanela); }
   if(id === 'graficos-esi'){ renderESICharts(); }
   if(id === 'graficos-br'){ renderBRCharts(); }
-  if(id === 'suprfab-teste'){ pullMateriaisDetProcAndRender(); }
+  if(id === 'suprfab-teste'){ renderMateriaisTeste(); renderDetTeste(); renderProcTeste(); pullMateriaisDetProcAndRender(); }
   if(id === 'lucar-teste'){ renderLucarTeste(); }
 }
 function getAllData()  {
@@ -3195,7 +3219,7 @@ async function handleMateriaisImport(e) {
   // fase fosse descartada como "fora do escopo" — mesmo existindo no sistema.
   const ativos = DATA_BR;
   const infoPorRegistro = {};
-  ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'(sem disciplina)', nomeTarefa: r.nome_tarefa||'(sem nome de tarefa)', ss: r.nro_ss||'(sem SS)', isCancelado: CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1 }; });
+  ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'(sem disciplina)', nomeTarefa: r.nome_tarefa||'(sem nome de tarefa)', ss: r.nro_ss||'(sem SS)', isCancelado: CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1, fase: r.fase_origem || 'Fase 3' }; });
   const registrosValidos = new Set(Object.keys(infoPorRegistro));
 
   const grouped = {};
@@ -3281,8 +3305,8 @@ async function handleMateriaisImport(e) {
     const pctCliente = pctSuprimento('Cliente');
     const pctTotalSuprimento = pctSuprimento(null);
 
-    const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:'', isCancelado:false};
-    MATERIAIS_DATA[registro] = { linhas, statusCalc, pfLiberado, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, ss: info.ss, prazoContratadaMax, prazoClienteMax, somaValorTotal, pctContratada, pctCliente, pctTotalSuprimento, isCancelado: info.isCancelado };
+    const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:'', isCancelado:false, fase:'Fase 3'};
+    MATERIAIS_DATA[registro] = { linhas, statusCalc, pfLiberado, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, ss: info.ss, prazoContratadaMax, prazoClienteMax, somaValorTotal, pctContratada, pctCliente, pctTotalSuprimento, isCancelado: info.isCancelado, faseOrigem: info.fase };
   });
 
   document.getElementById('materiais-resumo').innerHTML =
@@ -3301,6 +3325,16 @@ async function handleMateriaisImport(e) {
 let MAT_FILTERS = { tipo:[], escopo:[], statusitem:[], ocstatus:[] }; // item 1 — cada chave agora é um array (multi-seleção)
 let MAT_STATUS_SEL = []; // valores marcados no checkbox "Status do Registro" (pode incluir o valor especial 'PF')
 let MAT_DISC_SEL = [];   // valores marcados no checkbox "Disciplina"
+let MAT_CANCEL_VIEW = false; // item 2 — false: visão normal (canceladas ocultas) · true: visão isolada, só as SS canceladas
+function toggleMatCancelView(){
+  MAT_CANCEL_VIEW = !MAT_CANCEL_VIEW;
+  const btn = document.getElementById('mat-cancel-view-btn');
+  if(btn){
+    btn.textContent = MAT_CANCEL_VIEW ? '↩️ Voltar para Ativos' : '🚫 Ver SS Canceladas';
+    btn.style.background = MAT_CANCEL_VIEW ? 'rgba(239,68,68,.18)' : 'rgba(107,114,128,.12)';
+  }
+  applyMatFilters();
+}
 let MAT_EXPAND_LEVEL = 0; // item 17 — 0=recolhido · 1=Registros · 2=Registros+LM's
 
 // ── Item 1: filtros da aba Materiais convertidos para checkbox multi-seleção (mesma lógica da Tabela) ──
@@ -3369,7 +3403,7 @@ function applyMatFilters(){
   MAT_STATUS_SEL = getMatMsVals('ms-mat-status');
   MAT_DISC_SEL = getMatMsVals('ms-mat-disc');
   const anyColActive = Object.values(MAT_FILTERS).some(arr=>arr.length);
-  const anyActive = anyColActive || MAT_STATUS_SEL.length>0 || MAT_DISC_SEL.length>0;
+  const anyActive = anyColActive || MAT_STATUS_SEL.length>0 || MAT_DISC_SEL.length>0 || MAT_CANCEL_VIEW;
 
   // nível 3 — Itens (LM's)
   document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(row=>{
@@ -3381,14 +3415,21 @@ function applyMatFilters(){
     row.dataset.matMatch = visivel ? '1' : '0';
   });
 
-  // nível 2 — Registro (Status do Registro + Disciplina)
+  // nível 2 — Registro (Status do Registro + Disciplina + Canceladas)
   document.querySelectorAll('#materiais-teste-body tr[data-reg-header]').forEach(row=>{
     let match = true;
-    if(MAT_STATUS_SEL.length){
-      const ok = MAT_STATUS_SEL.some(v => v==='PF' ? row.dataset.pf==='1' : row.dataset.statusCalc===v);
-      if(!ok) match=false;
+    if(MAT_CANCEL_VIEW){
+      // Visão isolada: mostra só as SS canceladas, ignorando os demais filtros
+      match = (row.dataset.cancelado==='1');
+    } else {
+      // Visão normal: canceladas ficam fora por padrão (item 2)
+      if(row.dataset.cancelado==='1') match = false;
+      if(match && MAT_STATUS_SEL.length){
+        const ok = MAT_STATUS_SEL.some(v => v==='PF' ? row.dataset.pf==='1' : row.dataset.statusCalc===v);
+        if(!ok) match=false;
+      }
+      if(match && MAT_DISC_SEL.length && !MAT_DISC_SEL.includes(row.dataset.disc)) match=false;
     }
-    if(match && MAT_DISC_SEL.length && !MAT_DISC_SEL.includes(row.dataset.disc)) match=false;
     row.dataset.matStatusMatch = match ? '1' : '0';
   });
 
@@ -3423,24 +3464,29 @@ function applyMatFilters(){
       regHdr.style.display = temVisivel ? '' : 'none';
     });
   }
-  if(anyActive){
-    document.querySelectorAll('#materiais-teste-body tr[data-ss-header]').forEach(ssHdr=>{
-      const slug = ssHdr.dataset.ssHeader;
-      const filhos = document.querySelectorAll(`#materiais-teste-body tr[data-reg-header][data-ss="${slug}"]`);
-      const temVisivel = [...filhos].some(f=>f.style.display!=='none');
-      ssHdr.style.display = temVisivel ? '' : 'none';
-    });
-  }
+  document.querySelectorAll('#materiais-teste-body tr[data-ss-header]').forEach(ssHdr=>{
+    const slug = ssHdr.dataset.ssHeader;
+    const filhos = document.querySelectorAll(`#materiais-teste-body tr[data-reg-header][data-ss="${slug}"]`);
+    const temAlgumNaoFiltrado = [...filhos].some(f=>f.dataset.matStatusMatch !== '0');
+    ssHdr.style.display = temAlgumNaoFiltrado ? '' : 'none';
+  });
 
   if(MAT_SEARCH){
     // a busca precisa forçar a exibição de tudo que combina, mesmo que a árvore
     // esteja recolhida por padrão — por isso avaliamos e definimos display nos dois sentidos.
+    // IMPORTANTE: o Nº SS só existe no texto do cabeçalho de SS (linha "📌 SS-x — N
+    // registro(s)"), não na própria linha do item nem no cabeçalho do Registro — por
+    // isso a busca precisa juntar os três textos, senão nunca acha nada por Nº SS.
     document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(row=>{
       const regHeader = document.querySelector(`#materiais-teste-body tr[data-reg-header="${row.dataset.reg}"]`);
       const regHeaderVisivel = regHeader ? regHeader.style.display !== 'none' : true;
       const passaFiltroColuna = row.dataset.matMatch !== '0';
       if(!regHeaderVisivel || !passaFiltroColuna){ row.style.display = 'none'; return; }
-      row.style.display = row.textContent.toLowerCase().includes(MAT_SEARCH) ? '' : 'none';
+      const ssHeader = regHeader ? document.querySelector(`#materiais-teste-body tr[data-ss-header="${regHeader.dataset.ss}"]`) : null;
+      const haystack = row.textContent.toLowerCase()
+        + ' ' + (regHeader ? regHeader.textContent.toLowerCase() : '')
+        + ' ' + (ssHeader ? ssHeader.textContent.toLowerCase() : '');
+      row.style.display = haystack.includes(MAT_SEARCH) ? '' : 'none';
     });
     document.querySelectorAll('#materiais-teste-body tr[data-reg-header]').forEach(rh=>{
       const slug = rh.dataset.regHeader;
@@ -3487,6 +3533,9 @@ function limparFiltrosMateriais(){
   const searchEl = document.getElementById('mat-search-input');
   if(searchEl) searchEl.value = '';
   MAT_SEARCH = '';
+  MAT_CANCEL_VIEW = false;
+  const cancelBtn = document.getElementById('mat-cancel-view-btn');
+  if(cancelBtn){ cancelBtn.textContent = '🚫 Ver SS Canceladas'; cancelBtn.style.background = 'rgba(107,114,128,.12)'; }
   applyMatFilters();
 }
 
@@ -3524,7 +3573,14 @@ function getMatFilteredItemRows(){
     if(MAT_FILTERS.escopo.length && !MAT_FILTERS.escopo.includes(r.dataset.escopo)) return false;
     if(MAT_FILTERS.statusitem.length && !MAT_FILTERS.statusitem.includes(r.dataset.statusitem)) return false;
     if(MAT_FILTERS.ocstatus.length && !MAT_FILTERS.ocstatus.includes(r.dataset.ocstatus)) return false;
-    if(MAT_SEARCH && !r.textContent.toLowerCase().includes(MAT_SEARCH)) return false;
+    if(MAT_SEARCH){
+      const regHeader = document.querySelector(`#materiais-teste-body tr[data-reg-header="${r.dataset.reg}"]`);
+      const ssHeader = regHeader ? document.querySelector(`#materiais-teste-body tr[data-ss-header="${regHeader.dataset.ss}"]`) : null;
+      const haystack = r.textContent.toLowerCase()
+        + ' ' + (regHeader ? regHeader.textContent.toLowerCase() : '')
+        + ' ' + (ssHeader ? ssHeader.textContent.toLowerCase() : '');
+      if(!haystack.includes(MAT_SEARCH)) return false;
+    }
     return true;
   });
 }
@@ -3539,6 +3595,12 @@ function renderMatSummaryCard(){
   const total = rows.length;
   const recebidos = rows.filter(r=>r.dataset.recebido==='1').length;
   const pct = total ? Math.round(recebidos/total*100) : 0;
+  const rowsCliente = rows.filter(r=>r.dataset.escopo==='Cliente');
+  const rowsContratada = rows.filter(r=>r.dataset.escopo==='Contratada');
+  const recebidosCliente = rowsCliente.filter(r=>r.dataset.recebido==='1').length;
+  const recebidosContratada = rowsContratada.filter(r=>r.dataset.recebido==='1').length;
+  const pctCliente = rowsCliente.length ? Math.round(recebidosCliente/rowsCliente.length*100) : null;
+  const pctContratada = rowsContratada.length ? Math.round(recebidosContratada/rowsContratada.length*100) : null;
   const valorTotal = isAdmin ? rows.reduce((s,r)=>s+(Number(r.dataset.vlrtotal)||0),0) : null;
   cont.innerHTML = `
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
@@ -3554,8 +3616,16 @@ function renderMatSummaryCard(){
       <div style="font-size:1.25rem;font-weight:800;color:var(--green)">${recebidos}/${total}</div>
     </div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
-      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">% Fornecido</div>
+      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">% Fornecido Total</div>
       <div style="font-size:1.25rem;font-weight:800;color:${pct>=100?'var(--green)':'var(--accent)'}">${pct}%</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">% Fornecido Cliente</div>
+      <div style="font-size:1.25rem;font-weight:800;color:${pctCliente===null?'var(--muted)':(pctCliente>=100?'var(--green)':'var(--accent)')}">${pctCliente===null?'—':pctCliente+'%'}</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+      <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">% Fornecido Contratada</div>
+      <div style="font-size:1.25rem;font-weight:800;color:${pctContratada===null?'var(--muted)':(pctContratada>=100?'var(--green)':'var(--accent)')}">${pctContratada===null?'—':pctContratada+'%'}</div>
     </div>
     ${isAdmin ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
       <div style="font-size:.64rem;color:var(--muted);text-transform:uppercase">Vlr. Total (R$)</div>
@@ -3591,7 +3661,7 @@ function renderMatChart(){
   body.innerHTML = html;
 }
 
-function exportMateriaisNivelAtual(){
+async function exportMateriaisNivelAtual(){
   const headCells = document.querySelectorAll('#materiais-teste-head th');
   if(!headCells.length){ flash('⚠️ Importe os dados antes de exportar.', '#ef4444', 4000); return; }
   const headers = ['Nível', ...[...headCells].map(th=>th.childNodes[0] ? th.childNodes[0].textContent.trim() : th.textContent.trim())];
@@ -3603,28 +3673,46 @@ function exportMateriaisNivelAtual(){
     else if(r.hasAttribute('data-reg')) nivel = 'LM';
     const tds = [...r.querySelectorAll('td')];
     if(tds.length === 1){
-      // linha de cabeçalho (colspan) — texto único
+      // linha de cabeçalho (colspan) — texto único, uma coluna só mesmo (é um
+      // rótulo de grupo, igual aparece na tela — não há o que quebrar em colunas)
       return [nivel, tds[0].textContent.trim().replace(/\s+/g,' ')];
     }
-    return [nivel, ...tds.map(td=>{
+    const linha = [nivel];
+    tds.forEach(td=>{
       const inp = td.querySelector('input');
-      return inp ? inp.value : td.textContent.trim().replace(/\s+/g,' ');
-    })];
+      linha.push(inp ? inp.value : td.textContent.trim().replace(/\s+/g,' '));
+    });
+    return linha;
   });
-  let tbl = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table style="border-collapse:collapse">';
-  tbl += '<tr>' + headers.map(h=>`<th style="border:1px solid #000;background:#1a6fad;color:#fff;font-weight:bold">${h}</th>`).join('') + '</tr>';
-  dataRows.forEach(r=>{
-    tbl += '<tr>' + r.map(c=>`<td style="border:1px solid #000">${(c||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`).join('') + '</tr>';
+  await baixarXlsxEstilizado(headers, dataRows, `Sistema_Materiais_NivelAtual_${new Date().toISOString().slice(0,10)}.xlsx`, 'Materiais');
+  flash(`✅ Exportado(s) ${dataRows.length} linha(s) visível(is).`, '#22c55e', 4000);
+}
+
+// Gera um .xlsx real (ExcelJS) com cabeçalho estilizado (fundo azul, fonte
+// branca em negrito, igual ao visual anterior) e cada valor do array numa
+// coluna própria. Usado por Materiais, Detalhamento e Processamento.
+async function baixarXlsxEstilizado(headers, dataRows, nomeArquivo, nomeAba){
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet((nomeAba||'Dados').slice(0,31));
+  ws.addRow(headers);
+  dataRows.forEach(r=>ws.addRow(r));
+  const hdrRow = ws.getRow(1);
+  hdrRow.eachCell(c=>{
+    c.font = { bold:true, color:{argb:'FFFFFFFF'} };
+    c.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A6FAD'} };
+    c.border = { top:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'}, bottom:{style:'thin'} };
   });
-  tbl += '</table></body></html>';
-  const blob = new Blob(['\ufeff'+tbl], {type:'application/vnd.ms-excel'});
+  ws.eachRow(row=>{
+    row.eachCell(c=>{ if(!c.border) c.border = { top:{style:'thin'}, left:{style:'thin'}, right:{style:'thin'}, bottom:{style:'thin'} }; });
+  });
+  ws.columns.forEach(col=>{ col.width = 24; });
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `Sistema_Materiais_NivelAtual_${new Date().toISOString().slice(0,10)}.xls`;
+  a.href = url; a.download = nomeArquivo;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  flash(`✅ Exportado(s) ${dataRows.length} linha(s) visível(is).`, '#22c55e', 4000);
 }
 
 function matSlug(s){ return String(s).replace(/[^a-zA-Z0-9]/g,'_'); }
@@ -3637,6 +3725,21 @@ function updateMatObs(registro, idx, val){
   if(MATERIAIS_DATA[registro] && MATERIAIS_DATA[registro].linhas[idx]) MATERIAIS_DATA[registro].linhas[idx].observacoes = val;
 }
 
+// Busca o Nº SS/Disciplina/Nome da Tarefa AO VIVO em DATA_BR em vez do retrato
+// estático gravado em MATERIAIS_DATA/DETPROC_DATA no momento da importação do
+// Excel de Materiais/Detalhamento. Sem isso, reimportar a LUCAR (que atualiza
+// o Nº SS em DATA_BR) não tinha efeito nenhum aqui, porque essas duas abas só
+// releem o Excel de Materiais/Detalhamento — o retrato antigo ficava "preso"
+// até alguém reimportar TAMBÉM o Excel de Materiais, o que raramente acontece
+// junto. Essa era a causa real de "funciona pra Fase 3, não pra Fase 2".
+function getLiveRegInfo(reg, fallbackObj){
+  const t = DATA_BR.find(r => String(r.registro) === String(reg));
+  return {
+    disciplina: (t && t.disciplina) || (fallbackObj && fallbackObj.disciplina) || '',
+    nomeTarefa: (t && t.nome_tarefa) || (fallbackObj && fallbackObj.nomeTarefa) || '',
+    ss: (t && t.nro_ss) || (fallbackObj && fallbackObj.ss) || '(sem SS)'
+  };
+}
 function renderMateriaisTeste(){
   const isAdmin = _currentUser && _currentUser.perfil === 'admin';
   const headEl = document.getElementById('materiais-teste-head');
@@ -3644,10 +3747,17 @@ function renderMateriaisTeste(){
   if(!bodyEl) return;
   const baseCols = 10; // Nível 3: Nome da Tarefa, Tipo, Escopo, Status Item, Prazo Receb., Recebido Em, OC Status, Observações (+2 admin)
   const colspan = isAdmin ? baseCols : baseCols - 2;
-  const registros = Object.keys(MATERIAIS_DATA);
+  const registros = Object.keys(MATERIAIS_DATA).filter(r => _faseFiltro === 'Todas as Fases' || MATERIAIS_DATA[r].faseOrigem === _faseFiltro);
+  const totalGeralMat = Object.keys(MATERIAIS_DATA).length;
+  const resumoMatEl = document.getElementById('materiais-fase-resumo');
+  if(resumoMatEl){
+    resumoMatEl.textContent = totalGeralMat
+      ? `${registros.length} de ${totalGeralMat} registro(s) — filtro de Fase: ${_faseFiltro}`
+      : '';
+  }
   if(!registros.length){
     if(headEl) headEl.innerHTML = '';
-    bodyEl.innerHTML = `<tr><td colspan="${colspan}" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr>`;
+    bodyEl.innerHTML = `<tr><td colspan="${colspan}" style="padding:20px;color:var(--muted)">${totalGeralMat ? `Nenhum registro para "${_faseFiltro}" — troque o filtro de Fase no topo para ver outros escopos.` : 'Nenhum dado importado ainda.'}</td></tr>`;
     fillMatMsGroup('ms-mat-status', []); fillMatMsGroup('ms-mat-disc', []);
     fillMatMsGroup('ms-mat-tipo', []); fillMatMsGroup('ms-mat-escopo', []);
     fillMatMsGroup('ms-mat-statusitem', []); fillMatMsGroup('ms-mat-ocstatus', []);
@@ -3660,7 +3770,7 @@ function renderMateriaisTeste(){
   fillMatMsGroup('ms-mat-escopo', uniq('Escopo Fornec.'));
   fillMatMsGroup('ms-mat-statusitem', uniq('Status de Fornecimento do Item na Totalidade'));
   fillMatMsGroup('ms-mat-ocstatus', uniq('OC Status'));
-  const discVals = [...new Set(registros.map(r=>MATERIAIS_DATA[r].disciplina).filter(Boolean))].sort();
+  const discVals = [...new Set(registros.map(r=>getLiveRegInfo(r, MATERIAIS_DATA[r]).disciplina).filter(Boolean))].sort();
   fillMatMsGroup('ms-mat-disc', discVals);
   const statusVals = [...new Set(registros.map(r=>MATERIAIS_DATA[r].statusCalc).filter(Boolean))].sort();
   fillMatMsGroup('ms-mat-status', ['PF', ...statusVals], v => v==='PF' ? '✅ Liberado para PF' : v);
@@ -3679,7 +3789,7 @@ function renderMateriaisTeste(){
   }
   const porSS = {};
   registros.forEach(reg=>{
-    const ss = MATERIAIS_DATA[reg].ss || '(sem SS)';
+    const ss = getLiveRegInfo(reg, MATERIAIS_DATA[reg]).ss;
     if(!porSS[ss]) porSS[ss]=[];
     porSS[ss].push(reg);
   });
@@ -3696,7 +3806,8 @@ function renderMateriaisTeste(){
     porSS[ss].sort().forEach(reg=>{
       const d = MATERIAIS_DATA[reg];
       const regSlug = matSlug(reg);
-      const regLabel = `${d.disciplina} — ${d.nomeTarefa}`; // item 5 + item 15 (Nome da Tarefa já traz "Registro: X" embutido)
+      const liveInfo = getLiveRegInfo(reg, d);
+      const regLabel = `${liveInfo.disciplina} — ${liveInfo.nomeTarefa}`; // item 5 + item 15 (Nome da Tarefa já traz "Registro: X" embutido)
       const fmtPrazoCampo = p => {
         if(!p || !p.data) return '—';
         const txt = fmtDataBR(p.data);
@@ -3714,7 +3825,7 @@ function renderMateriaisTeste(){
         return !temData; // só avisa se realmente não há nenhuma data reconhecida
       });
       const integradoNote = temIntegrado ? ' <span style="background:rgba(107,114,128,.18);color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens Integrados</span>' : '';
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" data-disc="${esc(d.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-status-calc="${esc(d.statusCalc)}" data-pf="${d.pfLiberado?'1':'0'}" data-disc="${esc(liveInfo.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px">
           <span class="arrow">▶</span> <strong>${regLabel}</strong>${cancelBadgeMat} &nbsp;
           <span style="background:${badgeColor[d.statusCalc]||'#6b9cc4'};color:#fff;padding:2px 8px;border-radius:4px;font-size:.7rem">${d.statusCalc}</span>
@@ -3906,9 +4017,13 @@ async function handleDetProcImport(e){
   if(!files.length) return;
   const registrosLiberados = new Set(Object.keys(MATERIAIS_DATA).filter(r=>MATERIAIS_DATA[r].pfLiberado));
   if(!registrosLiberados.size){ flash('⚠️ Nenhum Registro "Liberado para PF" encontrado. Importe primeiro o Sistema de Materiais.', '#ef4444', 6000); return; }
-  const ativos = getData();
+  // IMPORTANTE: usa DATA_BR direto (não getData()/getAllData() — as duas ainda
+  // respeitam o filtro de Fase selecionado na tela). A importação precisa
+  // reconhecer registros de TODAS as fases, independente do que estiver
+  // selecionado no momento do import — mesma correção já aplicada em Materiais.
+  const ativos = DATA_BR; // item 7
   const infoPorRegistro = {};
-  ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'', nomeTarefa: r.nome_tarefa||'', ss: r.nro_ss||'(sem SS)' }; });
+  ativos.forEach(r=>{ infoPorRegistro[String(r.registro)] = { disciplina: r.disciplina||'', nomeTarefa: r.nome_tarefa||'', ss: r.nro_ss||'(sem SS)', fase: r.fase_origem || 'Fase 3' }; });
 
   let relatorioRows = null, apontamentoRows = null, relatorioFile='', apontamentoFile='';
   for(const file of files){
@@ -3963,8 +4078,8 @@ async function handleDetProcImport(e){
       apon
     };
     if(!DETPROC_DATA[registro]){
-      const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:'(sem SS)', isCancelado:false};
-      DETPROC_DATA[registro] = { ss: info.ss, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, detalhamentos: [], isCancelado: info.isCancelado };
+      const info = infoPorRegistro[registro] || {disciplina:'', nomeTarefa:'', ss:'(sem SS)', isCancelado:false, fase:'Fase 3'};
+      DETPROC_DATA[registro] = { ss: info.ss, disciplina: info.disciplina, nomeTarefa: info.nomeTarefa, detalhamentos: [], isCancelado: info.isCancelado, faseOrigem: info.fase };
     }
     DETPROC_DATA[registro].detalhamentos.push(item);
   }
@@ -3995,7 +4110,7 @@ function renderDetTeste(){
   const headEl = document.getElementById('det-teste-head');
   const bodyEl = document.getElementById('det-teste-body');
   const colspan = 8;
-  const registros = Object.keys(DETPROC_DATA);
+  const registros = Object.keys(DETPROC_DATA).filter(r => _faseFiltro === 'Todas as Fases' || DETPROC_DATA[r].faseOrigem === _faseFiltro);
   if(!registros.length){
     if(headEl) headEl.innerHTML = '';
     bodyEl.innerHTML = `<tr><td colspan="${colspan}" style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr>`;
@@ -4005,7 +4120,7 @@ function renderDetTeste(){
     headEl.innerHTML = '<th>Nº Interno</th><th>TAG do Detalhamento</th><th>Revisão</th><th>Tipo</th><th>Peso</th><th>Área</th><th>Dispositivo</th><th>PF Nº / Status</th>';
   }
   const porSS = {};
-  registros.forEach(reg=>{ const ss = DETPROC_DATA[reg].ss; if(!porSS[ss]) porSS[ss]=[]; porSS[ss].push(reg); });
+  registros.forEach(reg=>{ const ss = getLiveRegInfo(reg, DETPROC_DATA[reg]).ss; if(!porSS[ss]) porSS[ss]=[]; porSS[ss].push(reg); });
   const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
   let html = '';
   Object.keys(porSS).sort().forEach(ss=>{
@@ -4015,9 +4130,10 @@ function renderDetTeste(){
     porSS[ss].sort().forEach(reg=>{
       const d = DETPROC_DATA[reg];
       const regSlug = 'det_'+matSlug(reg);
-      const regLabel = `${d.disciplina} — ${d.nomeTarefa}`;
+      const liveInfo = getLiveRegInfo(reg, d);
+      const regLabel = `${liveInfo.disciplina} — ${liveInfo.nomeTarefa}`;
       const cancelBadgeDet = isRegistroCancelado(reg) ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(liveInfo.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${regLabel}</strong>${cancelBadgeDet} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${d.detalhamentos.length} detalhamento(s)</span></td></tr>`;
       d.detalhamentos.forEach(it=>{
         const pfColor = it.statusPF==='PF Emitida' ? '#22c55e' : '#f59e0b';
@@ -4114,8 +4230,8 @@ function renderDetChart(){
     }
     return true;
   };
-  const comDet = Object.keys(DETPROC_DATA).filter(r=>DETPROC_DATA[r].detalhamentos && DETPROC_DATA[r].detalhamentos.length && matchesFilters(r, DETPROC_DATA));
-  const todosComMaterial = Object.keys(MATERIAIS_DATA).filter(r=>matchesFilters(r, MATERIAIS_DATA));
+  const comDet = Object.keys(DETPROC_DATA).filter(r=>(_faseFiltro==='Todas as Fases'||DETPROC_DATA[r].faseOrigem===_faseFiltro) && DETPROC_DATA[r].detalhamentos && DETPROC_DATA[r].detalhamentos.length && matchesFilters(r, DETPROC_DATA));
+  const todosComMaterial = Object.keys(MATERIAIS_DATA).filter(r=>(_faseFiltro==='Todas as Fases'||MATERIAIS_DATA[r].faseOrigem===_faseFiltro) && matchesFilters(r, MATERIAIS_DATA));
   const faltamDetalhar = todosComMaterial.filter(r=>!comDet.includes(r));
   const total = comDet.length + faltamDetalhar.length;
   if(!total){ body.innerHTML = '<div style="font-size:.76rem;color:var(--muted)">Nenhum registro para os filtros atuais.</div>'; return; }
@@ -4146,7 +4262,7 @@ function renderProcTeste(){
   const headEl = document.getElementById('proc-teste-head');
   const bodyEl = document.getElementById('proc-teste-body');
   const colspan = 6 + PROC_COLS.length + 1; // NInterno,Registro,NumDet,Revisao,Tipo,Peso,Area + PROC_COLS + Programação
-  const registros = Object.keys(DETPROC_DATA);
+  const registros = Object.keys(DETPROC_DATA).filter(r => _faseFiltro === 'Todas as Fases' || DETPROC_DATA[r].faseOrigem === _faseFiltro);
   const comApon = registros.filter(r=>DETPROC_DATA[r].detalhamentos.some(it=>it.apon));
   if(!comApon.length){
     if(headEl) headEl.innerHTML = '';
@@ -4158,7 +4274,7 @@ function renderProcTeste(){
       PROC_COLS.map(c=>`<th>${c}</th>`).join('') + '<th>Programação</th>';
   }
   const porSS = {};
-  comApon.forEach(reg=>{ const ss = DETPROC_DATA[reg].ss; if(!porSS[ss]) porSS[ss]=[]; porSS[ss].push(reg); });
+  comApon.forEach(reg=>{ const ss = getLiveRegInfo(reg, DETPROC_DATA[reg]).ss; if(!porSS[ss]) porSS[ss]=[]; porSS[ss].push(reg); });
   const esc = s => String(s==null?'':s).replace(/"/g,'&quot;');
   let html = '';
   Object.keys(porSS).sort().forEach(ss=>{
@@ -4167,11 +4283,12 @@ function renderProcTeste(){
       <td colspan="${colspan}" style="font-weight:700;padding:8px"><span class="arrow">▶</span> 📌 ${ss} — ${porSS[ss].length} registro(s)</td></tr>`;
     porSS[ss].sort().forEach(reg=>{
       const d = DETPROC_DATA[reg];
+      const liveInfo = getLiveRegInfo(reg, d);
       const regSlug = 'proc_'+matSlug(reg);
       const itensComApon = d.detalhamentos.filter(it=>it.apon);
       const cancelBadgeProc = isRegistroCancelado(reg) ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
-      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(d.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
-        <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${d.disciplina} — ${d.nomeTarefa}</strong>${cancelBadgeProc} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${itensComApon.length} item(ns) em execução</span></td></tr>`;
+      html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(liveInfo.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
+        <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${liveInfo.disciplina} — ${liveInfo.nomeTarefa}</strong>${cancelBadgeProc} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${itensComApon.length} item(ns) em execução</span></td></tr>`;
       itensComApon.forEach(it=>{
         html += `<tr data-reg="${regSlug}" data-tipo="${esc(it.tipo||'')}" data-avanco="${Math.round(avancoToPct(it.apon['Avanço']))}" style="display:none">
           <td style="font-size:.68rem">${esc(it.nInterno)}</td>
@@ -4308,7 +4425,7 @@ function renderProcChart(){
     </div>`;
 }
 
-function exportNivelAtualGenerico(headId, bodyId, nomeArq){
+async function exportNivelAtualGenerico(headId, bodyId, nomeArq){
   const headCells = document.querySelectorAll('#'+headId+' th');
   if(!headCells.length){ flash('⚠️ Importe os dados antes de exportar.', '#ef4444', 4000); return; }
   const headers = ['Nível', ...[...headCells].map(th=>th.textContent.trim())];
@@ -4322,16 +4439,7 @@ function exportNivelAtualGenerico(headId, bodyId, nomeArq){
     if(tds.length === 1) return [nivel, tds[0].textContent.trim().replace(/\s+/g,' ')];
     return [nivel, ...tds.map(td=>td.textContent.trim().replace(/\s+/g,' '))];
   });
-  let tbl = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"></head><body><table style="border-collapse:collapse">';
-  tbl += '<tr>' + headers.map(h=>`<th style="border:1px solid #000;background:#1a6fad;color:#fff;font-weight:bold">${h}</th>`).join('') + '</tr>';
-  dataRows.forEach(r=>{ tbl += '<tr>' + r.map(c=>`<td style="border:1px solid #000">${(c||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`).join('') + '</tr>'; });
-  tbl += '</table></body></html>';
-  const blob = new Blob(['\ufeff'+tbl], {type:'application/vnd.ms-excel'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `${nomeArq}_NivelAtual_${new Date().toISOString().slice(0,10)}.xls`;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  await baixarXlsxEstilizado(headers, dataRows, `${nomeArq}_NivelAtual_${new Date().toISOString().slice(0,10)}.xlsx`, nomeArq);
   flash(`✅ Exportado(s) ${dataRows.length} linha(s) visível(is).`, '#22c55e', 4000);
 }
 
@@ -6864,6 +6972,46 @@ function lucarBuildRecord(row, colIdx){
 
 const LUCAR_DISC_OPTIONS = ['PINT-RTI','CALD-RTI','PINT-PLANO','NR-13','PSV','CALD-TANQUE'];
 
+// Tela de revisão: quando um registro que estava ativo numa fase não vem mais
+// na nova LUCAR importada, pergunta ao administrador — um por um, com contexto
+// (Nº SS, Disciplina) — se ele deve ser marcado como "SS Cancelada", em vez de
+// simplesmente remover o vínculo com a LUPA silenciosamente como era antes.
+let _lucarReviewResolve = null;
+function reviewRemovidosParaCancelamento(removidos, faseImportacao){
+  return new Promise(resolve=>{
+    if(!removidos.length){ resolve([]); return; }
+    _lucarReviewResolve = resolve;
+    const modal = document.getElementById('lucar-review-cancel-modal');
+    const listEl = document.getElementById('lucar-review-list');
+    const faseLbl = document.getElementById('lucar-review-fase-label');
+    if(faseLbl) faseLbl.textContent = faseImportacao;
+    const esc = s => String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    listEl.innerHTML = removidos.map(reg=>{
+      const t = DATA_BR.find(r=>String(r.registro)===reg);
+      const ss = (t && t.nro_ss) || '(sem SS)';
+      const disc = (t && t.disciplina) || '';
+      const nomeTarefa = (t && t.nome_tarefa) || '';
+      const jaCancelado = t && CANCEL_STATES.indexOf(t.status_samc)!==-1;
+      return `<label style="display:grid;grid-template-columns:20px 90px 110px 1fr auto;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:.76rem;cursor:pointer">
+        <input type="checkbox" class="lucar-review-chk" value="${esc(reg)}" ${jaCancelado?'':'checked'} style="width:16px;height:16px">
+        <span style="font-family:monospace">${esc(reg)}</span>
+        <span style="font-family:monospace;color:var(--accent)">${esc(ss)}</span>
+        <span>${esc(disc)}${nomeTarefa?' — '+esc(nomeTarefa):''}</span>
+        ${jaCancelado ? '<span style="font-size:.65rem;color:var(--muted)">(já cancelado)</span>' : '<span></span>'}
+      </label>`;
+    }).join('');
+    modal.style.display = 'flex';
+  });
+}
+function lucarReviewMarcarTodos(v){
+  document.querySelectorAll('.lucar-review-chk').forEach(c=>{ c.checked = v; });
+}
+function lucarReviewConfirmar(aplicarSelecionados){
+  const modal = document.getElementById('lucar-review-cancel-modal');
+  modal.style.display = 'none';
+  const selecionados = aplicarSelecionados ? [...document.querySelectorAll('.lucar-review-chk:checked')].map(c=>c.value) : [];
+  if(_lucarReviewResolve){ _lucarReviewResolve(selecionados); _lucarReviewResolve = null; }
+}
 async function handleLucarImport(e){
   const files = Array.from(e.target.files||[]);
   if(!files.length) return;
@@ -7013,6 +7161,7 @@ async function handleLucarImport(e){
   Object.keys(novoLucarDataParcial).forEach(reg => {
     let t = DATA_BR.find(r => String(r.registro) === reg);
     const origem = novoLucarDataParcial[reg];
+    const eraNovo = !t;
     if(!t){
       // Registro totalmente novo (ex: primeira importação de um item Fase 2) —
       // sem criar a linha aqui, ela fica sem Nº SS na Tabela, e sem Nº SS a
@@ -7030,17 +7179,36 @@ async function handleLucarImport(e){
     if(t.fase_origem !== faseImportacao){ t.fase_origem = faseImportacao; mudou = true; }
     if(origem.nro_ss && t.nro_ss !== origem.nro_ss){ t.nro_ss = origem.nro_ss; mudou = true; }
     if(origem.nome_tarefa && t.nome_tarefa !== origem.nome_tarefa){ t.nome_tarefa = origem.nome_tarefa; mudou = true; }
-    // Sinaliza que este registro tem vínculo ativo com a LUPA/LUCAR — sem isso,
-    // o Fluxo do Processo mostrava "Sem status" na etapa LUPA/LUCAR mesmo
-    // encontrando a SS corretamente (o campo simplesmente nunca era preenchido
-    // para registros novos, como os da Fase 2).
-    if(t.status_lupa !== 'Ativo'){ t.status_lupa = 'Ativo'; mudou = true; }
+    // Sinaliza o vínculo ativo com a LUPA/LUCAR — registro genuinamente novo entra
+    // como "Novo" (ainda não confirmado/trabalhado); registro já existente que só
+    // estava sem esse campo preenchido segue como "Ativo" (comportamento antigo).
+    if(eraNovo){
+      if(t.status_lupa !== 'Novo'){ t.status_lupa = 'Novo'; mudou = true; }
+    } else if(!t.status_lupa){
+      t.status_lupa = 'Ativo'; mudou = true;
+    }
     if(mudou){ t._editedAt = new Date().toISOString(); t._editedBy = SYNC_USER; }
   });
+
+  // Revisão de registros que saíram do arquivo (existiam nesta fase, não vieram
+  // nesta leva): antes disso era removido do vínculo com a LUPA silenciosamente,
+  // sem tocar no Status SAMC da Tabela. Agora o administrador revisa cada um e
+  // decide se marca como "SS Cancelada" ou mantém como está.
+  const paraCancelar = await reviewRemovidosParaCancelamento(removidos, faseImportacao);
+  paraCancelar.forEach(reg=>{
+    const t = DATA_BR.find(r=>String(r.registro)===reg);
+    if(t && CANCEL_STATES.indexOf(t.status_samc)===-1){
+      t.status_samc = 'SS Cancelada';
+      t._editedAt = new Date().toISOString();
+      t._editedBy = SYNC_USER;
+    }
+  });
+
   LUCAR_HISTORICO.push({
     timestamp: new Date().toISOString(),
     registroNovo: novos.length,
     registroRemovido: removidos.length,
+    registroCancelado: paraCancelar.length,
     totalAtivos: regsDepois.size,
     fase: faseImportacao,
     alteracaoLupa: !jaHaviaImportacao ? 'N/A' : ((novos.length>0||removidos.length>0) ? 'Sim' : 'Não')
@@ -7048,7 +7216,7 @@ async function handleLucarImport(e){
 
   renderLucarTeste();
   pushEdits();
-  flash(`✅ LUCAR/LUPA (${faseImportacao}) importado localmente: ${regsDepois.size} registro(s) ativo(s) nessa fase (${novos.length} novo(s), ${removidos.length} removido(s)). Enviando para a nuvem...`, '#1a6fad', 4000);
+  flash(`✅ LUCAR/LUPA (${faseImportacao}) importado localmente: ${regsDepois.size} registro(s) ativo(s) nessa fase (${novos.length} novo(s), ${removidos.length} removido(s)${paraCancelar.length?`, ${paraCancelar.length} marcado(s) como cancelado(s)`:''}). Enviando para a nuvem...`, '#1a6fad', 4000);
   if(faseImportacao === 'Fase 2'){
     const declarados = Object.keys(ESCOPO_FASE2);
     const naoEncontrados = declarados.filter(reg => !novoLucarDataParcial[reg]);
@@ -7216,13 +7384,20 @@ function renderLucarTeste(){
     const rowStyleCrono = isCanceledCrono ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through' : '';
     const cancelBadgeCrono = isCanceledCrono ? '<span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">SS CANCELADA/DESPRIORIZADA</span>' : '';
     const fase2BadgeCrono = (l.fase_origem === 'Fase 2') ? '<span style="font-size:.6rem;background:rgba(217,119,6,.15);color:#b45309;border:1px solid rgba(217,119,6,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">FASE 2 · REMANESCENTE</span>' : '';
+    // Status Suprimento / Data Sup.+Tarde efetivos — mesmo cálculo usado na Tabela
+    // (cruza com o Sistema de Materiais quando o registro existe lá); antes a
+    // Cronograma mostrava só o campo bruto/manual, por isso ficava em branco
+    // mesmo quando a Tabela já mostrava o status certo.
+    const effSupCrono = getEffectiveSupData(reg);
+    const supStatusCrono = effSupCrono ? effSupCrono.status : (t?t.status_sup:'');
+    const supDateCrono = effSupCrono && effSupCrono.dataTarde ? dateToISO(effSupCrono.dataTarde) : (t?t.data_sup_tarde:'');
     return `<tr style="${rowStyleCrono}" data-registro="${esc(reg)}" data-disciplina="${esc(discEfetiva)}" data-gerencia="${esc(l.gerencia||'')}" data-area="${esc(l.area_sistema||'')}"
       data-modulo="${esc(l.modulo||'')}" data-setor="${esc(l.setor||'')}" data-origem="${esc(l.origem||'')}"
       data-tipoexig="${esc(l.tipo_exigencia||'')}" data-prioridade="${esc(l.prioridade||'')}"
       data-fonte="${esc(t?(t.fonte||'BR'):'')}" data-samc="${esc(t?t.status_samc||'':'')}" data-fab="${esc(t?t.fabricacao||'':'')}"
-      data-plan="${esc(t?t.status_plan||'':'')}" data-lupa="${esc(t?t.status_lupa||'':'')}" data-sup="${esc(t?t.status_sup||'':'')}"
+      data-plan="${esc(t?t.status_plan||'':'')}" data-lupa="${esc(t?t.status_lupa||'':'')}" data-sup="${esc(supStatusCrono||'')}"
       data-esi="${t&&t.esi_resp?'1':'0'}" data-br="${t&&t.br_resp?'1':'0'}" data-esibr="${t&&t.esi_resp&&t.br_resp?'1':'0'}"
-      data-responsavel="${esc(t?t.responsavel||'':'')}" data-datasup="${t&&t.data_sup_tarde?t.data_sup_tarde:''}">
+      data-responsavel="${esc(t?t.responsavel||'':'')}" data-datasup="${supDateCrono||''}">
       <td><input type="checkbox" class="row-chk-crono" onchange="updateBulkBarCrono()"></td>
       <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
       <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
@@ -7247,8 +7422,12 @@ function renderLucarTeste(){
       <td style="font-size:.7rem">${t?t.fabricacao||'—':'—'}</td>
       <td style="font-size:.7rem">${t?t.status_plan||'—':'—'}</td>
       <td style="font-size:.7rem">${t?t.status_lupa||'—':'—'}</td>
-      <td style="font-size:.7rem">${t?(t.status_sup||'—'):'—'}</td>
-      <td style="font-size:.7rem">${t?fmtDataSupTardeBR(t.data_sup_tarde):'—'}${(()=>{ const ef=getEffectiveSupData(reg); return (ef && ef.dataTardeEstimada) ? '<span title="Data Estimada" style="color:var(--warn);cursor:help;font-weight:800;margin-left:2px">*</span>' : ''; })()}</td>
+      <td>${chipSup(supStatusCrono)}${effSupCrono?' <span title="Calculado a partir da aba Materiais" style="font-size:.6rem;color:var(--blue)">🔗</span>':''}</td>
+      <td class="sup-date-col">${t?`<input type="date" value="${supDateCrono||''}"
+        onchange="saveSupField(event,'${t.registro}','data_sup_tarde')"
+        ${effSupCrono && effSupCrono.dataTarde ? 'title="Calculado a partir da aba Materiais (OC Follow UP mais tarde entre Contratada/Cliente)"' : ''}
+        style="background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.68rem;padding:3px 5px;font-family:var(--font);width:102px">
+        ${effSupCrono && effSupCrono.dataTardeEstimada ? '<span title="Data Estimada" style="color:var(--warn);cursor:help;font-weight:800;margin-left:2px">*</span>' : ''}` : '—'}</td>
       <td class="sup-chk-col">${t?`<input type="checkbox" ${t.esi_resp?'checked':''} title="ESI responsável" onchange="saveSupField(event,'${t.registro}','esi_resp')" style="accent-color:#ef4444;width:15px;height:15px;cursor:pointer">`:'—'}</td>
       <td class="sup-chk-col">${t?`<input type="checkbox" ${t.br_resp?'checked':''} title="BR responsável" onchange="saveSupField(event,'${t.registro}','br_resp')" style="accent-color:#1a6fad;width:15px;height:15px;cursor:pointer">`:'—'}</td>
       <td style="font-size:.7rem;min-width:390px;white-space:normal">${t?(t.observacoes||''):''}</td>
