@@ -570,6 +570,31 @@ h1{letter-spacing:.02em}
 
 <!-- ═══════════ STATUS SAMC ═══════════ -->
 <div class="section" id="samc">
+  <div class="card" id="samc-import-card" style="position:relative;z-index:5">
+    <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Solicitações de Serviço (SAMC) — importado do relatório do cliente</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">
+      Importe o relatório "RelatorioSolicitacaoServico...xlsx" pelo Painel Admin. O cruzamento é feito pelo Nº SS e atualiza
+      automaticamente o Status SAMC na Tabela e na Cronograma — substitui a edição manual desse campo.
+    </div>
+    <div id="samc-resumo" style="font-size:.78rem;color:var(--blue);font-weight:600;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+      <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-status')" id="ms-samc-status-btn">Status ▾</button>
+        <div class="ms-drop" id="ms-samc-status" style="display:none"></div></div>
+      <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-fase')" id="ms-samc-fase-btn">Fase de Execução ▾</button>
+        <div class="ms-drop" id="ms-samc-fase" style="display:none"></div></div>
+      <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-fluxo')" id="ms-samc-fluxo-btn">Fluxo ▾</button>
+        <div class="ms-drop" id="ms-samc-fluxo" style="display:none"></div></div>
+      <input id="samc-search-input" type="text" placeholder="🔎 Buscar por Nº SS, Disciplina, Registro..." oninput="applySamcSearch(this.value)"
+        style="flex:1;min-width:200px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+      <button onclick="limparFiltrosSamc()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
+    </div>
+    <div class="tbl-wrap" style="max-height:440px;overflow-y:auto;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr id="samc-teste-head"></tr></thead>
+        <tbody id="samc-teste-body"><tr><td style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
   <div class="kpi-grid" id="kpi-samc"></div>
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--blue)"></span>SAMC × Disciplina</div>
@@ -1139,6 +1164,8 @@ h1{letter-spacing:.02em}
         <select id="lucar-f-tipoexig" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Tipo Exig.: Todos</option></select>
         <select id="lucar-f-prioridade" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Prioridade: Todas</option></select>
         <select id="lucar-f-samc" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status SAMC: Todos</option></select>
+        <select id="lucar-f-samcfase" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Fase Execução (SAMC): Todas</option></select>
+        <select id="lucar-f-samcfluxo" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Fluxo: Todos</option></select>
         <select id="lucar-f-fab" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Fabricação: Todas</option></select>
         <select id="lucar-f-plan" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status Planej.: Todos</option></select>
         <select id="lucar-f-lupa" onchange="applyLucarFilters()" style="width:100%;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px"><option value="">Status LUPA: Todos</option></select>
@@ -1307,6 +1334,12 @@ h1{letter-spacing:.02em}
     <button onclick="document.getElementById('detprocImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(245,166,35,.15);border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Atualizar Detalhamento &amp; Processamento (Excel)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione juntos: "Relatorio_Geral_Detalhamentos.xlsx" e "Apontamento_de_Exe._Fabricacao.xlsx". Depende da Materiais já importada.</div>
     <input type="file" id="detprocImportInput" accept=".xlsx" multiple style="display:none" onchange="handleDetProcImport(event)">
+    <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📋 Status SAMC</div>
+    <button onclick="document.getElementById('samcImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(26,111,173,.15);border:1px solid var(--blue);color:var(--blue);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📥 Importar Relatório de Solicitação de Serviço (Excel)</button>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Arquivo "RelatorioSolicitacaoServico...xlsx". Cruza por Nº SS e atualiza o Status SAMC automaticamente na Tabela e na Cronograma.</div>
+    <input type="file" id="samcImportInput" accept=".xlsx" style="display:none" onchange="handleSamcImport(event)">
+    <button onclick="auditarOrfaos()" style="width:100%;margin-bottom:4px;background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">🔎 Auditar Registros Órfãos (sem vínculo com a LUCAR)</button>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Encontra registros na Tabela que já saíram do escopo declarado da LUCAR mas não estão marcados como cancelados.</div>
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📊 Planejamento</div>
     <button onclick="document.getElementById('planImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(20,184,166,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📊 Atualizar Status Planejamento (Excel)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione um ou mais arquivos "UN-BUZ...xlsx". O mais recente prevalece em caso de conflito.</div>
@@ -1380,6 +1413,29 @@ h1{letter-spacing:.02em}
     <div class="modal-actions">
       <button class="modal-btn cancel" onclick="closeConfigModal()">Cancelar</button>
       <button class="modal-btn save" onclick="saveConfig()">✅ Salvar e Conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUDITORIA DE ÓRFÃOS MODAL -->
+<div class="modal-overlay" id="orfaos-audit-modal" style="display:none">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-title">🔎 Registros sem vínculo com a LUCAR atual (órfãos)</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      Estes registros existem na Tabela mas não fazem parte da declaração atual da LUCAR/LUPA — ou seja,
+      já saíram do escopo ativo do projeto. Se algum deles não estiver marcado como cancelado, provavelmente
+      é porque uma importação (SAMC/Planejamento) sobrescreveu essa marcação antes da correção mais recente.
+      Marque os que devem voltar a "SS Cancelada".
+    </div>
+    <div id="orfaos-audit-resumo" style="font-size:.78rem;color:var(--blue);font-weight:600;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="orfaosMarcarTodos(true)">Marcar todos</button>
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="orfaosMarcarTodos(false)">Desmarcar todos</button>
+    </div>
+    <div id="orfaos-audit-list" style="max-height:380px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="document.getElementById('orfaos-audit-modal').style.display='none'">Fechar sem alterar</button>
+      <button class="modal-btn save" onclick="orfaosAplicarCancelamento()">✅ Marcar selecionados como Cancelados</button>
     </div>
   </div>
 </div>
@@ -1811,6 +1867,7 @@ function renderActiveTabContent(){
   if(id === 'graficos-br'){ renderBRCharts(); }
   if(id === 'suprfab-teste'){ renderMateriaisTeste(); renderDetTeste(); renderProcTeste(); pullMateriaisDetProcAndRender(); }
   if(id === 'lucar-teste'){ renderLucarTeste(); }
+  if(id === 'samc'){ renderSamcSection(); }
 }
 function getAllData()  {
   // Correção automática: 'ADP Delineamento' (sem ON) é o mesmo status de 'ADP Delineamento ON'
@@ -3223,7 +3280,7 @@ async function handleMateriaisImport(e) {
   const registrosValidos = new Set(Object.keys(infoPorRegistro));
 
   const grouped = {};
-  let totalLidas=0, totalCancel=0, totalForaEscopo=0;
+  let totalLidas=0, totalCancel=0, totalForaEscopo=0, totalPortifolioTEP=0;
   for(const file of files){
     try{
       const buf = await file.arrayBuffer();
@@ -3233,12 +3290,17 @@ async function handleMateriaisImport(e) {
       const colIdx = {};
       MATERIAIS_COLS.forEach(c=>{ colIdx[c] = hdr.indexOf(c); });
       if(colIdx['Registro'] === -1){ flash(`⚠️ Coluna "Registro" não encontrada em ${file.name}`, '#ef4444', 5000); continue; }
+      // Nova diretriz: se a coluna "Portifólio" contiver o termo "TEP", a linha não deve
+      // ser considerada. Localiza a coluna pelo nome (não por letra fixa), já que a
+      // posição pode variar de um export para outro.
+      const idxPortifolio = hdr.findIndex(h => /portif[oó]lio/i.test(String(h||'')));
       for(let i=1;i<rows.length;i++){
         const row = rows[i];
         const registro = String(row[colIdx['Registro']]||'').trim();
         if(!registro) continue;
         totalLidas++;
         if(!registrosValidos.has(registro)){ totalForaEscopo++; continue; }
+        if(idxPortifolio !== -1 && String(row[idxPortifolio]||'').toUpperCase().includes('TEP')){ totalPortifolioTEP++; continue; }
         let temCancelado = false;
         MATERIAIS_COLS.forEach(c=>{ if((row[colIdx[c]]||'').toString().trim()==='Cancelado') temCancelado = true; });
         if(temCancelado){ totalCancel++; continue; }
@@ -3310,7 +3372,7 @@ async function handleMateriaisImport(e) {
   });
 
   document.getElementById('materiais-resumo').innerHTML =
-    `${totalLidas} linha(s) lida(s) · ${Object.keys(MATERIAIS_DATA).length} registro(s) do escopo ativo encontrados · ${totalCancel} linha(s) canceladas ignoradas · ${totalForaEscopo} linha(s) fora do escopo (outros projetos/cancelados)`;
+    `${totalLidas} linha(s) lida(s) · ${Object.keys(MATERIAIS_DATA).length} registro(s) do escopo ativo encontrados · ${totalCancel} linha(s) canceladas ignoradas · ${totalForaEscopo} linha(s) fora do escopo (outros projetos/cancelados)${totalPortifolioTEP?` · ${totalPortifolioTEP} linha(s) ignorada(s) (Portifólio TEP)`:''}`;
   MAT_EXPAND_LEVEL = 0;
   const expandBtn = document.getElementById('mat-expand-btn');
   if(expandBtn) expandBtn.textContent = '🔽 Expandir Registros';
@@ -4476,10 +4538,18 @@ async function handlePlanImport(e) {
     }
   }
 
-  let changed = 0;
+  let changed = 0, protegidos = 0, orfaosIgnorados = 0;
   DATA_BR.forEach(r => {
     const novo = ssMap[r.nro_ss];
     if(novo !== undefined && novo !== r.status_plan) {
+      // CORREÇÃO DEFINITIVA: registro sem vínculo com a LUCAR/LUPA declarada hoje
+      // (órfão) não é tocado por essa importação — mesmo motivo da correção no SAMC.
+      if(!LUCAR_DATA[String(r.registro)]){ orfaosIgnorados++; return; }
+      // Regra simétrica à do SAMC: se o registro já está cancelado (por Status SAMC
+      // ou pelo próprio Status Planejamento), o PLANNER não pode "reativar" ele de
+      // volta só porque o cronograma do cliente ainda não foi atualizado lá.
+      const jaCancelado = CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
+      if(jaCancelado && CANCEL_STATES.indexOf(novo) === -1){ protegidos++; return; }
       r.status_plan = novo;
       r._editedAt = new Date().toISOString();
       r._editedBy = SYNC_USER || 'Importação Excel';
@@ -4490,9 +4560,9 @@ async function handlePlanImport(e) {
   if(changed > 0) {
     renderAll();
     pushEdits();
-    flash(`✅ Status Planejamento atualizado em ${changed} registro(s), a partir de ${lidos} arquivo(s).`, '#22c55e', 5000);
+    flash(`✅ Status Planejamento atualizado em ${changed} registro(s), a partir de ${lidos} arquivo(s)${protegidos?` · ${protegidos} mantido(s) cancelado(s) (protegido contra reativação)`:''}${orfaosIgnorados?` · ${orfaosIgnorados} registro(s) órfão(s) ignorado(s) (sem vínculo com a LUCAR atual)`:''}.`, '#22c55e', 6000);
   } else {
-    flash('ℹ️ Nenhuma alteração necessária — os dados já estavam atualizados.', '#3b82f6', 4000);
+    flash(`ℹ️ Nenhuma alteração necessária — os dados já estavam atualizados.${protegidos?` (${protegidos} mantido(s) cancelado(s), protegido(s) contra reativação)`:''}`, '#3b82f6', 5000);
   }
   e.target.value = '';
 }
@@ -6896,6 +6966,10 @@ let LUCAR_DATA = {};       // registro -> {registro, nro_ss, nome_tarefa, discip
                            //              gerencia, area_sistema, modulo, setor, nota_item_med, origem, tag,
                            //              servico_padrao, tipo_exigencia, prioridade}
 let LUCAR_HISTORICO = [];  // [{timestamp, registroNovo, registroRemovido, totalAtivos, alteracaoLupa}]
+// SAMC (Solicitação de Serviço) — importado do relatório do cliente, cruzado por Nº SS.
+// Substitui a edição manual do campo Status SAMC na Cronograma/Tabela.
+let SAMC_DATA = {};        // Nº SS -> {faseExecucao, fluxo, status, registrosVinculados:[...]}
+let SAMC_HISTORICO = [];   // [{timestamp, ssAtualizadas, registrosAtualizados, ssNaoEncontradas}]
 // registro -> disciplina — declarado manualmente pelo gestor (a Disciplina é um
 // padrão interno da Estrutural, não vem no documento do cliente). Usado para
 // restringir quais registros da LUPA de Fase 2 entram no sistema — só os que
@@ -7011,6 +7085,326 @@ function lucarReviewConfirmar(aplicarSelecionados){
   modal.style.display = 'none';
   const selecionados = aplicarSelecionados ? [...document.querySelectorAll('.lucar-review-chk:checked')].map(c=>c.value) : [];
   if(_lucarReviewResolve){ _lucarReviewResolve(selecionados); _lucarReviewResolve = null; }
+}
+// ── SAMC (Solicitação de Serviço) — importado do relatório do cliente, cruzado
+// por Nº SS. Atualiza Status SAMC (e também Fase de Execução/Fluxo, dois campos
+// novos) direto em DATA_BR — como é o mesmo array que a Tabela e a Cronograma
+// leem, o valor aparece nas duas automaticamente, sem passo extra.
+// ── Auditoria de registros órfãos (sem vínculo com a LUCAR/LUPA declarada hoje) ──
+// Encontra registros que ficaram "esquecidos" na Tabela depois de saírem do escopo
+// declarado — e que por isso deveriam estar marcados como cancelados. É o mesmo
+// cruzamento manual que resolveu o mistério dos "179 cancelados" que sumiram do
+// relatório de campanha depois de uma importação de SAMC/Planejamento antiga.
+function auditarOrfaos(){
+  const isAdmin = _currentUser && _currentUser.perfil === 'admin';
+  if(!isAdmin){ flash('⚠️ Apenas administradores podem auditar.', '#ef4444', 4000); return; }
+  const orfaosNaoCancelados = DATA_BR.filter(r=>{
+    const temVinculo = !!LUCAR_DATA[String(r.registro)];
+    const jaCancelado = CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
+    return !temVinculo && !jaCancelado;
+  });
+  const modal = document.getElementById('orfaos-audit-modal');
+  const listEl = document.getElementById('orfaos-audit-list');
+  const resumoEl = document.getElementById('orfaos-audit-resumo');
+  if(!orfaosNaoCancelados.length){
+    listEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.78rem">Nenhum registro órfão sem cancelamento encontrado — tudo certo por aqui.</div>';
+    if(resumoEl) resumoEl.textContent = '';
+    modal.style.display = 'flex';
+    return;
+  }
+  const esc = s => String(s==null?'':s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  if(resumoEl) resumoEl.textContent = `${orfaosNaoCancelados.length} registro(s) órfão(s) encontrado(s), sem marcação de cancelamento.`;
+  listEl.innerHTML = orfaosNaoCancelados.map(r=>{
+    return `<label style="display:grid;grid-template-columns:20px 90px 110px 1fr 1fr;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:.75rem;cursor:pointer">
+      <input type="checkbox" class="orfaos-audit-chk" value="${esc(r.registro)}" checked style="width:16px;height:16px">
+      <span style="font-family:monospace">${esc(r.registro)}</span>
+      <span style="font-family:monospace;color:var(--accent)">${esc(r.nro_ss||'(sem SS)')}</span>
+      <span>${esc(r.disciplina||'')}</span>
+      <span style="color:var(--muted)">SAMC: ${esc(r.status_samc||'—')} · Plan: ${esc(r.status_plan||'—')}</span>
+    </label>`;
+  }).join('');
+  modal.style.display = 'flex';
+}
+function orfaosMarcarTodos(v){
+  document.querySelectorAll('.orfaos-audit-chk').forEach(c=>{ c.checked = v; });
+}
+function orfaosAplicarCancelamento(){
+  const selecionados = [...document.querySelectorAll('.orfaos-audit-chk:checked')].map(c=>c.value);
+  document.getElementById('orfaos-audit-modal').style.display = 'none';
+  if(!selecionados.length){ flash('ℹ️ Nenhum registro selecionado.', '#3b82f6', 4000); return; }
+  let count = 0;
+  selecionados.forEach(reg=>{
+    const r = DATA_BR.find(x=>String(x.registro)===String(reg));
+    if(r && CANCEL_STATES.indexOf(r.status_samc)===-1){
+      r.status_samc = 'SS Cancelada';
+      r._editedAt = new Date().toISOString();
+      r._editedBy = SYNC_USER;
+      count++;
+    }
+  });
+  renderAll();
+  pushEdits();
+  flash(`✅ ${count} registro(s) órfão(s) marcado(s) como cancelado(s).`, '#22c55e', 6000);
+}
+async function handleSamcImport(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const isAdmin = _currentUser && _currentUser.perfil === 'admin';
+  if(!isAdmin){ flash('⚠️ Apenas administradores podem importar.', '#ef4444', 4000); e.target.value=''; return; }
+  flash('⏳ Lendo relatório de Solicitação de Serviço...', '#1a6fad', 3000);
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    // A dimensão (!ref) declarada no arquivo pode estar desatualizada (mesmo problema
+    // já visto em outras planilhas exportadas por ferramentas automáticas — o arquivo
+    // dizia ter só 1 linha quando na verdade tinha milhares) — recalcula o range real
+    // varrendo as células, em vez de confiar no que o arquivo declara.
+    let maxRow = 0, maxCol = 0;
+    Object.keys(ws).forEach(k=>{
+      if(k[0]==='!') return;
+      const cell = XLSX.utils.decode_cell(k);
+      if(cell.r > maxRow) maxRow = cell.r;
+      if(cell.c > maxCol) maxCol = cell.c;
+    });
+    const rangeReal = { s:{r:0,c:0}, e:{r:maxRow,c:maxCol} };
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:'', range: rangeReal});
+    if(!rows.length){ flash('⚠️ Planilha vazia ou em formato inesperado.', '#ef4444', 5000); e.target.value=''; return; }
+
+    const novoSamcData = {};
+    let tipoNaoIdentificado = 0;
+    rows.forEach(row=>{
+      const ss = String(row['Número']||'').trim();
+      if(!ss) return;
+      const faseExecucao = String(row['Fase']||'').trim();
+      const tipoRaw = String(row['Tipo de Solicitação de Serviço']||'').toUpperCase();
+      let fluxo = '';
+      if(tipoRaw.includes('OFFSHORE')) fluxo = 'Fluxo Offshore';
+      else if(tipoRaw.includes('ONSHORE')) fluxo = 'Fluxo Onshore';
+      else if(tipoRaw) tipoNaoIdentificado++;
+      const status = String(row['Status']||'').trim();
+      novoSamcData[ss] = { faseExecucao, fluxo, status, registrosVinculados: [] };
+    });
+
+    // Cruzamento por Nº SS — uma SS pode ter vários registros vinculados na Tabela
+    let ssAtualizadas = 0, registrosAtualizados = 0, registrosProtegidos = 0, registrosOrfaosIgnorados = 0;
+    Object.keys(novoSamcData).forEach(ss=>{
+      const info = novoSamcData[ss];
+      const registrosDaSS = DATA_BR.filter(r=>r.nro_ss === ss);
+      if(!registrosDaSS.length) return;
+      ssAtualizadas++;
+      registrosDaSS.forEach(r=>{
+        // CORREÇÃO DEFINITIVA: se o registro não está mais vinculado à LUCAR/LUPA
+        // declarada hoje (órfão — ficou só na Tabela, de uma fase/escopo anterior),
+        // o SAMC não toca nele de jeito nenhum. Foi exatamente essa importação,
+        // batendo o Nº SS de registros órfãos, que reativou ~178 registros que já
+        // estavam corretamente cancelados — porque o relatório do cliente ainda
+        // trazia esses SS como "Em Andamento" mesmo o serviço já tendo saído do
+        // escopo. Um registro órfão só deve ser alterado manualmente.
+        if(!LUCAR_DATA[String(r.registro)]){ registrosOrfaosIgnorados++; return; }
+        info.registrosVinculados.push(r.registro);
+        // Regra simétrica: se o registro já está cancelado — seja pelo Status
+        // Planejamento OU pelo próprio Status SAMC (de uma importação anterior ou
+        // edição manual) — o relatório do SAMC não pode "reativar" ele de volta só
+        // porque o sistema do cliente ainda não foi atualizado lá. O cancelamento
+        // sempre vence, não importa de qual lado ele veio.
+        const jaCancelado = CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
+        let mudou = false;
+        if(!jaCancelado){
+          if(info.status && r.status_samc !== info.status){ r.status_samc = info.status; mudou = true; }
+        } else if(info.status && CANCEL_STATES.indexOf(info.status) === -1){
+          registrosProtegidos++;
+        }
+        if(info.faseExecucao && r.samc_fase_execucao !== info.faseExecucao){ r.samc_fase_execucao = info.faseExecucao; mudou = true; }
+        if(info.fluxo && r.samc_fluxo !== info.fluxo){ r.samc_fluxo = info.fluxo; mudou = true; }
+        if(mudou){ r._editedAt = new Date().toISOString(); r._editedBy = SYNC_USER; registrosAtualizados++; }
+      });
+    });
+    const ssNaoEncontradas = Object.keys(novoSamcData).length - ssAtualizadas;
+
+    SAMC_DATA = novoSamcData;
+    SAMC_HISTORICO.push({
+      timestamp: new Date().toISOString(),
+      ssAtualizadas, registrosAtualizados, ssNaoEncontradas, tipoNaoIdentificado, registrosProtegidos, registrosOrfaosIgnorados
+    });
+
+    renderSamcSection();
+    renderAll();
+    pushEdits();
+    const [ok1, ok2] = await Promise.all([pushSamcToCloud(), pushSamcHistoricoToCloud()]);
+    flash(`✅ SAMC importado: ${ssAtualizadas} SS cruzada(s), ${registrosAtualizados} registro(s) atualizado(s)${registrosProtegidos?` · ${registrosProtegidos} mantido(s) cancelado(s) (protegido contra reativação)`:''}${registrosOrfaosIgnorados?` · ${registrosOrfaosIgnorados} registro(s) órfão(s) ignorado(s) (sem vínculo com a LUCAR atual)`:''}${ssNaoEncontradas?` · ${ssNaoEncontradas} SS não encontrada(s) no sistema`:''}${tipoNaoIdentificado?` · ${tipoNaoIdentificado} tipo(s) de solicitação não identificado(s)`:''}.`, (ok1&&ok2)?'#22c55e':'#f59e0b', 8000);
+  } catch(err){
+    console.error(err);
+    flash(`❌ Erro ao importar SAMC: ${err.message||err}`, '#ef4444', 6000);
+  }
+  e.target.value = '';
+}
+async function pushSamcToCloud(){
+  try {
+    const body = JSON.stringify(fbSanitizeDeep(SAMC_DATA));
+    const res = await fetch(`${FIREBASE_URL}/lupa_samc_data.json`, { method:'PUT', headers: jsonbinHeaders(), body });
+    return res.ok;
+  } catch(e){ console.warn('[SAMC] Erro ao enviar para a nuvem:', e); return false; }
+}
+async function pushSamcHistoricoToCloud(){
+  try {
+    const res = await fetch(`${FIREBASE_URL}/lupa_samc_historico.json`, { method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(SAMC_HISTORICO) });
+    return res.ok;
+  } catch(e){ console.warn('[SAMC] Erro ao enviar histórico:', e); return false; }
+}
+async function pullSamcFromCloud(){
+  try {
+    const [r1,r2] = await Promise.all([
+      fetch(`${FIREBASE_URL}/lupa_samc_data.json`, { headers: jsonbinHeaders() }),
+      fetch(`${FIREBASE_URL}/lupa_samc_historico.json`, { headers: jsonbinHeaders() })
+    ]);
+    let got = false;
+    if(r1.ok){ const t1 = await r1.text(); if(t1 && t1!=='null'){ SAMC_DATA = fbRestoreDeep(JSON.parse(t1)); got = true; } }
+    if(r2.ok){ const t2 = await r2.text(); if(t2 && t2!=='null'){ SAMC_HISTORICO = JSON.parse(t2); got = true; } }
+    return got;
+  } catch(e){ console.warn('[SAMC] Erro ao buscar da nuvem:', e); return false; }
+}
+
+// ── Interface da lista SAMC (filtros de checkbox, mesmo padrão da Materiais) ──
+const SAMC_MS_LABELS = { 'ms-samc-status':'Status', 'ms-samc-fase':'Fase de Execução', 'ms-samc-fluxo':'Fluxo' };
+function toggleSamcMs(id){
+  const drop=document.getElementById(id);
+  const isOpen=drop.style.display!=='none';
+  document.querySelectorAll('#samc-import-card .ms-drop').forEach(d=>{d.style.display='none';});
+  document.querySelectorAll('#samc-import-card .ms-btn').forEach(b=>{b.classList.remove('active');});
+  if(!isOpen){
+    drop.style.display='block';
+    document.getElementById(id+'-btn').classList.add('active');
+    setTimeout(()=>{
+      function closeMs(e){
+        const btn=document.getElementById(id+'-btn');
+        if(!drop.contains(e.target)&&e.target!==btn){
+          drop.style.display='none'; btn.classList.remove('active');
+          document.removeEventListener('click',closeMs);
+        }
+      }
+      document.addEventListener('click',closeMs);
+    },10);
+  }
+}
+function updateSamcMsBtn(id){
+  const checked=document.querySelectorAll(`.samc-ms-chk[data-group="${id}"]:checked`);
+  const btn=document.getElementById(id+'-btn'); if(!btn) return;
+  const lbl = SAMC_MS_LABELS[id]||id;
+  if(checked.length===0){btn.textContent=lbl+' ▾';btn.style.borderColor='';btn.style.color='';}
+  else{btn.textContent=`${lbl} (${checked.length}) ▾`;btn.style.borderColor='var(--blue)';btn.style.color='var(--blue)';}
+}
+function getSamcMsVals(group){
+  return [...document.querySelectorAll(`.samc-ms-chk[data-group="${group}"]:checked`)].map(c=>c.value);
+}
+function fillSamcMsGroup(groupId, vals){
+  const drop = document.getElementById(groupId);
+  if(!drop) return;
+  const marcados = new Set(getSamcMsVals(groupId));
+  drop.innerHTML = vals.map(v=>{
+    const escV = String(v).replace(/"/g,'&quot;');
+    const checked = marcados.has(v) ? 'checked' : '';
+    return `<label style="display:grid;grid-template-columns:1fr 20px;align-items:center;gap:10px;padding:5px 14px;cursor:pointer;font-size:.75rem;text-align:left;direction:ltr">${v}<input type="checkbox" class="samc-ms-chk" data-group="${groupId}" value="${escV}" ${checked}></label>`;
+  }).join('');
+  updateSamcMsBtn(groupId);
+}
+document.addEventListener('change', function(e){
+  if(e.target.classList.contains('samc-ms-chk')){
+    updateSamcMsBtn(e.target.dataset.group);
+    applySamcFilters();
+  }
+});
+let SAMC_SEARCH = '';
+function applySamcSearch(val){ SAMC_SEARCH = (val||'').trim().toLowerCase(); applySamcFilters(); }
+function limparFiltrosSamc(){
+  document.querySelectorAll('#samc-import-card .samc-ms-chk').forEach(chk=>{ chk.checked=false; });
+  Object.keys(SAMC_MS_LABELS).forEach(id=>updateSamcMsBtn(id));
+  const s = document.getElementById('samc-search-input'); if(s) s.value='';
+  SAMC_SEARCH = '';
+  applySamcFilters();
+}
+function applySamcFilters(){
+  const statusSel = getSamcMsVals('ms-samc-status');
+  const faseSel = getSamcMsVals('ms-samc-fase');
+  const fluxoSel = getSamcMsVals('ms-samc-fluxo');
+  document.querySelectorAll('#samc-teste-body tr[data-ss]').forEach(row=>{
+    let ok = true;
+    if(statusSel.length && !statusSel.includes(row.dataset.status)) ok = false;
+    if(faseSel.length && !faseSel.includes(row.dataset.fase)) ok = false;
+    if(fluxoSel.length && !fluxoSel.includes(row.dataset.fluxo)) ok = false;
+    if(ok && SAMC_SEARCH && !row.textContent.toLowerCase().includes(SAMC_SEARCH)) ok = false;
+    row.style.display = ok ? '' : 'none';
+    if(!ok){
+      document.querySelectorAll(`#samc-teste-body tr[data-ss-detalhe="${row.dataset.ss}"]`).forEach(d=>{ d.style.display='none'; });
+    }
+  });
+}
+function toggleSamcDetalhe(ss, btn){
+  const escondendo = btn.textContent === '▼';
+  document.querySelectorAll(`#samc-teste-body tr[data-ss-detalhe="${CSS.escape(ss)}"]`).forEach(r=>{
+    r.style.display = escondendo ? 'none' : '';
+  });
+  btn.textContent = escondendo ? '▶' : '▼';
+}
+function renderSamcSection(){
+  const headEl = document.getElementById('samc-teste-head');
+  const bodyEl = document.getElementById('samc-teste-body');
+  const resumoEl = document.getElementById('samc-resumo');
+  if(!bodyEl) return;
+  const ssList = Object.keys(SAMC_DATA);
+  if(!ssList.length){
+    if(headEl) headEl.innerHTML = '';
+    bodyEl.innerHTML = '<tr><td style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr>';
+    if(resumoEl) resumoEl.textContent = '';
+    fillSamcMsGroup('ms-samc-status', []); fillSamcMsGroup('ms-samc-fase', []); fillSamcMsGroup('ms-samc-fluxo', []);
+    return;
+  }
+  const esc = s => String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  if(headEl){
+    headEl.innerHTML = '<th style="width:26px"></th><th>Nº SS</th><th>Fase de Execução</th><th>Fluxo</th><th>Status</th><th>Registro(s) Vinculado(s)</th>';
+  }
+  const statusVals = [...new Set(ssList.map(ss=>SAMC_DATA[ss].status).filter(Boolean))].sort();
+  const faseVals = [...new Set(ssList.map(ss=>SAMC_DATA[ss].faseExecucao).filter(Boolean))].sort();
+  const fluxoVals = [...new Set(ssList.map(ss=>SAMC_DATA[ss].fluxo).filter(Boolean))].sort();
+  fillSamcMsGroup('ms-samc-status', statusVals);
+  fillSamcMsGroup('ms-samc-fase', faseVals);
+  fillSamcMsGroup('ms-samc-fluxo', fluxoVals);
+
+  const naoEncontradas = ssList.filter(ss=>!SAMC_DATA[ss].registrosVinculados.length).length;
+  if(resumoEl) resumoEl.textContent = `${ssList.length} SS importada(s) — ${ssList.length-naoEncontradas} cruzada(s) com o sistema${naoEncontradas?`, ${naoEncontradas} sem registro correspondente`:''}.`;
+
+  let html = '';
+  ssList.sort().forEach(ss=>{
+    const info = SAMC_DATA[ss];
+    const qtd = info.registrosVinculados.length;
+    html += `<tr data-ss="${esc(ss)}" data-status="${esc(info.status)}" data-fase="${esc(info.faseExecucao)}" data-fluxo="${esc(info.fluxo)}" style="cursor:${qtd?'pointer':'default'};background:var(--bg2)" ${qtd?`onclick="toggleSamcDetalhe('${esc(ss)}', this.querySelector('.arrow'))"`:''}>
+      <td>${qtd?'<span class="arrow">▶</span>':''}</td>
+      <td style="font-family:monospace">${esc(ss)}</td>
+      <td>${esc(info.faseExecucao)||'—'}</td>
+      <td>${esc(info.fluxo)||'—'}</td>
+      <td>${chipSamcStatus(info.status)}</td>
+      <td>${qtd ? qtd+' registro(s)' : '<span style="color:var(--muted)">sem registro no sistema</span>'}</td>
+    </tr>`;
+    info.registrosVinculados.forEach(reg=>{
+      const t = DATA_BR.find(r=>String(r.registro)===String(reg));
+      html += `<tr data-ss-detalhe="${esc(ss)}" style="display:none;background:var(--bg1)">
+        <td></td>
+        <td style="font-family:monospace;font-size:.72rem;padding-left:20px">${esc(reg)}</td>
+        <td colspan="2" style="font-size:.72rem">${t?esc(t.disciplina||''):''}</td>
+        <td colspan="2" style="font-size:.72rem">${t?esc(t.nome_tarefa||''):''}</td>
+      </tr>`;
+    });
+  });
+  bodyEl.innerHTML = html;
+  applySamcFilters();
+}
+function chipSamcStatus(s){
+  const cores = {
+    'Concluída':'var(--green)', 'Em Andamento':'var(--blue)', 'Cancelada':'var(--danger)',
+    'Rejeitada':'var(--danger)', 'Em Elaboração':'var(--warn)', 'Em Revisão':'var(--warn)'
+  };
+  const cor = cores[s] || 'var(--muted)';
+  return s ? `<span style="font-size:.68rem;font-weight:700;color:${cor}">${s}</span>` : '—';
 }
 async function handleLucarImport(e){
   const files = Array.from(e.target.files||[]);
@@ -7322,7 +7716,7 @@ const LUCAR_COLS_UNIFICADAS = [
   ['nota_item_med','Nota/Item/Med.'],['origem','Origem'],['tag','TAG'],['servico_padrao','Serviço Padrão'],
   ['tipo_exigencia','Tipo Exig.'],['prioridade','Prioridade'],
   // colunas vindas da aba Tabela (quando o registro já existe em DATA_BR)
-  ['fonte','Fonte'],['status_samc','Status SAMC'],['fabricacao','Fabricação'],['status_plan','Status Planejamento'],
+  ['fonte','Fonte'],['status_samc','Status SAMC'],['samc_fase_execucao','Fase Execução (SAMC)'],['samc_fluxo','Fluxo'],['fabricacao','Fabricação'],['status_plan','Status Planejamento'],
   ['status_lupa','Status LUPA'],['status_sup','Status Suprimento'],['data_sup_tarde','Data Sup.+Tarde'],
   ['esi_resp','ESI'],['br_resp','BR'],
   ['observacoes','Observações'],['responsavel','Responsável']
@@ -7394,9 +7788,10 @@ function renderLucarTeste(){
     return `<tr style="${rowStyleCrono}" data-registro="${esc(reg)}" data-disciplina="${esc(discEfetiva)}" data-gerencia="${esc(l.gerencia||'')}" data-area="${esc(l.area_sistema||'')}"
       data-modulo="${esc(l.modulo||'')}" data-setor="${esc(l.setor||'')}" data-origem="${esc(l.origem||'')}"
       data-tipoexig="${esc(l.tipo_exigencia||'')}" data-prioridade="${esc(l.prioridade||'')}"
-      data-fonte="${esc(t?(t.fonte||'BR'):'')}" data-samc="${esc(t?t.status_samc||'':'')}" data-fab="${esc(t?t.fabricacao||'':'')}"
+      data-fonte="${esc(t?(t.fonte||'BR'):'')}" data-samc="${esc(t?t.status_samc||'':'')}" data-samcfase="${esc(t?t.samc_fase_execucao||'':'')}" data-samcfluxo="${esc(t?t.samc_fluxo||'':'')}" data-fab="${esc(t?t.fabricacao||'':'')}"
       data-plan="${esc(t?t.status_plan||'':'')}" data-lupa="${esc(t?t.status_lupa||'':'')}" data-sup="${esc(supStatusCrono||'')}"
       data-esi="${t&&t.esi_resp?'1':'0'}" data-br="${t&&t.br_resp?'1':'0'}" data-esibr="${t&&t.esi_resp&&t.br_resp?'1':'0'}"
+      data-cancelado="${isCanceledCrono?'1':'0'}" data-semvinculo="${t?'0':'1'}"
       data-responsavel="${esc(t?t.responsavel||'':'')}" data-datasup="${supDateCrono||''}">
       <td><input type="checkbox" class="row-chk-crono" onchange="updateBulkBarCrono()"></td>
       <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
@@ -7419,6 +7814,8 @@ function renderLucarTeste(){
       <td style="font-size:.7rem;white-space:nowrap">${l.prioridade||'—'}</td>
       <td style="font-size:.7rem">${t?(t.fonte||'BR'):'<span style="color:var(--muted)">— não está na Tabela —</span>'}</td>
       <td style="font-size:.7rem">${t?t.status_samc||'—':'—'}</td>
+      <td style="font-size:.7rem">${t?t.samc_fase_execucao||'—':'—'}</td>
+      <td style="font-size:.7rem">${t?t.samc_fluxo||'—':'—'}</td>
       <td style="font-size:.7rem">${t?t.fabricacao||'—':'—'}</td>
       <td style="font-size:.7rem">${t?t.status_plan||'—':'—'}</td>
       <td style="font-size:.7rem">${t?t.status_lupa||'—':'—'}</td>
@@ -7688,7 +8085,8 @@ const LUCAR_FILTER_MAP = {
   'lucar-f-disciplina':'disciplina', 'lucar-f-gerencia':'gerencia', 'lucar-f-area':'area',
   'lucar-f-modulo':'modulo', 'lucar-f-setor':'setor', 'lucar-f-origem':'origem',
   'lucar-f-tipoexig':'tipoexig', 'lucar-f-prioridade':'prioridade',
-  'lucar-f-samc':'samc', 'lucar-f-fab':'fab', 'lucar-f-plan':'plan', 'lucar-f-lupa':'lupa', 'lucar-f-sup':'sup',
+  'lucar-f-samc':'samc', 'lucar-f-samcfase':'samcfase', 'lucar-f-samcfluxo':'samcfluxo',
+  'lucar-f-fab':'fab', 'lucar-f-plan':'plan', 'lucar-f-lupa':'lupa', 'lucar-f-sup':'sup',
   'lucar-f-responsavel':'responsavel'
 };
 // Popula os selects com os valores realmente presentes na tabela atual, preservando a seleção corrente.
@@ -7745,7 +8143,20 @@ function applyLucarFilters(){
     if(ok) visiveis++;
   });
   const countEl = document.getElementById('lucar-f-count');
-  if(countEl) countEl.textContent = `${visiveis} de ${rows.length} registro(s) exibido(s)`;
+  if(countEl){
+    // Os gráficos/dashboards mostram "escopo total" com base em getData(), que EXCLUI
+    // cancelados e só existe para registros já vinculados na Tabela — por isso o total
+    // aqui na Cronograma (que conta tudo: cancelados e sem vínculo incluídos) pode ser
+    // maior. Detalhamos isso aqui para não parecer inconsistência/erro de dado.
+    const todasLinhas = rows.filter(r=>r.dataset && Object.keys(r.dataset).length>0);
+    const canceladas = todasLinhas.filter(r=>r.dataset.cancelado==='1').length;
+    const semVinculo = todasLinhas.filter(r=>r.dataset.semvinculo==='1').length;
+    const ativosNaTabela = todasLinhas.length - canceladas - semVinculo;
+    let detalhe = `${ativosNaTabela} ativo(s) na Tabela`;
+    if(canceladas) detalhe += ` · ${canceladas} cancelado(s)`;
+    if(semVinculo) detalhe += ` · ${semVinculo} ainda sem vínculo com a Tabela`;
+    countEl.textContent = `${visiveis} de ${rows.length} registro(s) exibido(s) — ${detalhe}`;
+  }
 }
 function limparFiltrosLucar(){
   Object.keys(LUCAR_FILTER_MAP).forEach(selectId=>{
@@ -8088,6 +8499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await pullEditsAndMerge();
     await pullMateriaisDetProcAndRender();
     await pullLucarFromCloud();
+    await pullSamcFromCloud();
     autoSnapshotIfNeeded(); // salva a "foto" da semana, se ainda não existir uma
     carregarBaselineCronograma(); // atualiza o texto de status da baseline no Painel Admin
     pullEscopoFase2FromCloud().then(atualizarStatusEscopoFase2);
