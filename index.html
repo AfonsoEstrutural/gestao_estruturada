@@ -1189,6 +1189,7 @@ h1{letter-spacing:.02em}
         <input id="lucar-f-search" type="text" placeholder="🔎 Buscar em toda a tabela..." oninput="applyLucarFilters()"
           style="flex:1;min-width:200px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
         <button onclick="limparFiltrosLucar()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
+        <button id="lucar-cancel-view-btn" onclick="toggleLucarCancelView()" title="Por padrão as SS/Registros cancelados ficam fora dos filtros; clique para ver só eles, isolados" style="background:rgba(107,114,128,.12);border:1px solid var(--muted);color:var(--muted);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🚫 Ver SS/Registros Cancelados</button>
       </div>
       <div id="lucar-f-count" style="font-size:.72rem;color:var(--muted);margin-top:8px"></div>
     </div>
@@ -1413,6 +1414,28 @@ h1{letter-spacing:.02em}
     <div class="modal-actions">
       <button class="modal-btn cancel" onclick="closeConfigModal()">Cancelar</button>
       <button class="modal-btn save" onclick="saveConfig()">✅ Salvar e Conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CRONOGRAMA XML — REGISTROS DESATUALIZADOS MODAL -->
+<div class="modal-overlay" id="crono-review-stale-modal" style="display:none">
+  <div class="modal-box" style="max-width:720px">
+    <div class="modal-title">⚠️ Registros com cronograma desatualizado</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      Estes registros têm etapas de uma importação de Cronograma (XML) anterior, mas não aparecem
+      no arquivo que você acabou de importar — provavelmente a atividade foi renomeada, terminou, ou
+      saiu do escopo. Enquanto não forem limpos, a Folha Tarefa e a Curva S continuam mostrando as
+      datas antigas como se fossem a programação atual. Marque os que devem ser limpos.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="cronoReviewMarcarTodos(true)">Marcar todos</button>
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="cronoReviewMarcarTodos(false)">Desmarcar todos</button>
+    </div>
+    <div id="crono-review-stale-list" style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="cronoReviewConfirmar(false)">Continuar sem limpar nenhum</button>
+      <button class="modal-btn save" onclick="cronoReviewConfirmar(true)">✅ Limpar selecionados</button>
     </div>
   </div>
 </div>
@@ -1921,7 +1944,9 @@ function donut(svgId, legId, data, colorMap) {
     const lg=a>Math.PI?1:0;
     const col=colorMap?colorMap[k]||COLORS[i%COLORS.length]:COLORS[i%COLORS.length];
     if(a>0.01) html+=`<path d="M${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1} Z" fill="${col}" stroke="var(--card)" stroke-width="2"/>`;
-    const dkey = svgId==='d-samc'?'status_samc':svgId==='d-sup'?'status_sup':null; li+=`<div class="leg-item" ${dkey?`onclick="drillDown('${dkey}','${"'+k+'"}')" title="Clique para filtrar no Cronograma"`:''} style="${dkey?'cursor:pointer':''}"><div class="leg-dot" style="background:${col}"></div><span style="flex:1">${k}</span><span class="leg-pct">${v} (${pct(v,total)}%)</span></div>`;
+    const dkey = svgId==='d-samc'?'status_samc':svgId==='d-sup'?'status_sup':null;
+    const kEsc = k.replace(/'/g,"\\'");
+    li+=`<div class="leg-item" ${dkey?`onclick="drillDown('${dkey}','${kEsc}')" title="Clique para filtrar no Cronograma"`:''} style="${dkey?'cursor:pointer':''}"><div class="leg-dot" style="background:${col}"></div><span style="flex:1">${k}</span><span class="leg-pct">${v} (${pct(v,total)}%)</span></div>`;
     angle+=a;
   });
   svg.innerHTML=html;
@@ -1992,6 +2017,18 @@ function kpi(lbl,val,sub,cls='c-blue',drillKey=null,drillVal=null){
 function kpiMulti(lbl,val,sub,cls,statesArr){
   const click = `onclick='drillDownPlanMulti(${JSON.stringify(statesArr)})' style="cursor:pointer" title="Clique para ver no Cronograma"`;
   return `<div class="kpi ${cls} clickable" ${click}><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div></div>`;
+}
+// Igual ao kpiMulti, mas filtra por vários valores de Status Suprimento em vez de Status
+// Planejamento — usado por cards cujo número soma mais de um status (ex: "Suprimento
+// Pendente" = Pendente ESI + Pendente BR + Pendente ESI+BR).
+function kpiMultiSup(lbl,val,sub,cls,statesArr){
+  const click = `onclick='drillDownSupStatusMulti(${JSON.stringify(statesArr)})' style="cursor:pointer" title="Clique para ver no Cronograma"`;
+  return `<div class="kpi ${cls} clickable" ${click}><div class="kpi-lbl">${lbl}</div><div class="kpi-val">${val}</div><div class="kpi-sub">${sub}</div></div>`;
+}
+function drillDownSupStatusMulti(statesArr){
+  clearLucarDrillFilters();
+  _supMultiFilter = statesArr;
+  _gotoTabela();
 }
 
 // ── CHIP HELPERS ──────────────────────────────────────────────────────────────
@@ -2977,7 +3014,7 @@ function renderAll() {
     kpi('Total de Itens', n.toLocaleString('pt-BR'), 'Fonte: BR · 380 registros','c-blue'),
     kpi('Em Andamento', emAnd, pct(emAnd,n)+'% do total','c-andamento','status_samc','Em Andamento'),
     kpi('Suprimento Completo', completo, pct(completo,n)+'% — prontos','c-green','status_sup','Completo'),
-    kpi('Suprimento Pendente', pendentes, pct(pendentes,n)+'% — requer ação','c-danger','status_sup','Pendente ESI'),
+    kpiMultiSup('Suprimento Pendente', pendentes, pct(pendentes,n)+'% — requer ação','c-danger',['Pendente ESI','Pendente ESI+BR','Pendente BR']),
     kpi('Planej. Encerrado', plEnc, pct(plEnc,n)+'% concluído','c-teal','status_plan','Planejamento Encerrado'),
     kpi('Fabricação Necessária', fabSim, pct(fabSim,n)+'% com fabricação','c-warn','fabricacao','Sim'),
     kpi('Itens Ativos/Novos', nAct, `${pct(nAct,n)}% carteira ativa`,'c-purple','status_lupa','Ativo'),
@@ -4707,6 +4744,40 @@ function agruparProgressoPorRegistro(tasks) {
   return resultado;
 }
 
+// Tela de revisão: registros que tinham etapas de cronograma de uma importação
+// anterior, mas não aparecem no XML mais recente (da(s) mesma(s) fase(s)) —
+// pergunta ao administrador se deve limpar essas etapas antigas, em vez de
+// deixá-las paradas mostrando datas de uma versão desatualizada do cronograma.
+let _cronoReviewResolve = null;
+function reviewCronogramaDesatualizado(candidatos){
+  return new Promise(resolve=>{
+    if(!candidatos.length){ resolve([]); return; }
+    _cronoReviewResolve = resolve;
+    const modal = document.getElementById('crono-review-stale-modal');
+    const listEl = document.getElementById('crono-review-stale-list');
+    const esc = s => String(s==null?'':s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    listEl.innerHTML = candidatos.map(r=>{
+      const ultimaData = r.data_prevista_fim ? new Date(r.data_prevista_fim).toLocaleDateString('pt-BR') : '—';
+      return `<label style="display:grid;grid-template-columns:20px 90px 110px 1fr 100px;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:.75rem;cursor:pointer">
+        <input type="checkbox" class="crono-review-chk" value="${esc(r.registro)}" checked style="width:16px;height:16px">
+        <span style="font-family:monospace">${esc(r.registro)}</span>
+        <span style="font-family:monospace;color:var(--accent)">${esc(r.nro_ss||'(sem SS)')}</span>
+        <span>${esc(r.disciplina||'')}</span>
+        <span style="color:var(--muted)">últ. previsão: ${ultimaData}</span>
+      </label>`;
+    }).join('');
+    modal.style.display = 'flex';
+  });
+}
+function cronoReviewMarcarTodos(v){
+  document.querySelectorAll('.crono-review-chk').forEach(c=>{ c.checked = v; });
+}
+function cronoReviewConfirmar(aplicarSelecionados){
+  const modal = document.getElementById('crono-review-stale-modal');
+  modal.style.display = 'none';
+  const selecionados = aplicarSelecionados ? [...document.querySelectorAll('.crono-review-chk:checked')].map(c=>c.value) : [];
+  if(_cronoReviewResolve){ _cronoReviewResolve(selecionados); _cronoReviewResolve = null; }
+}
 async function handleCronogramaXmlImport(e) {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
@@ -4727,9 +4798,11 @@ async function handleCronogramaXmlImport(e) {
   }
 
   let vinculados = 0;
+  const fasesDoImport = new Set();
   DATA_BR.forEach(r => {
     const dadosCrono = progressoConsolidado[r.registro];
     if (dadosCrono) {
+      fasesDoImport.add(r.fase_origem || 'Fase 3');
       r.percent_execucao = dadosCrono.percentExecucao;
       r.qtd_etapas_cronograma = dadosCrono.qtdEtapas;
       // Preserva o % Real Executado já digitado pela equipe (campo manual, nunca vem
@@ -4755,13 +4828,41 @@ async function handleCronogramaXmlImport(e) {
   });
   const semCorrespondencia = Object.keys(progressoConsolidado).length - vinculados;
 
-  if (vinculados > 0) {
+  // CORREÇÃO: registros que tinham cronograma de uma importação ANTERIOR mas não
+  // aparecem neste XML novo (saíram do escopo, foram renomeados, ou a atividade
+  // terminou) ficavam com dados antigos/desatualizados para sempre — a Folha
+  // Tarefa continuava mostrando datas de uma versão velha do cronograma como se
+  // fossem programação real. Só considera registros da(s) mesma(s) fase(s) que
+  // apareceram neste import, para não apagar cronograma de outra fase importado
+  // separadamente.
+  const candidatosLimpeza = DATA_BR.filter(r =>
+    Array.isArray(r.etapas_cronograma) && r.etapas_cronograma.length &&
+    !progressoConsolidado[r.registro] &&
+    fasesDoImport.has(r.fase_origem || 'Fase 3')
+  );
+  const limposConfirmados = await reviewCronogramaDesatualizado(candidatosLimpeza);
+  limposConfirmados.forEach(reg=>{
+    const r = DATA_BR.find(x=>String(x.registro)===String(reg));
+    if(!r) return;
+    r.etapas_cronograma = [];
+    r.percent_execucao = null;
+    r.qtd_etapas_cronograma = 0;
+    r.horas_planejadas = null;
+    r.data_prevista_fim = null;
+    r.tem_etapa_critica_atrasada = false;
+    r.tarefa_atual = '';
+    r._editedAt = new Date().toISOString();
+    r._editedBy = 'Importação Cronograma (XML) — limpeza de desatualizado';
+  });
+
+  if (vinculados > 0 || limposConfirmados.length > 0) {
     renderAll();
     pushEdits();
     flash(
       `✅ Cronograma importado: ${totalTarefas} tarefas lidas, ${vinculados} registro(s) vinculado(s)` +
-      (semCorrespondencia > 0 ? ` (${semCorrespondencia} registro(s) do cronograma não encontrados no LUPA).` : '.'),
-      '#22c55e', 6000
+      (semCorrespondencia > 0 ? ` (${semCorrespondencia} registro(s) do cronograma não encontrados no LUPA)` : '') +
+      (limposConfirmados.length > 0 ? ` · ${limposConfirmados.length} registro(s) com cronograma desatualizado limpo(s)` : '') + '.',
+      '#22c55e', 7000
     );
   } else {
     flash('⚠️ Nenhum registro do cronograma bateu com os registros já cadastrados. Confira o arquivo.', '#f59e0b', 6000);
@@ -5613,6 +5714,9 @@ function getTableData() {
   // Filtro múltiplo por status_plan (vindo do clique no donut)
   if(_planMultiFilter && _planMultiFilter.length)
     data=data.filter(r=>_planMultiFilter.includes(r.status_plan));
+  // Filtro múltiplo por status_sup (vindo de cards que somam vários status, ex: Suprimento Pendente)
+  if(_supMultiFilter && _supMultiFilter.length)
+    data=data.filter(r=>_supMultiFilter.includes(effSup(r)));
   // Filtro de suprimento vindo do clique no donut (complementa o ms-sup)
   if(txt){const q=txt.toLowerCase();data=data.filter(r=>JSON.stringify(r).toLowerCase().includes(q));}
   if(sortKey) data=[...data].sort((a,b)=>{const av=a[sortKey]||'',bv=b[sortKey]||'';return av<bv?-sortDir:av>bv?sortDir:0;});
@@ -5660,6 +5764,7 @@ function clearLucarDrillFilters(){
   Object.keys(LUCAR_FILTER_MAP).forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const s = document.getElementById('lucar-f-search'); if(s) s.value='';
   _planMultiFilter = null; _supMultiFilter = null;
+  if(LUCAR_CANCEL_VIEW){ LUCAR_CANCEL_VIEW = false; const btn = document.getElementById('lucar-cancel-view-btn'); if(btn){ btn.textContent = '🚫 Ver SS/Registros Cancelados'; btn.style.background = 'rgba(107,114,128,.12)'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--muted)'; } }
 }
 function drillDown(filterKey,filterValue){
   clearLucarDrillFilters();
@@ -7203,6 +7308,10 @@ async function handleSamcImport(e){
         // escopo. Um registro órfão só deve ser alterado manualmente.
         if(!LUCAR_DATA[String(r.registro)]){ registrosOrfaosIgnorados++; return; }
         info.registrosVinculados.push(r.registro);
+        // Marca a Fase do projeto (Fase 2/Fase 3) a que essa SS pertence, com base
+        // no(s) registro(s) vinculado(s) — permite filtrar a lista por Fase, igual
+        // já é feito na Materiais/Detalhamento/Processamento.
+        if(!info.faseProjeto) info.faseProjeto = r.fase_origem || 'Fase 3';
         // Regra simétrica: se o registro já está cancelado — seja pelo Status
         // Planejamento OU pelo próprio Status SAMC (de uma importação anterior ou
         // edição manual) — o relatório do SAMC não pode "reativar" ele de volta só
@@ -7351,10 +7460,11 @@ function renderSamcSection(){
   const bodyEl = document.getElementById('samc-teste-body');
   const resumoEl = document.getElementById('samc-resumo');
   if(!bodyEl) return;
-  const ssList = Object.keys(SAMC_DATA);
+  const ssListTotal = Object.keys(SAMC_DATA);
+  const ssList = ssListTotal.filter(ss => _faseFiltro === 'Todas as Fases' || SAMC_DATA[ss].faseProjeto === _faseFiltro);
   if(!ssList.length){
     if(headEl) headEl.innerHTML = '';
-    bodyEl.innerHTML = '<tr><td style="padding:20px;color:var(--muted)">Nenhum dado importado ainda.</td></tr>';
+    bodyEl.innerHTML = `<tr><td style="padding:20px;color:var(--muted)">${ssListTotal.length ? `Nenhuma SS para "${_faseFiltro}" — troque o filtro de Fase no topo para ver outros escopos.` : 'Nenhum dado importado ainda.'}</td></tr>`;
     if(resumoEl) resumoEl.textContent = '';
     fillSamcMsGroup('ms-samc-status', []); fillSamcMsGroup('ms-samc-fase', []); fillSamcMsGroup('ms-samc-fluxo', []);
     return;
@@ -7371,7 +7481,7 @@ function renderSamcSection(){
   fillSamcMsGroup('ms-samc-fluxo', fluxoVals);
 
   const naoEncontradas = ssList.filter(ss=>!SAMC_DATA[ss].registrosVinculados.length).length;
-  if(resumoEl) resumoEl.textContent = `${ssList.length} SS importada(s) — ${ssList.length-naoEncontradas} cruzada(s) com o sistema${naoEncontradas?`, ${naoEncontradas} sem registro correspondente`:''}.`;
+  if(resumoEl) resumoEl.textContent = `${ssList.length} de ${ssListTotal.length} SS — filtro de Fase: ${_faseFiltro} — ${ssList.length-naoEncontradas} cruzada(s) com o sistema${naoEncontradas?`, ${naoEncontradas} sem registro correspondente`:''}.`;
 
   let html = '';
   ssList.sort().forEach(ss=>{
@@ -8103,6 +8213,18 @@ function populateLucarFilters(){
     if(vals.includes(cur)) sel.value = cur;
   });
 }
+let LUCAR_CANCEL_VIEW = false; // false: visão normal (canceladas ocultas) · true: só canceladas
+function toggleLucarCancelView(){
+  LUCAR_CANCEL_VIEW = !LUCAR_CANCEL_VIEW;
+  const btn = document.getElementById('lucar-cancel-view-btn');
+  if(btn){
+    btn.textContent = LUCAR_CANCEL_VIEW ? '↩️ Voltar para Ativos' : '🚫 Ver SS/Registros Cancelados';
+    btn.style.background = LUCAR_CANCEL_VIEW ? 'rgba(239,68,68,.15)' : 'rgba(107,114,128,.12)';
+    btn.style.color = LUCAR_CANCEL_VIEW ? 'var(--danger)' : 'var(--muted)';
+    btn.style.borderColor = LUCAR_CANCEL_VIEW ? 'var(--danger)' : 'var(--muted)';
+  }
+  applyLucarFilters();
+}
 function applyLucarFilters(){
   const filtros = {};
   Object.entries(LUCAR_FILTER_MAP).forEach(([selectId, attr])=>{
@@ -8125,6 +8247,11 @@ function applyLucarFilters(){
   rows.forEach(row=>{
     if(!row.dataset || Object.keys(row.dataset).length===0){ return; } // linha de aviso (sem dados)
     let ok = true;
+    // Canceladas ficam fora do filtro por padrão; com o botão "Ver SS/Registros
+    // Cancelados" ativo, mostra só elas isoladas — nunca as duas coisas juntas.
+    const isCancelada = row.dataset.cancelado === '1';
+    if(LUCAR_CANCEL_VIEW){ if(!isCancelada) ok = false; }
+    else { if(isCancelada) ok = false; }
     for(const attr in filtros){
       if((row.dataset[attr]||'') !== filtros[attr]){ ok = false; break; }
     }
@@ -8139,6 +8266,7 @@ function applyLucarFilters(){
     if(ok && termo && !row.textContent.toLowerCase().includes(termo)) ok = false;
     // Filtro múltiplo por status_plan (vindo do clique nos donuts de Gráficos Etapas BR)
     if(ok && _planMultiFilter && _planMultiFilter.length && !_planMultiFilter.includes(row.dataset.plan||'')) ok = false;
+    if(ok && _supMultiFilter && _supMultiFilter.length && !_supMultiFilter.includes(row.dataset.sup||'')) ok = false;
     row.style.display = ok ? '' : 'none';
     if(ok) visiveis++;
   });
@@ -8168,6 +8296,7 @@ function limparFiltrosLucar(){
   const searchEl = document.getElementById('lucar-f-search');
   if(searchEl) searchEl.value = '';
   _planMultiFilter = null; _supMultiFilter = null;
+  if(LUCAR_CANCEL_VIEW){ LUCAR_CANCEL_VIEW = false; const btn = document.getElementById('lucar-cancel-view-btn'); if(btn){ btn.textContent = '🚫 Ver SS/Registros Cancelados'; btn.style.background = 'rgba(107,114,128,.12)'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--muted)'; } }
   applyLucarFilters();
 }
 
