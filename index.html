@@ -3087,8 +3087,23 @@ function renderAll() {
   crossTable('ct-samc-disc','status_samc','disciplina',data);
   crossTable('ct-samc-sup','status_samc','status_sup',data);
   crossTable('ct-samc-fab','status_samc','fabricacao',data);
-  donut('d-samcfase','leg-samcfase', cnt(data,'samc_fase_execucao'));
-  donut('d-samcfluxo','leg-samcfluxo', cnt(data,'samc_fluxo'));
+  // Fase de Execução/Fluxo são atributos da própria SS (vindos do relatório do
+  // cliente) — contar por registro vinculado distorcia o gráfico: uma SS com só
+  // 1 registro (ou nenhum) praticamente sumia ao lado de outra com dezenas. Conta
+  // por SS em vez disso, respeitando o filtro de Fase do projeto já selecionado.
+  function cntSamcSS(campo){
+    const out = {};
+    Object.keys(SAMC_DATA).forEach(ss=>{
+      const info = SAMC_DATA[ss];
+      if(_faseFiltro !== 'Todas as Fases' && info.faseProjeto !== _faseFiltro) return;
+      const v = info[campo];
+      if(!v) return;
+      out[v] = (out[v]||0) + 1;
+    });
+    return out;
+  }
+  donut('d-samcfase','leg-samcfase', cntSamcSS('faseExecucao'));
+  donut('d-samcfluxo','leg-samcfluxo', cntSamcSS('fluxo'));
 
   // ── SUPRIMENTO
   const ncad = sup['Não Cadastrado']||0;
@@ -7419,7 +7434,17 @@ async function handleSamcImport(e){
 }
 async function pushSamcToCloud(){
   try {
-    const body = JSON.stringify(fbSanitizeDeep(SAMC_DATA));
+    // Só envia pra nuvem as SS que batem com algum registro do sistema — as sem
+    // correspondência (maioria do relatório do cliente, ainda não declaradas na
+    // LUCAR) inflavam o payload de ~28KB para ~427KB, deixando o envio bem mais
+    // sujeito a falhar. Elas continuam aparecendo normalmente na tela logo após
+    // qualquer importação (na mesma sessão); só não sobrevivem a um recarregar
+    // de página sem reimportar de novo.
+    const paraEnviar = {};
+    Object.keys(SAMC_DATA).forEach(ss=>{
+      if(SAMC_DATA[ss].registrosVinculados && SAMC_DATA[ss].registrosVinculados.length) paraEnviar[ss] = SAMC_DATA[ss];
+    });
+    const body = JSON.stringify(fbSanitizeDeep(paraEnviar));
     const res = await fetch(`${FIREBASE_URL}/lupa_samc_data.json`, { method:'PUT', headers: jsonbinHeaders(), body });
     if(!res.ok){
       console.warn('[SAMC] Firebase respondeu erro ao enviar SAMC:', res.status);
@@ -7528,6 +7553,7 @@ function applySamcFilters(){
   const statusSel = getSamcMsVals('ms-samc-status');
   const faseSel = getSamcMsVals('ms-samc-fase');
   const fluxoSel = getSamcMsVals('ms-samc-fluxo');
+  let visiveis = 0, registrosVisiveis = 0;
   document.querySelectorAll('#samc-teste-body tr[data-ss]').forEach(row=>{
     let ok = true;
     if(statusSel.length && !statusSel.includes(row.dataset.status)) ok = false;
@@ -7538,8 +7564,16 @@ function applySamcFilters(){
     row.style.display = ok ? '' : 'none';
     if(!ok){
       document.querySelectorAll(`#samc-teste-body tr[data-ss-detalhe="${row.dataset.ss}"]`).forEach(d=>{ d.style.display='none'; });
+    } else {
+      visiveis++;
+      registrosVisiveis += Number(row.dataset.qtd)||0;
     }
   });
+  const resumoEl = document.getElementById('samc-resumo');
+  const ssListTotal = Object.keys(SAMC_DATA).length;
+  if(resumoEl && ssListTotal){
+    resumoEl.textContent = `${visiveis} SS exibida(s) (de ${ssListTotal} no total) — filtro de Fase: ${_faseFiltro} — totalizando ${registrosVisiveis} registro(s) do sistema nas SS exibidas.`;
+  }
 }
 function toggleSamcDetalhe(ss, btn){
   const escondendo = btn.textContent === '▼';
