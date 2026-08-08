@@ -619,11 +619,11 @@ h1{letter-spacing:.02em}
   </div>
   <div class="g2">
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Fase de Execução</div>
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Fase de Execução (SS)</div>
       <div class="donut-wrap"><svg width="120" height="120" viewBox="0 0 120 120" id="d-samcfase"></svg><div class="donut-legend" id="leg-samcfase"></div></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Fluxo</div>
+      <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Fluxo (SS)</div>
       <div class="donut-wrap"><svg width="120" height="120" viewBox="0 0 120 120" id="d-samcfluxo"></svg><div class="donut-legend" id="leg-samcfluxo"></div></div>
     </div>
   </div>
@@ -1960,6 +1960,15 @@ function donut(svgId, legId, data, colorMap) {
   const total = entries.reduce((a,e)=>a+e[1],0);
   const cx=60,cy=60,r=48,ir=28;
   let angle=-Math.PI/2,html='',li='';
+  if(entries.length === 1){
+    // Bug clássico de SVG: um arco de 360° (categoria única a 100%) tem o ponto
+    // inicial igual ao final, e o comando de arco "A" não desenha nada nesse caso
+    // — por isso a rosca ficava em branco quando só havia uma categoria. Desenha
+    // um círculo cheio em vez de um arco quando é só uma fatia.
+    const [k] = entries[0];
+    const col = colorMap?colorMap[k]||COLORS[0]:COLORS[0];
+    html = `<circle cx="${cx}" cy="${cy}" r="${(r+ir)/2}" fill="none" stroke="${col}" stroke-width="${r-ir}"/>`;
+  }
   entries.forEach(([k,v],i) => {
     const a=(v/total)*2*Math.PI;
     const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
@@ -1968,7 +1977,7 @@ function donut(svgId, legId, data, colorMap) {
     const xi2=cx+ir*Math.cos(angle+a),yi2=cy+ir*Math.sin(angle+a);
     const lg=a>Math.PI?1:0;
     const col=colorMap?colorMap[k]||COLORS[i%COLORS.length]:COLORS[i%COLORS.length];
-    if(a>0.01) html+=`<path d="M${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1} Z" fill="${col}" stroke="var(--card)" stroke-width="2"/>`;
+    if(entries.length > 1 && a>0.01) html+=`<path d="M${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1} Z" fill="${col}" stroke="var(--card)" stroke-width="2"/>`;
     const dkeyMap = {'d-samc':'status_samc','d-sup':'status_sup','d-samcfase':'samc_fase_execucao','d-samcfluxo':'samc_fluxo'};
     const dkey = dkeyMap[svgId] || null;
     const kEsc = k.replace(/'/g,"\\'");
