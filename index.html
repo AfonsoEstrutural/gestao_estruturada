@@ -570,6 +570,12 @@ h1{letter-spacing:.02em}
 
 <!-- ═══════════ STATUS SAMC ═══════════ -->
 <div class="section" id="samc">
+  <div style="display:flex;gap:4px;margin-bottom:0;border-bottom:1px solid var(--border);position:sticky;top:var(--sticky-total,168px);z-index:150;background:var(--bg)">
+    <button onclick="showSamcSub('solicitacoes')" id="samc-subtab-solicitacoes" class="tab active" style="border-radius:6px 6px 0 0;background:none;border:none;font-family:var(--font);font-size:1.05rem;font-weight:800;color:var(--accent);border-bottom:3px solid var(--accent)">📋 Solicitações de Serviço (SAMC)</button>
+    <button onclick="showSamcSub('kpis')" id="samc-subtab-kpis" class="tab" style="border-radius:6px 6px 0 0;background:none;border:none;font-family:var(--font);font-size:.85rem;font-weight:600;color:var(--muted);border-bottom:3px solid transparent">📊 KPIs Status SAMC</button>
+  </div>
+  <div style="height:16px"></div>
+  <div id="samc-sub-solicitacoes">
   <div class="card" id="samc-import-card" style="position:relative;z-index:5">
     <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Solicitações de Serviço (SAMC) — importado do relatório do cliente</div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">
@@ -586,6 +592,7 @@ h1{letter-spacing:.02em}
         <div class="ms-drop" id="ms-samc-fluxo" style="display:none"></div></div>
       <input id="samc-search-input" type="text" placeholder="🔎 Buscar por Nº SS, Disciplina, Registro..." oninput="applySamcSearch(this.value)"
         style="flex:1;min-width:200px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+      <button id="samc-hide-nomatch-btn" onclick="toggleSamcHideNoMatch()" title="Algumas SS do relatório do cliente não têm nenhum registro correspondente cadastrado no sistema (ex: serviço que ainda não foi declarado na LUCAR). Este botão esconde essas SS da lista, deixando só as que já têm registro(s) vinculado(s)." style="background:rgba(107,114,128,.12);border:1px solid var(--muted);color:var(--muted);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🚫 Ocultar SS sem Registro no Sistema</button>
       <button onclick="limparFiltrosSamc()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
     </div>
     <div class="tbl-wrap" style="max-height:440px;overflow-y:auto;overflow-x:auto">
@@ -595,6 +602,8 @@ h1{letter-spacing:.02em}
       </table>
     </div>
   </div>
+  </div>
+  <div id="samc-sub-kpis" style="display:none">
   <div class="kpi-grid" id="kpi-samc"></div>
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--blue)"></span>SAMC × Disciplina</div>
@@ -607,6 +616,17 @@ h1{letter-spacing:.02em}
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--purple)"></span>SAMC × Fabricação</div>
     <div class="tbl-wrap" style="overflow-x:auto"><table id="ct-samc-fab"></table></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Fase de Execução</div>
+      <div class="donut-wrap"><svg width="120" height="120" viewBox="0 0 120 120" id="d-samcfase"></svg><div class="donut-legend" id="leg-samcfase"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Fluxo</div>
+      <div class="donut-wrap"><svg width="120" height="120" viewBox="0 0 120 120" id="d-samcfluxo"></svg><div class="donut-legend" id="leg-samcfluxo"></div></div>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -934,7 +954,7 @@ h1{letter-spacing:.02em}
 
 <!-- ═══════════ MATERIAIS (TESTE) ═══════════ -->
 <div class="section" id="suprfab-teste">
-  <div style="display:flex;gap:8px;margin-bottom:14px">
+  <div style="display:flex;gap:8px;margin-bottom:14px;position:sticky;top:var(--sticky-total,168px);z-index:150;background:var(--bg)">
     <button onclick="showSuprFabSub('materiais')" id="suprfab-subtab-materiais" class="tab active" style="border-radius:6px 6px 0 0;background:none;border:none;font-family:var(--font);font-size:1.05rem;font-weight:800;color:var(--accent);border-bottom:3px solid var(--accent)">📦 Materiais</button>
     <button onclick="showSuprFabSub('detalhamento')" id="suprfab-subtab-detalhamento" class="tab" style="border-radius:6px 6px 0 0;background:none;border:none;font-family:var(--font);font-size:.85rem;font-weight:600;color:var(--muted);border-bottom:3px solid transparent">📐 Detalhamento</button>
     <button onclick="showSuprFabSub('processamento')" id="suprfab-subtab-processamento" class="tab" style="border-radius:6px 6px 0 0;background:none;border:none;font-family:var(--font);font-size:.85rem;font-weight:600;color:var(--muted);border-bottom:3px solid transparent">⚙️ Processamento</button>
@@ -1872,6 +1892,11 @@ function setFaseFiltro(v){
   if(typeof clearFilters === 'function') clearFilters();
   renderAll();
   renderActiveTabContent();
+  // Chamada direta (redundante com renderActiveTabContent, de propósito): a lista
+  // de Solicitações de Serviço do SAMC ficava presa mostrando o resumo da Fase
+  // anterior ao trocar para "Todas as Fases" com a aba já aberta — em vez de
+  // depender só da detecção de aba ativa, força sempre a atualização aqui.
+  if(typeof renderSamcSection === 'function') renderSamcSection();
 }
 // renderAll() só atualiza os cards/resumos gerais — os gráficos e tabelas de
 // cada aba específica só recalculavam ao clicar na aba (showTab). Isso fazia o
@@ -1944,7 +1969,8 @@ function donut(svgId, legId, data, colorMap) {
     const lg=a>Math.PI?1:0;
     const col=colorMap?colorMap[k]||COLORS[i%COLORS.length]:COLORS[i%COLORS.length];
     if(a>0.01) html+=`<path d="M${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${lg},0 ${xi1},${yi1} Z" fill="${col}" stroke="var(--card)" stroke-width="2"/>`;
-    const dkey = svgId==='d-samc'?'status_samc':svgId==='d-sup'?'status_sup':null;
+    const dkeyMap = {'d-samc':'status_samc','d-sup':'status_sup','d-samcfase':'samc_fase_execucao','d-samcfluxo':'samc_fluxo'};
+    const dkey = dkeyMap[svgId] || null;
     const kEsc = k.replace(/'/g,"\\'");
     li+=`<div class="leg-item" ${dkey?`onclick="drillDown('${dkey}','${kEsc}')" title="Clique para filtrar no Cronograma"`:''} style="${dkey?'cursor:pointer':''}"><div class="leg-dot" style="background:${col}"></div><span style="flex:1">${k}</span><span class="leg-pct">${v} (${pct(v,total)}%)</span></div>`;
     angle+=a;
@@ -2749,6 +2775,20 @@ function perfilFilterSup(sup){
 }
 
 // ── PERFIL DA CAMPANHA ────────────────────────────────────────────────────────
+// Item 6 (revisão do documento) — para um item "Pendente ESI+BR" (pendente nos dois
+// lados), decide a qual coluna atribuir a pendência: o lado que entrega mais tarde
+// (maior prazo/OC Follow UP) é quem está de fato segurando o item. ESI = Contratada,
+// BR = Cliente (confirmado em MATERIAIS_DATA/statusCalc).
+function ladoPendenciaMaisTarde(registro){
+  const d = MATERIAIS_DATA[registro];
+  if(!d) return 'ESI'; // sem dado de Materiais — atribui ao lado Contratada por padrão
+  const pc = d.prazoContratadaMax && d.prazoContratadaMax.data;
+  const pcl = d.prazoClienteMax && d.prazoClienteMax.data;
+  if(pc && pcl) return pc.getTime() >= pcl.getTime() ? 'ESI' : 'BR';
+  if(pc) return 'ESI';
+  if(pcl) return 'BR';
+  return 'ESI';
+}
 function renderPerfil() {
   var dataAtivos = getData();       // apenas escopo ativo
   var dataTodos  = getAllData();    // todos incluindo cancelados
@@ -2953,7 +2993,8 @@ function renderPerfil() {
     '<th '+thStyle+'>Total</th>'+
     '<th '+thStyle+'>Plan. Encerrado</th>'+
     '<th '+thStyle+'>Sup. Completo</th>'+
-    '<th '+thStyle+'>Sup. Pendente</th>'+
+    '<th '+thStyle+'>Sup. Pend. ESI</th>'+
+    '<th '+thStyle+'>Sup. Pend. BR</th>'+
     '<th '+thStyle+'>Não Cadastrado</th>'+
     '<th '+thStyle+'>Exigências</th>'+
     '<th '+thStyle+'>Fabricação</th>'+
@@ -2963,7 +3004,11 @@ function renderPerfil() {
     var dData = data.filter(function(r){return r.disciplina===d;});
     var planE  = dData.filter(function(r){return r.status_plan==='Planejamento Encerrado';}).length;
     var supC   = dData.filter(function(r){return effSup(r)==='Completo';}).length;
-    var supP   = dData.filter(function(r){var s=effSup(r);return s==='Pendente ESI'||s==='Pendente ESI+BR'||s==='Pendente BR';}).length;
+    var supPendEsiBr = dData.filter(function(r){return effSup(r)==='Pendente ESI+BR';});
+    var supPendESI = dData.filter(function(r){return effSup(r)==='Pendente ESI';}).length
+      + supPendEsiBr.filter(function(r){return ladoPendenciaMaisTarde(r.registro)==='ESI';}).length;
+    var supPendBR = dData.filter(function(r){return effSup(r)==='Pendente BR';}).length
+      + supPendEsiBr.filter(function(r){return ladoPendenciaMaisTarde(r.registro)==='BR';}).length;
     var supN   = dData.filter(function(r){return effSup(r)==='Não Cadastrado';}).length;
     var exigT  = cnt(dData,'tipo_exigencia');
     var exigStr= Object.entries(exigT).filter(function(e){return e[1]>0;}).map(function(e){return e[0]+' ('+e[1]+')';}).join(', ')||'—';
@@ -2976,7 +3021,8 @@ function renderPerfil() {
       '<td '+tdStyle+'>'+tot+'</td>'+
       '<td '+tdStyle+'>'+pctBadge(planE,tot,'rgba(13,148,136,.7)')+'</td>'+
       '<td '+tdStyle+'>'+pctBadge(supC,tot,'rgba(34,197,94,.7)')+'</td>'+
-      '<td '+tdStyle+'>'+pctBadge(supP,tot,'rgba(239,68,68,.7)')+'</td>'+
+      '<td '+tdStyle+'>'+pctBadge(supPendESI,tot,'rgba(239,68,68,.7)')+'</td>'+
+      '<td '+tdStyle+'>'+pctBadge(supPendBR,tot,'rgba(239,68,68,.7)')+'</td>'+
       '<td '+tdStyle+'>'+pctBadge(supN,tot,'rgba(100,116,139,.5)')+'</td>'+
       '<td style="padding:5px 10px;font-size:.68rem;color:var(--muted);border-top:0.5px solid var(--border);max-width:180px">'+exigStr+'</td>'+
       '<td '+tdStyle+'>'+fabS+'</td>'+
@@ -3041,6 +3087,8 @@ function renderAll() {
   crossTable('ct-samc-disc','status_samc','disciplina',data);
   crossTable('ct-samc-sup','status_samc','status_sup',data);
   crossTable('ct-samc-fab','status_samc','fabricacao',data);
+  donut('d-samcfase','leg-samcfase', cnt(data,'samc_fase_execucao'));
+  donut('d-samcfluxo','leg-samcfluxo', cnt(data,'samc_fluxo'));
 
   // ── SUPRIMENTO
   const ncad = sup['Não Cadastrado']||0;
@@ -4001,6 +4049,21 @@ function applyDisciplinaFilter(prefix, val){
   if(prefix === 'proc-teste' && typeof renderProcChart === 'function') renderProcChart();
 }
 
+function showSamcSub(which){
+  const subs = ['solicitacoes','kpis'];
+  function setSubTabStyle(btn, ativo){
+    btn.style.fontSize = ativo ? '1.05rem' : '.85rem';
+    btn.style.fontWeight = ativo ? '800' : '600';
+    btn.style.color = ativo ? 'var(--accent)' : 'var(--muted)';
+    btn.style.borderBottom = ativo ? '3px solid var(--accent)' : '3px solid transparent';
+  }
+  subs.forEach(s=>{
+    const painel = document.getElementById('samc-sub-'+s);
+    const btn = document.getElementById('samc-subtab-'+s);
+    if(painel) painel.style.display = (s===which) ? '' : 'none';
+    if(btn){ setSubTabStyle(btn, s===which); btn.classList.toggle('active', s===which); }
+  });
+}
 function showSuprFabSub(which){
   const subs = ['materiais','detalhamento','processamento'];
   function setSubTabStyle(btn, ativo){
@@ -5397,7 +5460,12 @@ function computeCampaignMetrics(){
     const pe = rows.filter(r=>r.status_plan==='Planejamento Encerrado').length;
     const sc = rows.filter(r=>effSup(r)==='Completo').length;
     const cf = rows.filter(r=>r.fabricacao==='Sim').length;
-    return {disciplina:d, total:t, planEnc:pe, planEncPct:pct(pe,t), supCompleto:sc, supPct:pct(sc,t), comFab:cf};
+    const rowsPendEsiBr = rows.filter(r=>effSup(r)==='Pendente ESI+BR');
+    const supPendESI = rows.filter(r=>effSup(r)==='Pendente ESI').length
+      + rowsPendEsiBr.filter(r=>ladoPendenciaMaisTarde(r.registro)==='ESI').length;
+    const supPendBR = rows.filter(r=>effSup(r)==='Pendente BR').length
+      + rowsPendEsiBr.filter(r=>ladoPendenciaMaisTarde(r.registro)==='BR').length;
+    return {disciplina:d, total:t, planEnc:pe, planEncPct:pct(pe,t), supCompleto:sc, supPct:pct(sc,t), comFab:cf, supPendESI, supPendBR};
   }).sort((a,b)=>b.total-a.total);
 
   // quebra por tipo de exigência (vencidos hoje / vencem até início dos serviços)
@@ -5588,7 +5656,7 @@ async function generateCampaignReport(){
     const planRows = Object.entries(m.plan).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[{t:k},{t:v,center:true},{t:pct(v,m.total)+'%',center:true}]);
     const supRows  = Object.entries(m.sup).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[{t:k},{t:v,center:true},{t:pct(v,m.total)+'%',center:true},{t:situacaoSup[k]||'',center:true}]);
     const samcRows = Object.entries(m.samc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[{t:k},{t:v,center:true},{t:pct(v,m.total)+'%',center:true}]);
-    const discRows = m.discBreakdown.map(d=>[{t:d.disciplina},{t:d.total,center:true},{t:d.planEnc,center:true},{t:d.planEncPct+'%',center:true},{t:d.supCompleto,center:true},{t:d.supPct+'%',center:true},{t:d.comFab,center:true}]);
+    const discRows = m.discBreakdown.map(d=>[{t:d.disciplina},{t:d.total,center:true},{t:d.planEnc,center:true},{t:d.planEncPct+'%',center:true},{t:d.supCompleto,center:true},{t:d.supPct+'%',center:true},{t:d.supPendESI,center:true},{t:d.supPendBR,center:true},{t:d.comFab,center:true}]);
     const exigRows = m.exigBreakdown.map(e=>[{t:e.tipo},{t:e.total,center:true},{t:e.vencidos,center:true},{t:e.venceAteInicio,center:true}]);
 
     const doc = new Document({sections:[{
@@ -5625,7 +5693,7 @@ async function generateCampaignReport(){
         h2('2.2 Status do Planejamento'), table(['Status','Qtd.','% do Total'], planRows), spacer(),
         h2('2.3 Status do Suprimento'), table(['Status Suprimento','Qtd.','% do Total','Situação'], supRows), spacer(),
         h2('2.4 Status SAMC'), table(['Status SAMC','Qtd.','% do Total'], samcRows), spacer(),
-        h2('2.5 Distribuição por Disciplina'), table(['Disciplina','Total','Plan. Enc.','% Plan.','Sup. Completo','% Sup.','Com Fab.'], discRows), spacer(),
+        h2('2.5 Distribuição por Disciplina'), table(['Disciplina','Total','Plan. Enc.','% Plan.','Sup. Completo','% Sup.','Pend. ESI','Pend. BR','Com Fab.'], discRows), spacer(),
         h2('2.6 Exigências Técnicas e Vencimentos'), table(['Tipo de Exigência','Total','Vencidos Hoje','Vencem até 18/08'], exigRows), spacer(),
         h2('2.7 Fabricação'),
         table(['Sem Fabricação','Com Fabricação Necessária','Fabricação a Verificar'],
@@ -5758,7 +5826,8 @@ function clearAllMs(){
 const LUCAR_DRILL_MAP = {
   'status_samc':'lucar-f-samc', 'disciplina':'lucar-f-disciplina',
   'status_sup':'lucar-f-sup', 'fabricacao':'lucar-f-fab',
-  'status_plan':'lucar-f-plan', 'status_lupa':'lucar-f-lupa'
+  'status_plan':'lucar-f-plan', 'status_lupa':'lucar-f-lupa',
+  'samc_fase_execucao':'lucar-f-samcfase', 'samc_fluxo':'lucar-f-samcfluxo'
 };
 function clearLucarDrillFilters(){
   Object.keys(LUCAR_FILTER_MAP).forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
@@ -7352,13 +7421,23 @@ async function pushSamcToCloud(){
   try {
     const body = JSON.stringify(fbSanitizeDeep(SAMC_DATA));
     const res = await fetch(`${FIREBASE_URL}/lupa_samc_data.json`, { method:'PUT', headers: jsonbinHeaders(), body });
-    return res.ok;
-  } catch(e){ console.warn('[SAMC] Erro ao enviar para a nuvem:', e); return false; }
+    if(!res.ok){
+      console.warn('[SAMC] Firebase respondeu erro ao enviar SAMC:', res.status);
+      flash(`⚠️ A nuvem recusou o envio do SAMC (erro ${res.status}). Tente "🔄 Sincronizar Agora" no Painel Admin.`, '#f59e0b', 7000);
+      return false;
+    }
+    return true;
+  } catch(e){
+    console.warn('[SAMC] Erro ao enviar para a nuvem:', e);
+    flash(`⚠️ SAMC importado, mas não foi possível sincronizar com a nuvem agora (${e.message||e}). Tente "🔄 Sincronizar Agora" no Painel Admin.`, '#f59e0b', 8000);
+    return false;
+  }
 }
 async function pushSamcHistoricoToCloud(){
   try {
     const res = await fetch(`${FIREBASE_URL}/lupa_samc_historico.json`, { method:'PUT', headers: jsonbinHeaders(), body: JSON.stringify(SAMC_HISTORICO) });
-    return res.ok;
+    if(!res.ok){ console.warn('[SAMC] Firebase respondeu erro ao enviar histórico:', res.status); return false; }
+    return true;
   } catch(e){ console.warn('[SAMC] Erro ao enviar histórico:', e); return false; }
 }
 async function pullSamcFromCloud(){
@@ -7368,6 +7447,7 @@ async function pullSamcFromCloud(){
       fetch(`${FIREBASE_URL}/lupa_samc_historico.json`, { headers: jsonbinHeaders() })
     ]);
     let got = false;
+    if(!r1.ok) console.warn('[SAMC] Firebase respondeu erro ao buscar SAMC_DATA:', r1.status);
     if(r1.ok){ const t1 = await r1.text(); if(t1 && t1!=='null'){ SAMC_DATA = fbRestoreDeep(JSON.parse(t1)); got = true; } }
     if(r2.ok){ const t2 = await r2.text(); if(t2 && t2!=='null'){ SAMC_HISTORICO = JSON.parse(t2); got = true; } }
     return got;
@@ -7424,6 +7504,18 @@ document.addEventListener('change', function(e){
   }
 });
 let SAMC_SEARCH = '';
+let SAMC_HIDE_NOMATCH = false; // oculta SS sem nenhum registro correspondente no sistema
+function toggleSamcHideNoMatch(){
+  SAMC_HIDE_NOMATCH = !SAMC_HIDE_NOMATCH;
+  const btn = document.getElementById('samc-hide-nomatch-btn');
+  if(btn){
+    btn.textContent = SAMC_HIDE_NOMATCH ? '↩️ Mostrar Todas' : '🚫 Ocultar SS sem Registro no Sistema';
+    btn.style.background = SAMC_HIDE_NOMATCH ? 'rgba(239,68,68,.15)' : 'rgba(107,114,128,.12)';
+    btn.style.color = SAMC_HIDE_NOMATCH ? 'var(--danger)' : 'var(--muted)';
+    btn.style.borderColor = SAMC_HIDE_NOMATCH ? 'var(--danger)' : 'var(--muted)';
+  }
+  applySamcFilters();
+}
 function applySamcSearch(val){ SAMC_SEARCH = (val||'').trim().toLowerCase(); applySamcFilters(); }
 function limparFiltrosSamc(){
   document.querySelectorAll('#samc-import-card .samc-ms-chk').forEach(chk=>{ chk.checked=false; });
@@ -7442,6 +7534,7 @@ function applySamcFilters(){
     if(faseSel.length && !faseSel.includes(row.dataset.fase)) ok = false;
     if(fluxoSel.length && !fluxoSel.includes(row.dataset.fluxo)) ok = false;
     if(ok && SAMC_SEARCH && !row.textContent.toLowerCase().includes(SAMC_SEARCH)) ok = false;
+    if(ok && SAMC_HIDE_NOMATCH && row.dataset.qtd === '0') ok = false;
     row.style.display = ok ? '' : 'none';
     if(!ok){
       document.querySelectorAll(`#samc-teste-body tr[data-ss-detalhe="${row.dataset.ss}"]`).forEach(d=>{ d.style.display='none'; });
@@ -7461,7 +7554,7 @@ function renderSamcSection(){
   const resumoEl = document.getElementById('samc-resumo');
   if(!bodyEl) return;
   const ssListTotal = Object.keys(SAMC_DATA);
-  const ssList = ssListTotal.filter(ss => _faseFiltro === 'Todas as Fases' || SAMC_DATA[ss].faseProjeto === _faseFiltro);
+  const ssList = ssListTotal.filter(ss => _faseFiltro === 'Todas as Fases' || !SAMC_DATA[ss].registrosVinculados.length || SAMC_DATA[ss].faseProjeto === _faseFiltro);
   if(!ssList.length){
     if(headEl) headEl.innerHTML = '';
     bodyEl.innerHTML = `<tr><td style="padding:20px;color:var(--muted)">${ssListTotal.length ? `Nenhuma SS para "${_faseFiltro}" — troque o filtro de Fase no topo para ver outros escopos.` : 'Nenhum dado importado ainda.'}</td></tr>`;
@@ -7481,13 +7574,14 @@ function renderSamcSection(){
   fillSamcMsGroup('ms-samc-fluxo', fluxoVals);
 
   const naoEncontradas = ssList.filter(ss=>!SAMC_DATA[ss].registrosVinculados.length).length;
-  if(resumoEl) resumoEl.textContent = `${ssList.length} de ${ssListTotal.length} SS — filtro de Fase: ${_faseFiltro} — ${ssList.length-naoEncontradas} cruzada(s) com o sistema${naoEncontradas?`, ${naoEncontradas} sem registro correspondente`:''}.`;
+  const totalRegistrosVinculados = ssList.reduce((soma,ss)=>soma+SAMC_DATA[ss].registrosVinculados.length, 0);
+  if(resumoEl) resumoEl.textContent = `${ssList.length} de ${ssListTotal.length} SS — filtro de Fase: ${_faseFiltro} — ${ssList.length-naoEncontradas} SS cruzada(s), totalizando ${totalRegistrosVinculados} registro(s) do sistema${naoEncontradas?` · ${naoEncontradas} SS sem registro correspondente`:''}.`;
 
   let html = '';
   ssList.sort().forEach(ss=>{
     const info = SAMC_DATA[ss];
     const qtd = info.registrosVinculados.length;
-    html += `<tr data-ss="${esc(ss)}" data-status="${esc(info.status)}" data-fase="${esc(info.faseExecucao)}" data-fluxo="${esc(info.fluxo)}" style="cursor:${qtd?'pointer':'default'};background:var(--bg2)" ${qtd?`onclick="toggleSamcDetalhe('${esc(ss)}', this.querySelector('.arrow'))"`:''}>
+    html += `<tr data-ss="${esc(ss)}" data-status="${esc(info.status)}" data-fase="${esc(info.faseExecucao)}" data-fluxo="${esc(info.fluxo)}" data-qtd="${qtd}" style="cursor:${qtd?'pointer':'default'};background:var(--bg2)" ${qtd?`onclick="toggleSamcDetalhe('${esc(ss)}', this.querySelector('.arrow'))"`:''}>
       <td>${qtd?'<span class="arrow">▶</span>':''}</td>
       <td style="font-family:monospace">${esc(ss)}</td>
       <td>${esc(info.faseExecucao)||'—'}</td>
@@ -8448,6 +8542,8 @@ async function recoverEdits() {
   try {
     await pullEditsAndMerge();
     await pullMateriaisDetProcAndRender();
+    await pullSamcFromCloud();
+    renderSamcSection();
   } finally {
     if(btn) { btn.style.opacity=''; btn.style.pointerEvents=''; btn.textContent = '🔄 Recuperar Edições'; }
   }
@@ -8629,6 +8725,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await pullMateriaisDetProcAndRender();
     await pullLucarFromCloud();
     await pullSamcFromCloud();
+    renderSamcSection(); // sem isso, o dado chega da nuvem mas a tela não é atualizada — parecia que tinha "perdido" o import
     autoSnapshotIfNeeded(); // salva a "foto" da semana, se ainda não existir uma
     carregarBaselineCronograma(); // atualiza o texto de status da baseline no Painel Admin
     pullEscopoFase2FromCloud().then(atualizarStatusEscopoFase2);
