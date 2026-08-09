@@ -845,6 +845,8 @@ h1{letter-spacing:.02em}
       <button class="folha-janela-btn" data-janela="7" onclick="setFolhaJanela(7)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">7 dias</button>
       <button class="folha-janela-btn" data-janela="15" onclick="setFolhaJanela(15)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">15 dias</button>
       <button class="folha-janela-btn" data-janela="30" onclick="setFolhaJanela(30)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">30 dias</button>
+      <button id="folha-collapse-btn" onclick="toggleFolhaResumo()" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">📂 Recolher para Resumo</button>
+      <button onclick="exportarFolhaTarefaExcel()" style="padding:5px 14px;border-radius:6px;border:1px solid var(--green,#22c55e);background:var(--green,#22c55e);color:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">📗 Exportar Excel</button>
     </div>
   </div>
   <div id="folha-tarefa-resumo" style="font-size:.78rem;color:var(--muted);margin-bottom:12px"></div>
@@ -4764,9 +4766,16 @@ function parseCronogramaXml(xmlText) {
   });
 
   const tasks = [];
+  let inativasIgnoradas = 0;
   doc.querySelectorAll('Tasks > Task').forEach(taskEl => {
     const isSummary = taskEl.querySelector('Summary')?.textContent === '1';
     if (isSummary) return;
+    // <Active> é um campo padrão do MS Project: "0" significa que a tarefa foi
+    // desativada no cronograma (fica lá visível mas não deve contar pra
+    // planejamento/caminho crítico). Se o campo não existir no XML, considera
+    // ativa por padrão (nem toda versão exporta esse campo).
+    const isActive = taskEl.querySelector('Active')?.textContent !== '0';
+    if (!isActive) { inativasIgnoradas++; return; }
 
     const uid = taskEl.querySelector('UID')?.textContent || '';
     const nome = taskEl.querySelector('Name')?.textContent || '';
@@ -4793,6 +4802,7 @@ function parseCronogramaXml(xmlText) {
       disciplina: custom['Disciplina'] || '',
     });
   });
+  tasks.inativasIgnoradas = inativasIgnoradas; // pendurado no array só pra reportar no resumo do import
 
   return tasks;
 }
@@ -4904,6 +4914,7 @@ async function handleCronogramaXmlImport(e) {
   if (!files.length) return;
 
   let totalTarefas = 0;
+  let totalInativasIgnoradas = 0;
   let progressoConsolidado = {};
 
   for (const file of files) {
@@ -4913,6 +4924,7 @@ async function handleCronogramaXmlImport(e) {
       const progresso = agruparProgressoPorRegistro(tarefas);
       progressoConsolidado = { ...progressoConsolidado, ...progresso };
       totalTarefas += tarefas.length;
+      totalInativasIgnoradas += tarefas.inativasIgnoradas || 0;
     } catch (err) {
       flash(`⚠️ Erro ao ler ${file.name}: ${err.message}`, '#ef4444', 6000);
     }
@@ -4982,7 +4994,8 @@ async function handleCronogramaXmlImport(e) {
     flash(
       `✅ Cronograma importado: ${totalTarefas} tarefas lidas, ${vinculados} registro(s) vinculado(s)` +
       (semCorrespondencia > 0 ? ` (${semCorrespondencia} registro(s) do cronograma não encontrados no LUPA)` : '') +
-      (limposConfirmados.length > 0 ? ` · ${limposConfirmados.length} registro(s) com cronograma desatualizado limpo(s)` : '') + '.',
+      (limposConfirmados.length > 0 ? ` · ${limposConfirmados.length} registro(s) com cronograma desatualizado limpo(s)` : '') +
+      (totalInativasIgnoradas > 0 ? ` · ${totalInativasIgnoradas} tarefa(s) inativa(s) no MS Project ignorada(s)` : '') + '.',
       '#22c55e', 7000
     );
   } else {
@@ -5158,7 +5171,7 @@ function renderKPICards(kpis){
     </div>
     <div style="${cardStyle};border-left:4px solid ${Math.abs(kpis.desvioPP)<3?'#22c55e':'#f59e0b'}">
       <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;font-weight:700">Desvio de Prazo</div>
-      <div style="font-size:1.8rem;font-weight:700">${kpis.desvioPP>=0?'+':''}${kpis.desvioPP.toFixed(1)} pp</div>
+      <div style="font-size:1.8rem;font-weight:700">${kpis.desvioPP>=0?'+':''}${kpis.desvioPP.toFixed(1)}%</div>
     </div>
     <div style="${cardStyle};border-left:4px solid ${kpis.criticasAtrasadas>0?'#ef4444':'#22c55e'}">
       <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;font-weight:700">Críticas Atrasadas</div>
@@ -5295,45 +5308,55 @@ function desenharCurvaS(periodos, mapaPlan, mapaReal){
     linhaReal.removeAttribute('points');
     return;
   }
-  const x0 = 50, y0 = 350, w = 730, h = 330;
+  const x0 = 50, y0 = 340, w = 730, h = 320;
   const escalaX = i => x0 + (periodos.length > 1 ? (i/(periodos.length-1))*w : w/2);
   const escalaY = pct => y0 - (Math.min(pct,100)/100)*h;
 
+  // Espaçamento dos rótulos depende da granularidade: Mensal e Quinzenal mostram
+  // TODOS os períodos (a quantidade natural já é pequena o bastante pra caber);
+  // Semanal mostra de 2 em 2 (a quantidade de semanas de uma campanha longa não
+  // cabe uma a uma sem virar bagunça). A mesma regra vale pros valores de % na
+  // linha, não só pro eixo X — os dois andam juntos.
+  const passo = _curvaGranularidade === 'semanal' ? 2 : 1;
+  const indicesComRotulo = new Set();
+  for(let i=0;i<periodos.length;i+=passo) indicesComRotulo.add(i);
+  indicesComRotulo.add(periodos.length-1);
+
+  const hojeStr = new Date().toISOString().slice(0,10);
   function serieParaPontos(mapa, corRotulo, ehPlan){
     const coords = periodos.map((per,i) => {
       const pct = mapa[per.chave] ?? 0;
       const x = escalaX(i), y = escalaY(pct);
-      coords_labels(x,y,pct);
+      // O rótulo de % Realizado só aparece em períodos já executados (até a data
+      // de status/hoje) — período futuro ainda não tem "realizado" nenhum pra
+      // mostrar, e ficar repetindo "0%" só polui o eixo X junto com as datas.
+      const podeMostrar = ehPlan || per.dataCorte <= hojeStr;
+      if(grupoRotulos && indicesComRotulo.has(i) && podeMostrar){
+        const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+        txt.setAttribute('x', x); txt.setAttribute('y', y - (ehPlan?10:-16));
+        txt.setAttribute('font-size','9.5'); txt.setAttribute('fill', corRotulo);
+        txt.setAttribute('text-anchor','middle');
+        txt.textContent = pct.toFixed(0)+'%';
+        grupoRotulos.appendChild(txt);
+      }
       return `${x},${y}`;
     });
-    function coords_labels(x,y,pct){
-      if(!grupoRotulos) return;
-      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-      txt.setAttribute('x', x); txt.setAttribute('y', y - (ehPlan?10:-16));
-      txt.setAttribute('font-size','9.5'); txt.setAttribute('fill', corRotulo);
-      txt.setAttribute('text-anchor','middle');
-      txt.textContent = pct.toFixed(0)+'%';
-      grupoRotulos.appendChild(txt);
-    }
     return coords.join(' ');
   }
   linhaPlan.setAttribute('points', serieParaPontos(mapaPlan, '#94a3b8', true));
   linhaReal.setAttribute('points', serieParaPontos(mapaReal, '#2563eb', false));
 
-  // Eixo X: um rótulo curto por período (Sem34-26 / Quin16-26 / Mês08-26), sem o
-  // detalhe do intervalo completo (que já aparece na tabela abaixo) — evita
-  // amontoar texto quando há muitos períodos.
+  // Eixo X: rótulo curto por período (Sem34-26 / Quin16-26 / Mês08-26), sem o
+  // intervalo de datas completo (que já aparece na tabela abaixo).
   if(grupoRotulos){
     periodos.forEach((per,i) => {
+      if(!indicesComRotulo.has(i)) return;
       const x = escalaX(i);
-      // Mostra só 1 a cada N rótulos quando há muitos períodos, pra não sobrepor texto.
-      const passo = periodos.length > 20 ? Math.ceil(periodos.length/20) : 1;
-      if(i % passo !== 0 && i !== periodos.length-1) return;
       const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-      txt.setAttribute('x', x); txt.setAttribute('y', y0 + 16);
-      txt.setAttribute('font-size','8.5'); txt.setAttribute('fill', '#64748b');
-      txt.setAttribute('text-anchor','middle');
-      txt.setAttribute('transform', `rotate(35 ${x} ${y0+16})`);
+      txt.setAttribute('x', x); txt.setAttribute('y', y0 + 18);
+      txt.setAttribute('font-size','9'); txt.setAttribute('fill', '#64748b');
+      txt.setAttribute('text-anchor','end');
+      txt.setAttribute('transform', `rotate(-40 ${x} ${y0+18})`);
       txt.textContent = per.rotulo.split('(')[0]; // só "Sem34-26", sem o intervalo de datas
       grupoRotulos.appendChild(txt);
     });
@@ -5347,20 +5370,20 @@ function renderTabelaCurva(periodos, mapaPlan, mapaReal){
     cont.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:10px">Sem dados suficientes ainda para montar a tabela.</div>';
     return;
   }
-  let realAnterior = 0;
+  let planAnterior = 0;
   const linhas = periodos.map(per => {
     const plan = mapaPlan[per.chave] ?? 0;
     const real = mapaReal[per.chave] ?? 0;
     const desvio = real - plan;
-    const noPeriodo = real - realAnterior; // item 6: diferença do Realizado em relação ao período anterior
-    realAnterior = real;
+    const noPeriodo = plan - planAnterior; // item 6: diferença do Planejado em relação ao período anterior
+    planAnterior = plan;
     const cor = Math.abs(desvio) < 3 ? '#22c55e' : (desvio < 0 ? '#ef4444' : '#2563eb');
     return `<tr>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap">${per.rotulo}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${plan.toFixed(1)}%</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${real.toFixed(1)}%</td>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${noPeriodo>=0?'+':''}${noPeriodo.toFixed(1)}%</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:${cor};font-weight:600">${desvio>=0?'+':''}${desvio.toFixed(1)} pp</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${real.toFixed(1)}%</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:${cor};font-weight:600">${desvio>=0?'+':''}${desvio.toFixed(1)}%</td>
     </tr>`;
   }).join('');
   cont.innerHTML = `
@@ -5368,26 +5391,39 @@ function renderTabelaCurva(periodos, mapaPlan, mapaReal){
       <thead><tr style="background:#f8fafc">
         <th style="padding:6px 10px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Período</th>
         <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">Planejado</th>
+        <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase" title="Diferença do Planejado em relação ao período anterior">% Plan Período</th>
         <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">Realizado</th>
-        <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase" title="Diferença do Realizado em relação ao período anterior">% No Período</th>
         <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">Desvio</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table>`;
 }
 
+let _curvaRenderToken = 0;
 async function renderCurvaSKPIs(){
+  const meuToken = ++_curvaRenderToken;
   const kpis = calcularKPIs();
   renderKPICards(kpis);
   const planejadaBruta = calcularCurvaPlanejada();       // pontos diários (peso do cronograma)
   const realizadaBruta = await calcularCurvaRealizada(); // pontos dos snapshots + hoje
-  const todasDatas = [...planejadaBruta.map(p=>p.data), ...realizadaBruta.map(p=>p.data)].sort();
-  if(!todasDatas.length){
+  // Se, enquanto esperava os snapshots, outro clique de granularidade já disparou
+  // um render mais novo, este aqui está desatualizado — não aplica (evita que um
+  // clique rápido entre Semanal/Quinzenal/Mensal "volte" pro resultado errado).
+  if(meuToken !== _curvaRenderToken) return;
+  if(!planejadaBruta.length && !realizadaBruta.length){
     desenharCurvaS([], {}, {});
     renderTabelaCurva([], {}, {});
     return;
   }
-  const periodos = construirPeriodosContinuos(todasDatas[0], todasDatas[todasDatas.length-1], _curvaGranularidade);
+  // O início da tabela/gráfico vem só do PLANEJADO (a data real de início do
+  // cronograma importado) — não da união com o Realizado. Snapshots antigos da
+  // Evolução podem existir de antes desse cronograma ter sido importado, e
+  // misturá-los puxava o início da tabela pra muito antes do começo real da
+  // campanha (mostrando semanas de "0%" sem sentido nenhum).
+  const dataInicio = planejadaBruta.length ? planejadaBruta[0].data : realizadaBruta[0].data;
+  const todasDatasFim = [...planejadaBruta.map(p=>p.data), ...realizadaBruta.map(p=>p.data)].sort();
+  const dataFim = todasDatasFim[todasDatasFim.length-1];
+  const periodos = construirPeriodosContinuos(dataInicio, dataFim, _curvaGranularidade);
   const mapaPlan = {}, mapaReal = {};
   periodos.forEach(per => {
     mapaPlan[per.chave] = valorAcumuladoAte(planejadaBruta, per.dataCorte);
@@ -5438,31 +5474,49 @@ function folhaTarefa(janelaDias, disciplina){
     .filter(r => Array.isArray(r.etapas_cronograma) && r.etapas_cronograma.length)
     .filter(r => !disciplina || r.disciplina === disciplina);
 
-  // Âncora dinâmica: se não há nenhuma tarefa pendente entre hoje e a primeira
-  // tarefa real do cronograma (ex: campanha só começa daqui a 27 dias), a janela
-  // de "7/15/30 dias" passa a contar a partir dessa primeira tarefa pendente —
-  // senão a janela de 7/15 dias ficaria sempre vazia só por causa do vão inicial.
-  let primeiraPendente = null;
-  dadosFiltrados.forEach(r => r.etapas_cronograma.forEach(e => {
-    if ((e.percentWork ?? 0) >= 100) return;
-    const d = (e.finish || '').slice(0,10);
-    if (d && d >= hoje && (!primeiraPendente || d < primeiraPendente)) primeiraPendente = d;
-  }));
-  const ancora = (primeiraPendente && primeiraPendente > hoje) ? primeiraPendente : hoje;
-  const limite = new Date(ancora + 'T00:00:00'); limite.setDate(limite.getDate() + janelaDias);
-  const limiteStr = limite.toISOString().slice(0,10);
+  function limiteDe(ancoraStr){
+    const d = new Date(ancoraStr + 'T00:00:00'); d.setDate(d.getDate() + janelaDias);
+    return d.toISOString().slice(0,10);
+  }
+
+  // Uma etapa "toca" a janela [ancora, limite] se o intervalo dela (início a
+  // término) sobrepuser qualquer parte do período — cobre as 4 situações
+  // possíveis: (1) começa e termina dentro; (2) começa dentro, termina depois;
+  // (3) termina dentro (começou antes ou dentro); (4) em andamento, cobrindo o
+  // período inteiro (começou antes, termina depois). Antes só olhava o término,
+  // e por isso tarefas longas já em andamento (ex: pintura de 90+ dias) sumiam
+  // da Folha Tarefa mesmo tendo começado dentro da janela.
+  function tocaJanela(e, ancoraStr, limiteStr){
+    if ((e.percentWork ?? 0) >= 100) return false;
+    const ini = (e.start || '').slice(0,10);
+    const fim = (e.finish || '').slice(0,10);
+    if (!fim) return false;
+    return (!ini || ini <= limiteStr) && fim >= ancoraStr;
+  }
+
+  // Âncora dinâmica: se nenhuma etapa toca a janela [hoje, hoje+janela] (ex: a
+  // campanha só começa daqui a 27 dias), pula pra onde o próximo trabalho real
+  // começa — senão a janela de 7/15/30 dias ficaria sempre vazia só por causa
+  // do vão inicial.
+  let ancora = hoje, limiteStr = limiteDe(hoje);
+  const temAlgumaNaJanelaInicial = dadosFiltrados.some(r => r.etapas_cronograma.some(e => tocaJanela(e, ancora, limiteStr)));
+  if (!temAlgumaNaJanelaInicial) {
+    let proximoInicio = null;
+    dadosFiltrados.forEach(r => r.etapas_cronograma.forEach(e => {
+      if ((e.percentWork ?? 0) >= 100) return;
+      const ini = (e.start || '').slice(0,10);
+      if (ini && ini > hoje && (!proximoInicio || ini < proximoInicio)) proximoInicio = ini;
+    }));
+    if (proximoInicio) { ancora = proximoInicio; limiteStr = limiteDe(ancora); }
+  }
 
   const grupos = dadosFiltrados
     .map(r => {
-      const etapasDoPeriodo = r.etapas_cronograma.filter(e => {
-        if ((e.percentWork ?? 0) >= 100) return false;
-        const d = (e.finish || '').slice(0,10);
-        return d && d >= ancora && d <= limiteStr;
-      }); // já vem em ordem de EDT, herdada do import
+      const etapasDoPeriodo = r.etapas_cronograma.filter(e => tocaJanela(e, ancora, limiteStr)); // já vem em ordem de EDT, herdada do import
       return { registro: r, etapasDoPeriodo };
     })
     .filter(x => x.etapasDoPeriodo.length)
-    .sort((a,b) => a.etapasDoPeriodo[0].finish.localeCompare(b.etapasDoPeriodo[0].finish));
+    .sort((a,b) => (a.etapasDoPeriodo[0].finish||'').localeCompare(b.etapasDoPeriodo[0].finish||''));
   return { grupos, ancora };
 }
 // Preenche o dropdown de disciplina só com as disciplinas que realmente têm
@@ -5499,9 +5553,9 @@ function renderFolhaTarefa(){
   const linhas = grupos.map(({registro:r, etapasDoPeriodo}) => {
     const cabecalho = `<tr style="background:#f8fafc">
       <td colspan="8" style="padding:10px 12px;font-weight:700;font-size:.82rem;border-top:2px solid #e5e7eb">
-        ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}</span>
+        ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}${r.tag?' · TAG: '+esc(r.tag):''}</span>
       </td></tr>`;
-    const resumo = `<tr>
+    const resumo = `<tr class="folha-detalhe">
       <td colspan="8" style="padding:6px 12px;font-size:.76rem;color:var(--muted);border-bottom:1px solid #f0f0f0">${r.nome_tarefa ?? ''}</td>
       </tr>`;
 
@@ -5510,7 +5564,7 @@ function renderFolhaTarefa(){
     // detalhado em passos reais de execução (ex: Montagem, Pintura) para essa SS.
     const semDetalhamento = etapasDoPeriodo.length === 1 &&
       (etapasDoPeriodo[0].nome||'').trim() === (r.nome_tarefa||'').trim();
-    const avisoSemDetalhe = semDetalhamento ? `<tr>
+    const avisoSemDetalhe = semDetalhamento ? `<tr class="folha-detalhe">
       <td colspan="8" style="padding:6px 12px;font-size:.72rem;color:#b45309;background:rgba(245,158,11,.08);border-bottom:1px solid #f0f0f0">
         ⚠️ Esta SS ainda não tem detalhamento de etapas no cronograma (só a visão geral do serviço) — a data abaixo é da SS como um todo, não de um passo específico de execução.
       </td></tr>` : '';
@@ -5519,7 +5573,7 @@ function renderFolhaTarefa(){
       const atrasada = (e.finish||'').slice(0,10) < hoje;
       const corData = atrasada ? '#ef4444' : '#111';
       const realValor = e.percentRealExecutado != null ? e.percentRealExecutado : '';
-      return `<tr>
+      return `<tr class="folha-detalhe">
         <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;color:var(--muted);font-size:.7rem;white-space:nowrap">${r.registro ?? ''}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;color:var(--muted);font-size:.7rem;white-space:nowrap">${r.nro_ss ?? ''}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #f5f5f5;color:var(--muted);font-size:.7rem;white-space:nowrap">${e.edt||''}</td>
@@ -5543,12 +5597,14 @@ function renderFolhaTarefa(){
       recursosAgregados[rec.nome] = Math.max(recursosAgregados[rec.nome]||0, rec.quantidade);
     }));
     const recursosTxt = Object.entries(recursosAgregados).map(([nome,qtd])=>`${nome} (${qtd})`).join(' · ');
-    const linhaRecursos = recursosTxt ? `<tr>
+    const linhaRecursos = recursosTxt ? `<tr class="folha-detalhe">
       <td colspan="8" style="padding:6px 12px;font-size:.72rem;color:var(--muted);border-bottom:2px solid #e5e7eb">👷 Recursos necessários: ${recursosTxt}</td>
       </tr>` : '';
 
     return cabecalho + resumo + avisoSemDetalhe + tarefasRows + linhaRecursos;
   }).join('');
+
+  _folhaGruposAtuais = grupos; // guarda a última lista renderizada, usada pela exportação Excel
 
   contEl.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:.78rem">
@@ -5565,6 +5621,40 @@ function renderFolhaTarefa(){
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table>`;
+  if(FOLHA_RESUMO_COLLAPSED) aplicarFolhaCollapsed();
+}
+let FOLHA_RESUMO_COLLAPSED = false;
+let _folhaGruposAtuais = []; // último resultado renderizado, reaproveitado pela exportação Excel
+function aplicarFolhaCollapsed(){
+  document.querySelectorAll('#folha-tarefa-container tr.folha-detalhe').forEach(tr=>{
+    tr.style.display = FOLHA_RESUMO_COLLAPSED ? 'none' : '';
+  });
+}
+function toggleFolhaResumo(){
+  FOLHA_RESUMO_COLLAPSED = !FOLHA_RESUMO_COLLAPSED;
+  aplicarFolhaCollapsed();
+  const btn = document.getElementById('folha-collapse-btn');
+  if(btn) btn.textContent = FOLHA_RESUMO_COLLAPSED ? '📁 Expandir Tudo' : '📂 Recolher para Resumo';
+}
+// Exporta exatamente o que está sendo mostrado na Folha Tarefa (mesma janela e
+// filtro de disciplina ativos na tela) — uma linha por etapa, mesmo padrão de
+// .xlsx real (ExcelJS) já usado em Materiais/Detalhamento/Processamento.
+async function exportarFolhaTarefaExcel(){
+  if(!_folhaGruposAtuais.length){ flash('⚠️ Nada pra exportar — a janela atual não tem tarefas.', '#f59e0b', 4000); return; }
+  const headers = ['Registro','Nº SS','Disciplina','TAG','EDT','Tarefa','Início','Término','Horas (Trabalho)','% Execução','% Real Executado'];
+  const linhas = [];
+  _folhaGruposAtuais.forEach(({registro:r, etapasDoPeriodo}) => {
+    etapasDoPeriodo.forEach(e=>{
+      linhas.push([
+        r.registro ?? '', r.nro_ss ?? '', r.disciplina ?? '', r.tag ?? '', e.edt||'', e.nome||'',
+        e.start ? new Date(e.start).toLocaleDateString('pt-BR') : '',
+        e.finish ? new Date(e.finish).toLocaleDateString('pt-BR') : '',
+        e.horas ?? 0, (e.percentWork ?? 0)+'%', e.percentRealExecutado != null ? e.percentRealExecutado+'%' : ''
+      ]);
+    });
+  });
+  await baixarXlsxEstilizado(headers, linhas, `Folha_Tarefa_${_folhaJanela}dias_${new Date().toISOString().slice(0,10)}.xlsx`, 'Folha Tarefa');
+  flash(`✅ Excel exportado: ${linhas.length} tarefa(s).`, '#22c55e', 4000);
 }
 
 function dataUriToUint8Array(uri){
