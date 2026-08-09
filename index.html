@@ -119,6 +119,7 @@ table{width:100%;border-collapse:collapse;font-size:.74rem}
 thead tr{border-bottom:2px solid var(--blue)}
 th{padding:9px 10px;text-align:left;font-weight:700;text-transform:uppercase;font-size:.63rem;letter-spacing:.06em;color:var(--muted);white-space:nowrap;position:sticky;top:0;z-index:10;background:var(--card);box-shadow:inset 0 -2px 0 var(--blue);cursor:pointer}
 .tbl-wrap-page th{top:var(--sticky-total,168px);z-index:120}
+.tbl-wrap-page-abaixo-barra th{top:calc(var(--sticky-total,168px) + var(--folha-toolbar-h,60px));z-index:120}
 th:hover{color:var(--accent)}
 tbody tr{border-bottom:1px solid rgba(30,74,114,.3);transition:background .12s}
 tbody tr:hover{background:rgba(26,111,173,.1)}
@@ -836,12 +837,14 @@ h1{letter-spacing:.02em}
   </div>
 </div>
 <div class="section" id="folha-tarefa">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+  <div id="folha-toolbar" class="kpi-grid-sticky" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
     <div style="font-weight:700;color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em">Tarefas por vencer</div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <select id="folha-disc-filter" onchange="setFolhaDisciplina(this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-family:var(--font)">
         <option value="">Todas as disciplinas</option>
       </select>
+      <input type="date" id="folha-data-manual" onchange="setFolhaDataManual(this.value)" title="Defina uma data pra ver a Folha Tarefa a partir dela, em vez de hoje" style="padding:5px 10px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-family:var(--font)">
+      <button onclick="limparFolhaDataManual()" style="padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">Hoje</button>
       <button class="folha-janela-btn" data-janela="7" onclick="setFolhaJanela(7)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">7 dias</button>
       <button class="folha-janela-btn" data-janela="15" onclick="setFolhaJanela(15)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">15 dias</button>
       <button class="folha-janela-btn" data-janela="30" onclick="setFolhaJanela(30)" style="padding:5px 14px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">30 dias</button>
@@ -850,7 +853,7 @@ h1{letter-spacing:.02em}
     </div>
   </div>
   <div id="folha-tarefa-resumo" style="font-size:.78rem;color:var(--muted);margin-bottom:12px"></div>
-  <div id="folha-tarefa-container" style="overflow-x:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px"></div>
+  <div id="folha-tarefa-container" class="tbl-wrap-page-abaixo-barra" style="overflow-x:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px"></div>
 </div>
 <div class="section" id="graficos-esi">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px">
@@ -4765,6 +4768,36 @@ function parseCronogramaXml(xmlText) {
     recursosPorTarefa[taskUid].push({ nome, quantidade: units });
   });
 
+  // 1ª passada: monta um mapa OutlineNumber -> {Registro, Nº SS, Disciplina...}
+  // olhando TODAS as tarefas (inclusive as de resumo, que normalmente carregam
+  // esses campos e são descartadas mais abaixo). Alguns cronogramas só preenchem
+  // esses campos customizados no nível de resumo (ex: "8.3.2"), deixando as
+  // tarefas de execução mais no fundo da árvore (ex: "8.3.2.1.1.1.2") sem essa
+  // informação — sem essa herança, esses registros ficavam "sem disciplina".
+  const camposPorOutline = {};
+  doc.querySelectorAll('Tasks > Task').forEach(taskEl => {
+    const outline = taskEl.querySelector('OutlineNumber')?.textContent || '';
+    if (!outline) return;
+    const custom = {};
+    taskEl.querySelectorAll('ExtendedAttribute').forEach(ext => {
+      const fieldId = ext.querySelector('FieldID')?.textContent;
+      const value = ext.querySelector('Value')?.textContent || '';
+      const alias = fieldMap[fieldId];
+      if (alias && value) custom[alias] = value;
+    });
+    if (custom['Registro'] || custom['Nº SS'] || custom['Disciplina']) camposPorOutline[outline] = custom;
+  });
+  // Sobe os níveis da EDT (8.3.2.1.1.1.2 → 8.3.2.1.1.1 → ... → 8.3.2 → 8.3) até
+  // achar um ancestral com o campo preenchido.
+  function herdarCampo(outline, campo){
+    const partes = outline.split('.');
+    for (let i = partes.length; i > 0; i--) {
+      const chave = partes.slice(0, i).join('.');
+      if (camposPorOutline[chave]?.[campo]) return camposPorOutline[chave][campo];
+    }
+    return '';
+  }
+
   const tasks = [];
   let inativasIgnoradas = 0;
   doc.querySelectorAll('Tasks > Task').forEach(taskEl => {
@@ -4797,9 +4830,9 @@ function parseCronogramaXml(xmlText) {
 
     tasks.push({
       nome, start, finish, percentWork, isCritical, work, edt, recursosDetalhe,
-      registro: custom['Registro'] || '',
-      ss: custom['Nº SS'] || '',
-      disciplina: custom['Disciplina'] || '',
+      registro: custom['Registro'] || herdarCampo(edt, 'Registro'),
+      ss: custom['Nº SS'] || herdarCampo(edt, 'Nº SS'),
+      disciplina: custom['Disciplina'] || herdarCampo(edt, 'Disciplina'),
     });
   });
   tasks.inativasIgnoradas = inativasIgnoradas; // pendurado no array só pra reportar no resumo do import
@@ -4909,9 +4942,38 @@ function cronoReviewConfirmar(aplicarSelecionados){
   const selecionados = aplicarSelecionados ? [...document.querySelectorAll('.crono-review-chk:checked')].map(c=>c.value) : [];
   if(_cronoReviewResolve){ _cronoReviewResolve(selecionados); _cronoReviewResolve = null; }
 }
+// O MS Project exporta, por padrão, uma quantidade enorme de dado que este
+// sistema nunca lê — principalmente o histórico dia-a-dia de cada alocação de
+// recurso (<TimephasedData>, gerado aos milhares) e campos de custo/variação/
+// baseline. Num cronograma grande isso pode inflar o arquivo pra dezenas de MB
+// à toa, e o navegador fica sem memória tentando processar tudo — foi
+// exatamente isso que fez o PINT-RTI (a disciplina com o cronograma mais
+// detalhado, então a mais afetada) sumir silenciosamente de um import real.
+// Remove esses blocos ANTES de interpretar o XML — não perde nenhuma
+// informação que o sistema usa, só o que nunca era lido de qualquer forma.
+function limparXmlCronograma(xmlText){
+  let limpo = xmlText;
+  ['TimephasedData','Baseline','CostRateTable'].forEach(tag=>{
+    limpo = limpo.replace(new RegExp(`<${tag}>.*?</${tag}>`, 'gs'), '');
+  });
+  [
+    'ActualCost','ActualOvertimeCost','ActualOvertimeWork','ActualWork','RemainingCost',
+    'RemainingWork','ACWP','CV','SV','BCWS','BCWP','CostVariance','WorkVariance',
+    'OvertimeCost','OvertimeWork','Cost','FixedCost','FixedCostAccrual','RegularWork',
+    'SVPercent','CVPercent','ValueGUID','RemainingOvertimeCost','RemainingOvertimeWork',
+    'RemainingDuration','StartVariance','FinishVariance','DurationVariance',
+    'CalendarUID','ConstraintType','ConstraintDate','Rate','StandardRate','OvertimeRate',
+    'WorkContour','Delay','ResponsePending','TeamStatusPending','LevelingDelay',
+    'LevelingDelayFormat'
+  ].forEach(tag=>{
+    limpo = limpo.replace(new RegExp(`<${tag}>[^<]*</${tag}>`, 'g'), '');
+  });
+  return limpo;
+}
 async function handleCronogramaXmlImport(e) {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
+  flash('⏳ Lendo cronograma... arquivos grandes podem levar alguns segundos.', '#1a6fad', 4000);
 
   let totalTarefas = 0;
   let totalInativasIgnoradas = 0;
@@ -4919,7 +4981,8 @@ async function handleCronogramaXmlImport(e) {
 
   for (const file of files) {
     try {
-      const texto = await file.text();
+      const textoOriginal = await file.text();
+      const texto = limparXmlCronograma(textoOriginal);
       const tarefas = parseCronogramaXml(texto);
       const progresso = agruparProgressoPorRegistro(tarefas);
       progressoConsolidado = { ...progressoConsolidado, ...progresso };
@@ -5465,9 +5528,20 @@ function setFolhaDisciplina(disc){
   _folhaDisciplina = disc;
   renderFolhaTarefa();
 }
+function setFolhaDataManual(valor){
+  FOLHA_DATA_MANUAL = valor || '';
+  renderFolhaTarefa();
+}
+function limparFolhaDataManual(){
+  FOLHA_DATA_MANUAL = '';
+  const el = document.getElementById('folha-data-manual');
+  if (el) el.value = '';
+  renderFolhaTarefa();
+}
 // Para cada registro, seleciona só as ETAPAS (tarefas do cronograma) com data
 // prevista dentro da janela e ainda não concluídas — não o registro inteiro.
 // Um registro só aparece na Folha Tarefa se tiver ao menos uma etapa nessas condições.
+let FOLHA_DATA_MANUAL = '';
 function folhaTarefa(janelaDias, disciplina){
   const hoje = new Date().toISOString().slice(0,10);
   const dadosFiltrados = getData()
@@ -5498,6 +5572,20 @@ function folhaTarefa(janelaDias, disciplina){
   // campanha só começa daqui a 27 dias), pula pra onde o próximo trabalho real
   // começa — senão a janela de 7/15/30 dias ficaria sempre vazia só por causa
   // do vão inicial.
+  // Data de referência manual (item 3): quando o usuário preenche o campo de
+  // data, ela vira a âncora direto — sem o salto automático — permitindo
+  // "avançar no tempo" manualmente pra ver além da janela de hoje. Vazio volta
+  // ao comportamento normal (âncora = hoje, com salto automático se houver vão).
+  if (FOLHA_DATA_MANUAL) {
+    const ancora = FOLHA_DATA_MANUAL;
+    const limiteStr = limiteDe(ancora);
+    const grupos = dadosFiltrados
+      .map(r => ({ registro: r, etapasDoPeriodo: r.etapas_cronograma.filter(e => tocaJanela(e, ancora, limiteStr)) }))
+      .filter(x => x.etapasDoPeriodo.length)
+      .sort((a,b) => (a.etapasDoPeriodo[0].finish||'').localeCompare(b.etapasDoPeriodo[0].finish||''));
+    return { grupos, ancora };
+  }
+
   let ancora = hoje, limiteStr = limiteDe(hoje);
   const temAlgumaNaJanelaInicial = dadosFiltrados.some(r => r.etapas_cronograma.some(e => tocaJanela(e, ancora, limiteStr)));
   if (!temAlgumaNaJanelaInicial) {
@@ -5540,9 +5628,11 @@ function renderFolhaTarefa(){
   const totalTarefas = grupos.reduce((s,g)=>s+g.etapasDoPeriodo.length, 0);
   const criticas = grupos.reduce((s,g)=>s+g.etapasDoPeriodo.filter(e=>e.isCritical).length, 0);
   const hojeStr = new Date().toISOString().slice(0,10);
-  const anexoAncora = ancora > hojeStr
-    ? ` · sem tarefas entre hoje e ${new Date(ancora+'T00:00:00').toLocaleDateString('pt-BR')} — janela contada a partir do início real do trabalho`
-    : '';
+  const anexoAncora = FOLHA_DATA_MANUAL
+    ? ` · janela contada a partir de ${new Date(ancora+'T00:00:00').toLocaleDateString('pt-BR')} (data de referência definida manualmente)`
+    : (ancora > hojeStr
+      ? ` · sem tarefas entre hoje e ${new Date(ancora+'T00:00:00').toLocaleDateString('pt-BR')} — janela contada a partir do início real do trabalho`
+      : '');
   if(resumoEl) resumoEl.textContent = `${grupos.length} registro(s), ${totalTarefas} tarefa(s) com vencimento nos próximos ${_folhaJanela} dias` + (criticas ? ` · ${criticas} crítica(s) (caminho crítico do MS Project)` : '') + anexoAncora;
 
   if(!grupos.length){
@@ -5553,7 +5643,7 @@ function renderFolhaTarefa(){
   const linhas = grupos.map(({registro:r, etapasDoPeriodo}) => {
     const cabecalho = `<tr style="background:#f8fafc">
       <td colspan="8" style="padding:10px 12px;font-weight:700;font-size:.82rem;border-top:2px solid #e5e7eb">
-        ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}${r.tag?' · TAG: '+esc(r.tag):''}</span>
+        ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}${r.tag?' · TAG: '+esc(r.tag):''}${r.modulo?' · Módulo: '+esc(r.modulo):''}${r.setor?' · Piso/Setor: '+esc(r.setor):''}</span>
       </td></tr>`;
     const resumo = `<tr class="folha-detalhe">
       <td colspan="8" style="padding:6px 12px;font-size:.76rem;color:var(--muted);border-bottom:1px solid #f0f0f0">${r.nome_tarefa ?? ''}</td>
@@ -5605,6 +5695,9 @@ function renderFolhaTarefa(){
   }).join('');
 
   _folhaGruposAtuais = grupos; // guarda a última lista renderizada, usada pela exportação Excel
+
+  const toolbarEl = document.getElementById('folha-toolbar');
+  if(toolbarEl) document.documentElement.style.setProperty('--folha-toolbar-h', toolbarEl.offsetHeight + 'px');
 
   contEl.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:.78rem">
@@ -8996,6 +9089,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.documentElement.style.setProperty('--sticky-fonte', hdrH + 'px');
     document.documentElement.style.setProperty('--sticky-nav', (hdrH + fonteH) + 'px');
     document.documentElement.style.setProperty('--sticky-total', (hdrH + fonteH + 46) + 'px');
+    const folhaToolbar = document.getElementById('folha-toolbar');
+    if (folhaToolbar) document.documentElement.style.setProperty('--folha-toolbar-h', folhaToolbar.offsetHeight + 'px');
   }
   updateStickyOffsets();
   window.addEventListener('resize', updateStickyOffsets);
