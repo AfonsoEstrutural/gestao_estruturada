@@ -65,6 +65,8 @@ html{scroll-padding-top:180px}
 
 /* ── KPI GRID ───────────────────────────────── */
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:20px}
+.kpi-grid-sticky{position:sticky;top:var(--sticky-total,168px);z-index:100;background:var(--bg);padding:10px 0 14px;margin-bottom:6px;box-shadow:0 4px 8px -6px rgba(0,0,0,.25)}
+.kpi-grid-sticky-subtab{position:sticky;top:calc(var(--sticky-total,168px) + 52px);z-index:100;background:var(--bg);padding:10px 0 14px;margin-bottom:6px;box-shadow:0 4px 8px -6px rgba(0,0,0,.25)}
 .kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 14px;position:relative;overflow:hidden;transition:background .3s,border .3s;cursor:default}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .kpi.c-blue::before{background:var(--blue)} .kpi.c-green::before{background:var(--green)}
@@ -91,6 +93,7 @@ html{scroll-padding-top:180px}
 /* ── BAR CHART ──────────────────────────────── */
 .bar-list{display:flex;flex-direction:column;gap:8px}
 .bar-row{display:flex;align-items:center;gap:8px;min-height:22px}
+.bar-row-active{background:rgba(26,111,173,.1);border-radius:5px;outline:2px solid var(--blue)}
 .bar-lbl{font-size:.71rem;min-width:200px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);flex-shrink:0}
 .bar-lbl.narrow{min-width:120px;max-width:120px}
 .bar-track{flex:1;background:rgba(255,255,255,.06);border-radius:3px;height:16px;overflow:hidden;position:relative}
@@ -115,6 +118,7 @@ html{scroll-padding-top:180px}
 table{width:100%;border-collapse:collapse;font-size:.74rem}
 thead tr{border-bottom:2px solid var(--blue)}
 th{padding:9px 10px;text-align:left;font-weight:700;text-transform:uppercase;font-size:.63rem;letter-spacing:.06em;color:var(--muted);white-space:nowrap;position:sticky;top:0;z-index:10;background:var(--card);box-shadow:inset 0 -2px 0 var(--blue);cursor:pointer}
+.tbl-wrap-page th{top:var(--sticky-total,168px);z-index:120}
 th:hover{color:var(--accent)}
 tbody tr{border-bottom:1px solid rgba(30,74,114,.3);transition:background .12s}
 tbody tr:hover{background:rgba(26,111,173,.1)}
@@ -408,7 +412,7 @@ h1{letter-spacing:.02em}
   </div>
 
   <!-- Cabeçalho da campanha -->
-  <div class="card" style="background:linear-gradient(135deg,rgba(26,111,173,.18) 0%,rgba(13,148,136,.10) 100%);border-color:rgba(26,111,173,.35);margin-bottom:0">
+  <div class="card" style="background-color:var(--card);background-image:linear-gradient(135deg,rgba(26,111,173,.18) 0%,rgba(13,148,136,.10) 100%);border-color:rgba(26,111,173,.35);margin-bottom:0;position:sticky;top:var(--sticky-total,168px);z-index:100;box-shadow:0 4px 8px -6px rgba(0,0,0,.25)">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap">
       <div>
         <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin-bottom:6px">Petrobras · Plataforma P-74 · UMS-2024</div>
@@ -441,7 +445,7 @@ h1{letter-spacing:.02em}
   </div>
 
   <!-- Barra de progresso geral da campanha -->
-  <div class="card" style="margin-bottom:0">
+  <div class="card" style="margin-bottom:18px">
     <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Avanço Geral da Campanha</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:6px">
       <div>
@@ -533,7 +537,7 @@ h1{letter-spacing:.02em}
   <!-- Tabela-resumo por disciplina (visão cruzada) -->
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Resumo Executivo por Disciplina</div>
-    <div class="tbl-wrap" style="overflow-x:auto">
+    <div class="tbl-wrap tbl-wrap-page" style="overflow-x:auto">
       <table id="pfil-resumo-disc" style="width:100%;border-collapse:collapse;font-size:.72rem"></table>
     </div>
   </div>
@@ -541,7 +545,7 @@ h1{letter-spacing:.02em}
 </div>
 
 <div class="section" id="visao">
-  <div class="kpi-grid" id="kpi-visao"></div>
+  <div class="kpi-grid kpi-grid-sticky" id="kpi-visao"></div>
   <div class="g2">
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Status SAMC</div>
@@ -555,7 +559,9 @@ h1{letter-spacing:.02em}
   <div class="g2">
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--green)"></span>Disciplina</div>
+      <div style="font-size:.68rem;color:var(--muted);margin-bottom:6px">Clique numa disciplina para filtrar Status LUPA/Fabricação abaixo · clique no número para ver na Cronograma</div>
       <div class="bar-list" id="b-disc"></div>
+      <div id="visao-disc-filter-note" style="font-size:.7rem;color:var(--blue);font-weight:600;margin-top:8px"></div>
     </div>
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Status LUPA</div>
@@ -583,17 +589,23 @@ h1{letter-spacing:.02em}
       automaticamente o Status SAMC na Tabela e na Cronograma — substitui a edição manual desse campo.
     </div>
     <div id="samc-resumo" style="font-size:.78rem;color:var(--blue);font-weight:600;margin-bottom:10px"></div>
-    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-      <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-status')" id="ms-samc-status-btn">Status ▾</button>
-        <div class="ms-drop" id="ms-samc-status" style="display:none"></div></div>
-      <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-fase')" id="ms-samc-fase-btn">Fase de Execução ▾</button>
-        <div class="ms-drop" id="ms-samc-fase" style="display:none"></div></div>
-      <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-fluxo')" id="ms-samc-fluxo-btn">Fluxo ▾</button>
-        <div class="ms-drop" id="ms-samc-fluxo" style="display:none"></div></div>
-      <input id="samc-search-input" type="text" placeholder="🔎 Buscar por Nº SS, Disciplina, Registro..." oninput="applySamcSearch(this.value)"
-        style="flex:1;min-width:200px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
-      <button id="samc-hide-nomatch-btn" onclick="toggleSamcHideNoMatch()" title="Algumas SS do relatório do cliente não têm nenhum registro correspondente cadastrado no sistema (ex: serviço que ainda não foi declarado na LUCAR). Este botão esconde essas SS da lista, deixando só as que já têm registro(s) vinculado(s)." style="background:rgba(107,114,128,.12);border:1px solid var(--muted);color:var(--muted);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🚫 Ocultar SS sem Registro no Sistema</button>
-      <button onclick="limparFiltrosSamc()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
+    <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">
+      <div onclick="toggleSamcFilterPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
+        <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>🔎 Filtros</div>
+        <span id="samc-filter-arrow" style="font-size:.8rem;color:var(--muted)">▼</span>
+      </div>
+      <div id="samc-filter-body" style="padding:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-status')" id="ms-samc-status-btn">Status ▾</button>
+          <div class="ms-drop" id="ms-samc-status" style="display:none"></div></div>
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-fase')" id="ms-samc-fase-btn">Fase de Execução ▾</button>
+          <div class="ms-drop" id="ms-samc-fase" style="display:none"></div></div>
+        <div class="ms-wrap"><button class="ms-btn" onclick="toggleSamcMs('ms-samc-fluxo')" id="ms-samc-fluxo-btn">Fluxo ▾</button>
+          <div class="ms-drop" id="ms-samc-fluxo" style="display:none"></div></div>
+        <input id="samc-search-input" type="text" placeholder="🔎 Buscar por Nº SS, Disciplina, Registro..." oninput="applySamcSearch(this.value)"
+          style="flex:1;min-width:200px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
+        <button id="samc-hide-nomatch-btn" onclick="toggleSamcHideNoMatch()" title="Algumas SS do relatório do cliente não têm nenhum registro correspondente cadastrado no sistema (ex: serviço que ainda não foi declarado na LUCAR). Este botão esconde essas SS da lista, deixando só as que já têm registro(s) vinculado(s)." style="background:rgba(107,114,128,.12);border:1px solid var(--muted);color:var(--muted);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🚫 Ocultar SS sem Registro no Sistema</button>
+        <button onclick="limparFiltrosSamc()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
+      </div>
     </div>
     <div class="tbl-wrap" style="max-height:440px;overflow-y:auto;overflow-x:auto">
       <table style="width:100%;border-collapse:collapse">
@@ -604,7 +616,7 @@ h1{letter-spacing:.02em}
   </div>
   </div>
   <div id="samc-sub-kpis" style="display:none">
-  <div class="kpi-grid" id="kpi-samc"></div>
+  <div class="kpi-grid kpi-grid-sticky-subtab" id="kpi-samc"></div>
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--blue)"></span>SAMC × Disciplina</div>
     <div class="tbl-wrap" style="max-height:280px;overflow-y:auto;overflow-x:auto"><table id="ct-samc-disc"></table></div>
@@ -615,7 +627,7 @@ h1{letter-spacing:.02em}
   </div>
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--purple)"></span>SAMC × Fabricação</div>
-    <div class="tbl-wrap" style="overflow-x:auto"><table id="ct-samc-fab"></table></div>
+    <div class="tbl-wrap tbl-wrap-page" style="overflow-x:auto"><table id="ct-samc-fab"></table></div>
   </div>
   <div class="g2">
     <div class="card">
@@ -632,7 +644,7 @@ h1{letter-spacing:.02em}
 
 <!-- ═══════════ SUPRIMENTO ═══════════ -->
 <div class="section" id="suprimento">
-  <div class="kpi-grid" id="kpi-sup"></div>
+  <div class="kpi-grid kpi-grid-sticky" id="kpi-sup"></div>
   <div class="g2">
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--teal)"></span>Suprimento por Disciplina</div>
@@ -641,18 +653,18 @@ h1{letter-spacing:.02em}
     </div>
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Suprimento × Status LUPA</div>
-      <div class="tbl-wrap"><table id="ct-sup-lupa"></table></div>
+      <div class="tbl-wrap tbl-wrap-page"><table id="ct-sup-lupa"></table></div>
     </div>
   </div>
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--green)"></span>Suprimento × Disciplina (Detalhado)</div>
-    <div class="tbl-wrap"><table id="ct-sup-disc"></table></div>
+    <div class="tbl-wrap tbl-wrap-page"><table id="ct-sup-disc"></table></div>
   </div>
 </div>
 
 <!-- ═══════════ PLANEJAMENTO ═══════════ -->
 <div class="section" id="planejamento">
-  <div class="kpi-grid" id="kpi-plan"></div>
+  <div class="kpi-grid kpi-grid-sticky" id="kpi-plan"></div>
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Status de Planejamento — Distribuição</div>
     <div class="bar-list" id="b-plan"></div>
@@ -671,7 +683,7 @@ h1{letter-spacing:.02em}
 
 <!-- ═══════════ DISCIPLINA ═══════════ -->
 <div class="section" id="disciplina">
-  <div class="kpi-grid" id="kpi-disc"></div>
+  <div class="kpi-grid kpi-grid-sticky" id="kpi-disc"></div>
   <div class="g2">
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--green)"></span>Status SAMC por Disciplina</div>
@@ -797,7 +809,7 @@ h1{letter-spacing:.02em}
 
 <!-- ═══════════ GRÁFICOS ESI ═══════════ -->
 <div class="section" id="curvas">
-  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px" id="curvas-kpi-cards"></div>
+  <div class="kpi-grid-sticky" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px" id="curvas-kpi-cards"></div>
   <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div style="font-weight:700;color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em">Curva S — Planejado x Realizado</div>
@@ -1989,7 +2001,21 @@ function donut(svgId, legId, data, colorMap) {
 }
 
 // ── BAR ───────────────────────────────────────────────────────────────────────
-function bars(id, entries, colorMap, narrow=false, drillKey=null) {
+let VISAO_DISC_FILTER = null; // item 9 — filtro local de Disciplina na Visão Geral (não mexe na Cronograma)
+function visaoGeralFiltrarDisciplina(k){
+  VISAO_DISC_FILTER = (VISAO_DISC_FILTER === k) ? null : k;
+  const dataBase = getData();
+  const dataFiltrada = VISAO_DISC_FILTER ? dataBase.filter(r=>r.disciplina===VISAO_DISC_FILTER) : dataBase;
+  const disc = cnt(dataBase,'disciplina'); // a lista de disciplinas em si nunca é filtrada, só destacada
+  const lupa = cnt(dataFiltrada,'status_lupa');
+  const fab = cnt(dataFiltrada,'fabricacao');
+  bars('b-disc', topN(disc), null, false, 'disciplina', 'visaoGeralFiltrarDisciplina', VISAO_DISC_FILTER);
+  bars('b-lupa', topN(lupa), LUPA_COLORS, false, 'status_lupa');
+  bars('b-fab', topN(fab), {'Sim':'#22c55e','Não':'#1a6fad','Verificar':'#f59e0b'}, false, 'fabricacao');
+  const noteEl = document.getElementById('visao-disc-filter-note');
+  if(noteEl) noteEl.textContent = VISAO_DISC_FILTER ? `Status LUPA e Fabricação abaixo filtrados por: ${VISAO_DISC_FILTER} (clique de novo na disciplina para limpar)` : '';
+}
+function bars(id, entries, colorMap, narrow=false, drillKey=null, localFilterFn=null, activeKey=null) {
   const el = document.getElementById(id);
   if(!el) return;
   const max = Math.max(...entries.map(e=>e[1]),1);
@@ -1997,11 +2023,19 @@ function bars(id, entries, colorMap, narrow=false, drillKey=null) {
     const pctV = Math.round(v/max*100);
     const col = colorMap?colorMap[k]||COLORS[i%COLORS.length]:COLORS[i%COLORS.length];
     const short = k.length>42?k.slice(0,40)+'…':k;
-    const click = drillKey ? `onclick="drillDown('${drillKey}','${k.replace(/'/g,"\\'")}')"`:'';
-    return `<div class="bar-row${drillKey?' clickable':''}" ${click} title="${drillKey?'Clique para filtrar no Cronograma: '+k:''}">
+    const kEsc = k.replace(/'/g,"\\'");
+    const isActive = localFilterFn && activeKey===k;
+    // Com localFilterFn: a barra (fora do número) filtra localmente esta mesma
+    // tela; o número, separado, continua abrindo a Cronograma — clique com
+    // propósitos diferentes, ao contrário do padrão antigo (a linha toda ia
+    // direto pra Cronograma).
+    const rowClick = localFilterFn ? `onclick="${localFilterFn}('${kEsc}')"` : (drillKey ? `onclick="drillDown('${drillKey}','${kEsc}')"` : '');
+    const rowTitle = localFilterFn ? `Clique para filtrar esta tela por: ${k}` : (drillKey ? 'Clique para filtrar no Cronograma: '+k : '');
+    const cntClick = (localFilterFn && drillKey) ? `onclick="event.stopPropagation();drillDown('${drillKey}','${kEsc}')" title="Clique para ver no Cronograma" style="cursor:pointer;text-decoration:underline"` : '';
+    return `<div class="bar-row${(drillKey||localFilterFn)?' clickable':''}${isActive?' bar-row-active':''}" ${rowClick} title="${rowTitle}">
       <div class="bar-lbl ${narrow?'narrow':''}" title="${k}">${short}</div>
       <div class="bar-track"><div class="bar-fill" style="width:${pctV}%;background:${col}">${v>5?v:''}</div></div>
-      <div class="bar-cnt">${v.toLocaleString('pt-BR')}</div>
+      <div class="bar-cnt" ${cntClick}>${v.toLocaleString('pt-BR')}</div>
     </div>`;
   }).join('');
 }
@@ -3076,9 +3110,9 @@ function renderAll() {
   ].join('');
   donut('d-samc','l-samc',samc,SAMC_COLORS);
   donut('d-sup','l-sup',sup,SUP_COLORS);
-  bars('b-disc', topN(disc), null, false, 'disciplina');
-  bars('b-lupa', topN(lupa), LUPA_COLORS, false, 'status_lupa');
-  bars('b-fab', topN(fab), {'Sim':'#22c55e','Não':'#1a6fad','Verificar':'#f59e0b'}, false, 'fabricacao');
+  bars('b-disc', topN(disc), null, false, 'disciplina', 'visaoGeralFiltrarDisciplina', VISAO_DISC_FILTER);
+  bars('b-lupa', topN(VISAO_DISC_FILTER ? cnt(data.filter(r=>r.disciplina===VISAO_DISC_FILTER),'status_lupa') : lupa), LUPA_COLORS, false, 'status_lupa');
+  bars('b-fab', topN(VISAO_DISC_FILTER ? cnt(data.filter(r=>r.disciplina===VISAO_DISC_FILTER),'fabricacao') : fab), {'Sim':'#22c55e','Não':'#1a6fad','Verificar':'#f59e0b'}, false, 'fabricacao');
 
   // ── SAMC
   const emRev = samc['Em Revisão']||0;
@@ -5040,13 +5074,40 @@ function calcularKPIs(){
 }
 
 function calcularCurvaPlanejada(){
-  const data = fonteParaCurvaPlanejada();
-  const pesoTotal = data.reduce((s,r) => s + calcularPesoEfetivo(r), 0);
+  // Antes: todo o peso de um registro (horas x fator disciplina) era jogado de
+  // uma vez só na data de término prevista da SS inteira — uma função "degrau"
+  // que gerava saltos abruptos quando muitos registros tinham término previsto
+  // concentrado no mesmo período. Agora: usa a granularidade de ETAPA (que a
+  // Folha Tarefa já expõe, com início/fim/horas próprios) e distribui o peso de
+  // cada etapa LINEARMENTE entre o início e o fim dela — mesmo princípio usado
+  // em curva S de EVM/Primavera (resource-loaded, distribuição uniforme por
+  // dia). Registros sem etapas detalhadas (raro, cronogramas antigos sem XML
+  // reimportado) caem de volta no comportamento antigo, pra não perder peso.
+  const dataPlan = fonteParaCurvaPlanejada();
+  const pesoTotal = dataPlan.reduce((s,r) => s + calcularPesoEfetivo(r), 0);
   if(pesoTotal === 0) return [];
   const porData = {};
-  data.forEach(r => {
-    const d = r.data_prevista_fim.slice(0,10);
-    porData[d] = (porData[d]||0) + calcularPesoEfetivo(r);
+  dataPlan.forEach(r => {
+    const pesoRegistro = calcularPesoEfetivo(r);
+    const etapas = (r.etapas_cronograma||[]).filter(e => e.start && e.finish && e.horas);
+    if(!etapas.length){
+      const d = r.data_prevista_fim.slice(0,10);
+      porData[d] = (porData[d]||0) + pesoRegistro;
+      return;
+    }
+    const horasRegistro = etapas.reduce((s,e) => s+e.horas, 0) || 1;
+    etapas.forEach(e => {
+      const pesoEtapa = pesoRegistro * (e.horas/horasRegistro);
+      const dIni = new Date(e.start.slice(0,10));
+      const dFim = new Date(e.finish.slice(0,10));
+      const dias = Math.max(1, Math.round((dFim-dIni)/86400000)+1);
+      const pesoPorDia = pesoEtapa/dias;
+      for(let i=0;i<dias;i++){
+        const d = new Date(dIni); d.setDate(d.getDate()+i);
+        const chave = d.toISOString().slice(0,10);
+        porData[chave] = (porData[chave]||0) + pesoPorDia;
+      }
+    });
   });
   const datas = Object.keys(porData).sort();
   let acumulado = 0;
@@ -5122,6 +5183,81 @@ function chaveDoPeriodo(dataStr, granularidade){
   const quinzena = Math.ceil(semanaNum/2);
   return `${ano}-Q${String(quinzena).padStart(2,'0')}`;
 }
+const DIAS_SEMANA_CURTO = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function fmtDataCurtaCurva(d){
+  return `${DIAS_SEMANA_CURTO[d.getDay()]}${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getFullYear()).slice(-2)}`;
+}
+// Constrói a lista de períodos CONTÍNUA do início ao fim do dataset — ao contrário
+// da versão antiga, que só criava um período se houvesse alguma atividade nele,
+// e por isso "pulava" hiatos sem trabalho (dando a impressão de evolução onde não
+// havia). Cada período já sai com o rótulo formatado e a data de corte usada para
+// "carregar" o valor acumulado.
+// Semana = semana ISO real (Segunda a Domingo). Quinzena = as duas metades do mês
+// civil (dias 1-15 e dia 16 até o fim do mês), numeradas em sequência no ano —
+// ex: 2ª quinzena de agosto = Quin16, 1ª quinzena de setembro = Quin17. O primeiro
+// período da série sempre começa na data real de início dos dados (não na data
+// "cheia" do calendário), igual já acontecia com o Mês.
+function construirPeriodosContinuos(dataInicioStr, dataFimStr, granularidade){
+  const periodos = [];
+  const fim = new Date(dataFimStr+'T00:00:00');
+  if(granularidade === 'mensal'){
+    let cursor = new Date(dataInicioStr+'T00:00:00');
+    while(cursor <= fim){
+      const fimMes = new Date(cursor.getFullYear(), cursor.getMonth()+1, 0);
+      const fimBucket = fimMes < fim ? fimMes : fim;
+      const chave = `${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}`;
+      const rotulo = `Mês${String(cursor.getMonth()+1).padStart(2,'0')}-${String(cursor.getFullYear()).slice(-2)}(${fmtDataCurtaCurva(cursor)} a ${fmtDataCurtaCurva(fimBucket)})`;
+      periodos.push({ chave, rotulo, dataCorte: fimBucket.toISOString().slice(0,10) });
+      cursor = new Date(fimBucket); cursor.setDate(cursor.getDate()+1);
+    }
+    return periodos;
+  }
+  if(granularidade === 'quinzenal'){
+    let cursor = new Date(dataInicioStr+'T00:00:00');
+    while(cursor <= fim){
+      const dia = cursor.getDate();
+      const mes = cursor.getMonth(); // 0-indexado
+      const ano = cursor.getFullYear();
+      const primeiraMetade = dia <= 15;
+      const fimMes = new Date(ano, mes+1, 0).getDate();
+      const fimBucketNatural = new Date(ano, mes, primeiraMetade ? 15 : fimMes);
+      const fimBucket = fimBucketNatural < fim ? fimBucketNatural : fim;
+      const numero = (mes)*2 + (primeiraMetade ? 1 : 2); // mês 0-indexado: janeiro(mes=0) 1ªmetade=1, 2ªmetade=2 ...
+      const chave = `${ano}-Q${numero}`;
+      const rotulo = `Quin${String(numero).padStart(2,'0')}-${String(ano).slice(-2)}(${fmtDataCurtaCurva(cursor)} a ${fmtDataCurtaCurva(fimBucket)})`;
+      periodos.push({ chave, rotulo, dataCorte: fimBucket.toISOString().slice(0,10) });
+      cursor = new Date(fimBucket); cursor.setDate(cursor.getDate()+1);
+    }
+    return periodos;
+  }
+  // semanal: semana ISO real (Segunda a Domingo) — o primeiro período pode vir
+  // "cortado" se os dados começarem no meio de uma semana.
+  let cursor = new Date(dataInicioStr+'T00:00:00');
+  while(cursor <= fim){
+    const diaSemanaISO = (cursor.getDay()+6)%7; // 0=segunda
+    const segundaDaSemana = new Date(cursor); segundaDaSemana.setDate(segundaDaSemana.getDate()-diaSemanaISO);
+    const domingoDaSemana = new Date(segundaDaSemana); domingoDaSemana.setDate(domingoDaSemana.getDate()+6);
+    const fimBucket = domingoDaSemana < fim ? domingoDaSemana : fim;
+    const { ano, semana } = isoWeekAnoNumero(cursor);
+    const chave = `${ano}-W${semana}`;
+    const rotulo = `Sem${String(semana).padStart(2,'0')}-${String(ano).slice(-2)}(${fmtDataCurtaCurva(cursor)} a ${fmtDataCurtaCurva(fimBucket)})`;
+    periodos.push({ chave, rotulo, dataCorte: fimBucket.toISOString().slice(0,10) });
+    cursor = new Date(fimBucket); cursor.setDate(cursor.getDate()+1);
+  }
+  return periodos;
+}
+function isoWeekAnoNumero(d){
+  const [ano, wPart] = isoWeekKey(d).split('_W');
+  return { ano: Number(ano), semana: Number(wPart) };
+}
+// Pega o último valor conhecido (acumulado) com data <= dataCorte — é assim que
+// um período sem nenhuma atividade nova simplesmente repete o valor anterior
+// (linha reta/plana), em vez de sumir da tabela/gráfico.
+function valorAcumuladoAte(pontosDiarios, dataCorte){
+  let valor = 0;
+  for(const p of pontosDiarios){ if(p.data <= dataCorte) valor = p.pct; else break; }
+  return valor;
+}
 function agregarCurvaPorPeriodo(pontos, granularidade){
   const baldes = {};
   pontos.forEach(p => {
@@ -5146,7 +5282,7 @@ function setCurvaGranularidade(g){
   renderCurvaSKPIs();
 }
 
-function desenharCurvaS(planejadaAgr, realizadaAgr){
+function desenharCurvaS(periodos, mapaPlan, mapaReal){
   const svg = document.getElementById('svgCurvaS');
   if(!svg) return;
   const linhaPlan = document.getElementById('linhaPlanejada');
@@ -5154,57 +5290,76 @@ function desenharCurvaS(planejadaAgr, realizadaAgr){
   const grupoRotulos = document.getElementById('rotulosCurva');
   if(grupoRotulos) grupoRotulos.innerHTML = '';
 
-  const todosPeriodos = [...new Set([...planejadaAgr.map(p=>p.periodo), ...realizadaAgr.map(p=>p.periodo)])].sort();
-  if(!todosPeriodos.length){
+  if(!periodos.length){
     linhaPlan.removeAttribute('points');
     linhaReal.removeAttribute('points');
     return;
   }
   const x0 = 50, y0 = 350, w = 730, h = 330;
-  const escalaX = i => x0 + (todosPeriodos.length > 1 ? (i/(todosPeriodos.length-1))*w : w/2);
+  const escalaX = i => x0 + (periodos.length > 1 ? (i/(periodos.length-1))*w : w/2);
   const escalaY = pct => y0 - (Math.min(pct,100)/100)*h;
 
-  function serieParaPontos(serieAgr, corRotulo){
-    let ultimo = 0;
-    const coords = [];
-    todosPeriodos.forEach((per,i) => {
-      const p = serieAgr.find(s => s.periodo === per);
-      if(p) ultimo = p.pct;
-      const x = escalaX(i), y = escalaY(ultimo);
-      coords.push(`${x},${y}`);
-      if(p && grupoRotulos){
-        const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
-        txt.setAttribute('x', x); txt.setAttribute('y', y - (corRotulo==='#2563eb'?10:-16));
-        txt.setAttribute('font-size','9.5'); txt.setAttribute('fill', corRotulo);
-        txt.setAttribute('text-anchor','middle');
-        txt.textContent = ultimo.toFixed(0)+'%';
-        grupoRotulos.appendChild(txt);
-      }
+  function serieParaPontos(mapa, corRotulo, ehPlan){
+    const coords = periodos.map((per,i) => {
+      const pct = mapa[per.chave] ?? 0;
+      const x = escalaX(i), y = escalaY(pct);
+      coords_labels(x,y,pct);
+      return `${x},${y}`;
     });
+    function coords_labels(x,y,pct){
+      if(!grupoRotulos) return;
+      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x', x); txt.setAttribute('y', y - (ehPlan?10:-16));
+      txt.setAttribute('font-size','9.5'); txt.setAttribute('fill', corRotulo);
+      txt.setAttribute('text-anchor','middle');
+      txt.textContent = pct.toFixed(0)+'%';
+      grupoRotulos.appendChild(txt);
+    }
     return coords.join(' ');
   }
-  linhaPlan.setAttribute('points', serieParaPontos(planejadaAgr, '#94a3b8'));
-  linhaReal.setAttribute('points', serieParaPontos(realizadaAgr, '#2563eb'));
+  linhaPlan.setAttribute('points', serieParaPontos(mapaPlan, '#94a3b8', true));
+  linhaReal.setAttribute('points', serieParaPontos(mapaReal, '#2563eb', false));
+
+  // Eixo X: um rótulo curto por período (Sem34-26 / Quin16-26 / Mês08-26), sem o
+  // detalhe do intervalo completo (que já aparece na tabela abaixo) — evita
+  // amontoar texto quando há muitos períodos.
+  if(grupoRotulos){
+    periodos.forEach((per,i) => {
+      const x = escalaX(i);
+      // Mostra só 1 a cada N rótulos quando há muitos períodos, pra não sobrepor texto.
+      const passo = periodos.length > 20 ? Math.ceil(periodos.length/20) : 1;
+      if(i % passo !== 0 && i !== periodos.length-1) return;
+      const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+      txt.setAttribute('x', x); txt.setAttribute('y', y0 + 16);
+      txt.setAttribute('font-size','8.5'); txt.setAttribute('fill', '#64748b');
+      txt.setAttribute('text-anchor','middle');
+      txt.setAttribute('transform', `rotate(35 ${x} ${y0+16})`);
+      txt.textContent = per.rotulo.split('(')[0]; // só "Sem34-26", sem o intervalo de datas
+      grupoRotulos.appendChild(txt);
+    });
+  }
 }
 
-function renderTabelaCurva(planejadaAgr, realizadaAgr){
+function renderTabelaCurva(periodos, mapaPlan, mapaReal){
   const cont = document.getElementById('curva-tabela-container');
   if(!cont) return;
-  const todosPeriodos = [...new Set([...planejadaAgr.map(p=>p.periodo), ...realizadaAgr.map(p=>p.periodo)])].sort();
-  if(!todosPeriodos.length){
+  if(!periodos.length){
     cont.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:10px">Sem dados suficientes ainda para montar a tabela.</div>';
     return;
   }
-  let ultPlan = 0, ultReal = 0;
-  const linhas = todosPeriodos.map(per => {
-    const p = planejadaAgr.find(x=>x.periodo===per); if(p) ultPlan = p.pct;
-    const r = realizadaAgr.find(x=>x.periodo===per); if(r) ultReal = r.pct;
-    const desvio = ultReal - ultPlan;
+  let realAnterior = 0;
+  const linhas = periodos.map(per => {
+    const plan = mapaPlan[per.chave] ?? 0;
+    const real = mapaReal[per.chave] ?? 0;
+    const desvio = real - plan;
+    const noPeriodo = real - realAnterior; // item 6: diferença do Realizado em relação ao período anterior
+    realAnterior = real;
     const cor = Math.abs(desvio) < 3 ? '#22c55e' : (desvio < 0 ? '#ef4444' : '#2563eb');
     return `<tr>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0">${per}</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${ultPlan.toFixed(1)}%</td>
-      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${ultReal.toFixed(1)}%</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap">${per.rotulo}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${plan.toFixed(1)}%</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${real.toFixed(1)}%</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${noPeriodo>=0?'+':''}${noPeriodo.toFixed(1)}%</td>
       <td style="padding:6px 10px;border-bottom:1px solid #f0f0f0;text-align:right;color:${cor};font-weight:600">${desvio>=0?'+':''}${desvio.toFixed(1)} pp</td>
     </tr>`;
   }).join('');
@@ -5214,6 +5369,7 @@ function renderTabelaCurva(planejadaAgr, realizadaAgr){
         <th style="padding:6px 10px;text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase">Período</th>
         <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">Planejado</th>
         <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">Realizado</th>
+        <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase" title="Diferença do Realizado em relação ao período anterior">% No Período</th>
         <th style="padding:6px 10px;text-align:right;color:var(--muted);font-size:.72rem;text-transform:uppercase">Desvio</th>
       </tr></thead>
       <tbody>${linhas}</tbody>
@@ -5223,12 +5379,22 @@ function renderTabelaCurva(planejadaAgr, realizadaAgr){
 async function renderCurvaSKPIs(){
   const kpis = calcularKPIs();
   renderKPICards(kpis);
-  const planejadaBruta = calcularCurvaPlanejada();
-  const realizadaBruta = await calcularCurvaRealizada();
-  const planejadaAgr = agregarCurvaPorPeriodo(planejadaBruta, _curvaGranularidade);
-  const realizadaAgr = agregarCurvaPorPeriodo(realizadaBruta, _curvaGranularidade);
-  desenharCurvaS(planejadaAgr, realizadaAgr);
-  renderTabelaCurva(planejadaAgr, realizadaAgr);
+  const planejadaBruta = calcularCurvaPlanejada();       // pontos diários (peso do cronograma)
+  const realizadaBruta = await calcularCurvaRealizada(); // pontos dos snapshots + hoje
+  const todasDatas = [...planejadaBruta.map(p=>p.data), ...realizadaBruta.map(p=>p.data)].sort();
+  if(!todasDatas.length){
+    desenharCurvaS([], {}, {});
+    renderTabelaCurva([], {}, {});
+    return;
+  }
+  const periodos = construirPeriodosContinuos(todasDatas[0], todasDatas[todasDatas.length-1], _curvaGranularidade);
+  const mapaPlan = {}, mapaReal = {};
+  periodos.forEach(per => {
+    mapaPlan[per.chave] = valorAcumuladoAte(planejadaBruta, per.dataCorte);
+    mapaReal[per.chave] = valorAcumuladoAte(realizadaBruta, per.dataCorte);
+  });
+  desenharCurvaS(periodos, mapaPlan, mapaReal);
+  renderTabelaCurva(periodos, mapaPlan, mapaReal);
 }
 
 // ── FOLHA TAREFA (7 / 15 / 30 dias) ─────────────────────────────────────────
@@ -7539,6 +7705,14 @@ document.addEventListener('change', function(e){
 });
 let SAMC_SEARCH = '';
 let SAMC_HIDE_NOMATCH = false; // oculta SS sem nenhum registro correspondente no sistema
+function toggleSamcFilterPanel(){
+  const body = document.getElementById('samc-filter-body');
+  const arrow = document.getElementById('samc-filter-arrow');
+  if(!body) return;
+  const collapsed = body.style.display === 'none';
+  body.style.display = collapsed ? 'flex' : 'none';
+  if(arrow) arrow.textContent = collapsed ? '▼' : '▶';
+}
 function toggleSamcHideNoMatch(){
   SAMC_HIDE_NOMATCH = !SAMC_HIDE_NOMATCH;
   const btn = document.getElementById('samc-hide-nomatch-btn');
@@ -8764,10 +8938,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   } else {
     // Puxa nuvem e mescla com local
-    await pullEditsAndMerge();
-    await pullMateriaisDetProcAndRender();
-    await pullLucarFromCloud();
-    await pullSamcFromCloud();
+    // As 4 buscas iniciais na nuvem rodavam uma depois da outra (cada uma esperando
+    // a anterior terminar) — isso somava o tempo de rede de todas, deixando a
+    // inicialização bem mais lenta do que precisava. Elas não dependem umas das
+    // outras (gravam em estruturas de dados separadas), então agora rodam em
+    // paralelo — o carregamento passa a demorar só o tempo da mais lenta, não a
+    // soma de todas.
+    await Promise.all([
+      pullEditsAndMerge(),
+      pullMateriaisDetProcAndRender(),
+      pullLucarFromCloud(),
+      pullSamcFromCloud()
+    ]);
     renderSamcSection(); // sem isso, o dado chega da nuvem mas a tela não é atualizada — parecia que tinha "perdido" o import
     autoSnapshotIfNeeded(); // salva a "foto" da semana, se ainda não existir uma
     carregarBaselineCronograma(); // atualiza o texto de status da baseline no Painel Admin
