@@ -118,6 +118,7 @@ html{scroll-padding-top:180px}
 table{width:100%;border-collapse:collapse;font-size:.74rem}
 thead tr{border-bottom:2px solid var(--blue)}
 th{padding:9px 10px;text-align:left;font-weight:700;text-transform:uppercase;font-size:.63rem;letter-spacing:.06em;color:var(--muted);white-space:nowrap;position:sticky;top:0;z-index:10;background:var(--card);box-shadow:inset 0 -2px 0 var(--blue);cursor:pointer}
+.tbl-wrap-page{overflow-y:visible!important}
 .tbl-wrap-page th{top:var(--sticky-total,168px);z-index:120}
 .tbl-wrap-page-abaixo-barra th{top:calc(var(--sticky-total,168px) + var(--folha-toolbar-h,60px));z-index:120}
 th:hover{color:var(--accent)}
@@ -538,10 +539,20 @@ h1{letter-spacing:.02em}
   <!-- Tabela-resumo por disciplina (visão cruzada) -->
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Resumo Executivo por Disciplina</div>
-    <div class="tbl-wrap tbl-wrap-page" style="overflow-x:auto">
+    <div class="tbl-wrap tbl-wrap-page" style="overflow-x:auto;overflow-y:visible">
       <table id="pfil-resumo-disc" style="width:100%;border-collapse:collapse;font-size:.72rem"></table>
     </div>
   </div>
+  <style>
+    /* BUGFIX: este card é pequeno (poucas linhas, sem scroll interno) — mas o
+       overflow-x:auto do wrapper força o navegador a tratar overflow-y como
+       "auto" mesmo estando escrito "visible" (regra do próprio CSS), o que faz
+       esse card virar o container de scroll do cabeçalho sticky. Como o offset
+       sticky global (~155px) é maior que a altura do card inteiro, o cabeçalho
+       era empurrado pro fundo, abaixo de todas as linhas. Travando o top em 0
+       aqui, o cabeçalho sticky nunca ultrapassa a altura do próprio card. */
+    #pfil-resumo-disc th { top: 0 !important; }
+  </style>
 
 </div>
 
@@ -583,14 +594,14 @@ h1{letter-spacing:.02em}
   </div>
   <div style="height:16px"></div>
   <div id="samc-sub-solicitacoes">
-  <div class="card" id="samc-import-card" style="position:relative;z-index:5">
+  <div class="card" id="samc-import-card" style="position:relative;z-index:200">
     <div class="card-title"><span class="dot" style="background:var(--blue)"></span>Solicitações de Serviço (SAMC) — importado do relatório do cliente</div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px">
       Importe o relatório "RelatorioSolicitacaoServico...xlsx" pelo Painel Admin. O cruzamento é feito pelo Nº SS e atualiza
       automaticamente o Status SAMC na Tabela e na Cronograma — substitui a edição manual desse campo.
     </div>
     <div id="samc-resumo" style="font-size:.78rem;color:var(--blue);font-weight:600;margin-bottom:10px"></div>
-    <div class="card" style="margin-bottom:10px;padding:0;overflow:hidden">
+    <div class="card" style="margin-bottom:10px;padding:0">
       <div onclick="toggleSamcFilterPanel()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2)">
         <div class="card-title" style="margin:0"><span class="dot" style="background:var(--blue)"></span>🔎 Filtros</div>
         <span id="samc-filter-arrow" style="font-size:.8rem;color:var(--muted)">▼</span>
@@ -628,7 +639,7 @@ h1{letter-spacing:.02em}
   </div>
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--purple)"></span>SAMC × Fabricação</div>
-    <div class="tbl-wrap tbl-wrap-page" style="overflow-x:auto"><table id="ct-samc-fab"></table></div>
+    <div class="tbl-wrap tbl-wrap-page" style="overflow-x:auto;overflow-y:visible"><table id="ct-samc-fab"></table></div>
   </div>
   <div class="g2">
     <div class="card">
@@ -814,7 +825,10 @@ h1{letter-spacing:.02em}
   <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
       <div style="font-weight:700;color:var(--muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.05em">Curva S — Planejado x Realizado</div>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <select id="curva-disc-filter" onchange="setCurvaDisciplina(this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">
+          <option value="">Todas as disciplinas</option>
+        </select>
         <button class="curva-gran-btn active" data-gran="semanal" onclick="setCurvaGranularidade('semanal')" style="padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">Semanal</button>
         <button class="curva-gran-btn" data-gran="quinzenal" onclick="setCurvaGranularidade('quinzenal')" style="padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">Quinzenal</button>
         <button class="curva-gran-btn" data-gran="mensal" onclick="setCurvaGranularidade('mensal')" style="padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--font)">Mensal</button>
@@ -853,7 +867,7 @@ h1{letter-spacing:.02em}
     </div>
   </div>
   <div id="folha-tarefa-resumo" style="font-size:.78rem;color:var(--muted);margin-bottom:12px"></div>
-  <div id="folha-tarefa-container" class="tbl-wrap-page-abaixo-barra" style="overflow-x:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px"></div>
+  <div id="folha-tarefa-container" class="tbl-wrap-page-abaixo-barra" style="background:#fff;border:1px solid #e5e7eb;border-radius:10px"></div>
 </div>
 <div class="section" id="graficos-esi">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:8px">
@@ -4178,6 +4192,8 @@ function _fluxoStageInfo(kind, reg){
       return {status: notReg ? 'pending' : (done?'done':'active'), icon:'🏭', label:'Suprimento', text: v || 'Não Cadastrado'};
     }
     case 'det': {
+      // Sem necessidade de fabricação: Detalhamento nem se aplica a este registro.
+      if(d.fabricacao === 'Não') return {status:'na', icon:'📏', label:'Detalhamento', text:'N/A esta etapa'};
       const dp = (typeof DETPROC_DATA!=='undefined') ? DETPROC_DATA[d.registro] : null;
       if(!dp || !dp.detalhamentos || !dp.detalhamentos.length) return {status:'pending', icon:'📏', label:'Detalhamento', text:'Sem dados importados'};
       const emitidos = dp.detalhamentos.filter(it=>it.statusPF==='PF Emitida').length;
@@ -4185,14 +4201,31 @@ function _fluxoStageInfo(kind, reg){
       return {status: emitidos===total ? 'done':'active', icon:'📏', label:'Detalhamento', text:`${emitidos}/${total} PF emitida(s)`};
     }
     case 'proc': {
+      // Sem necessidade de fabricação: Processamento nem se aplica a este registro.
+      if(d.fabricacao === 'Não') return {status:'na', icon:'⚙️', label:'Processamento', text:'N/A esta etapa'};
       const dp = (typeof DETPROC_DATA!=='undefined') ? DETPROC_DATA[d.registro] : null;
       if(!dp || !dp.detalhamentos) return {status:'pending', icon:'⚙️', label:'Processamento', text:'Sem dados importados'};
       const comApon = dp.detalhamentos.filter(it=>it.apon);
       if(!comApon.length) return {status:'pending', icon:'⚙️', label:'Processamento', text:'Sem apontamento'};
       return {status:'active', icon:'⚙️', label:'Processamento', text:`${comApon.length} item(ns) em execução`};
     }
-    case 'medicao':
-      return {status:'na', icon:'📊', label:'Medição', text:'Etapa ainda não desenvolvida'};
+    case 'medicao_book': {
+      // Etapa de Medição do Book de Planejamento — sempre aplicável (todo
+      // registro é planejável por contrato), nunca aparece como "Não Aplicável".
+      const done = d.status_plan === 'Planejamento Encerrado';
+      return {status: done ? 'active':'pending', icon:'📊', label:'Medição', text: done ? 'Apto a medir o Book de Planejamento' : 'Aguardando Planejamento Encerrado'};
+    }
+    case 'medicao_proc': {
+      // Etapa de Medição do Processamento (fabricação) — só se aplica quando
+      // existe fabricação a medir. Fica laranja quando não há necessidade de
+      // fabricação (nada a processar, já "pula" essa etapa) OU quando o Avanço
+      // do Processamento chegou a 100% (fabricação concluída). As duas
+      // condições são complementares (basta uma ser verdadeira).
+      if(d.fabricacao === 'Não') return {status:'active', icon:'📊', label:'Medição', text:'Sem necessidade de fabricação'};
+      const avanco = (typeof computeProcessamentoAvanco === 'function') ? computeProcessamentoAvanco(d.registro) : 'NA';
+      if(avanco !== 'NA' && avanco >= 100) return {status:'active', icon:'📊', label:'Medição', text:'Avanço do Processamento: 100%'};
+      return {status:'na', icon:'📊', label:'Medição', text:'Não Aplicável'};
+    }
   }
 }
 
@@ -4213,7 +4246,7 @@ function renderFluxo(){
   const all = getData(); // somente registros ativos (mesmo escopo das demais abas)
   const registros = all.filter(r=>r.nro_ss === val || String(r.nro_ss||'').toLowerCase() === val.toLowerCase());
   if(!registros.length){ cont.innerHTML = `<div class="flux-empty">Nenhum registro <strong>ativo</strong> encontrado para "${val}". Verifique o número da SS ou se os registros dessa SS estão cancelados/encerrados.</div>`; return; }
-  const stagesOrder = [['lupa','LUPA/LUCAR'],['samc','SAMC'],['plan','Planejamento'],['sup','Suprimento'],['det','Detalhamento'],['proc','Processamento'],['medicao','Medição']];
+  const stagesOrder = [['lupa','LUPA/LUCAR'],['samc','SAMC'],['plan','Planejamento'],['medicao_book','Medição'],['sup','Suprimento'],['det','Detalhamento'],['proc','Processamento'],['medicao_proc','Medição']];
   let html = `<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px">📌 <strong style="color:var(--text)">${val}</strong> — ${registros.length} registro(s) encontrado(s)</div>`;
   registros.forEach(reg=>{
     html += `<div class="flux-card">
@@ -5126,13 +5159,18 @@ function atualizarStatusBaseline(){
 // (se existir) ou, como fallback, os dados atuais do cronograma importado.
 function fonteParaCurvaPlanejada(){
   if(_baselineCronograma && _baselineCronograma.registros){
-    return Object.values(_baselineCronograma.registros).filter(r => r.horas_planejadas && r.data_prevista_fim);
+    return filtrarPorDisciplinaCurva(Object.values(_baselineCronograma.registros).filter(r => r.horas_planejadas && r.data_prevista_fim));
   }
-  return getData().filter(r => r.horas_planejadas && r.data_prevista_fim);
+  return filtrarPorDisciplinaCurva(getData().filter(r => r.horas_planejadas && r.data_prevista_fim));
 }
 
+// Filtra por _curvaDisciplina quando setada; '' (Todas as disciplinas) não filtra nada.
+function filtrarPorDisciplinaCurva(arr){
+  if(!_curvaDisciplina) return arr;
+  return arr.filter(r => r.disciplina === _curvaDisciplina);
+}
 function calcularKPIs(){
-  const dataReal = getData().filter(r => r.horas_planejadas);
+  const dataReal = filtrarPorDisciplinaCurva(getData().filter(r => r.horas_planejadas));
   const pesoTotalReal = dataReal.reduce((s,r) => s + calcularPesoEfetivo(r), 0);
   const pesoConcluido = dataReal.reduce((s,r) => s + calcularPesoEfetivo(r) * ((r.percent_execucao||0)/100), 0);
   const avancoFisico = pesoTotalReal > 0 ? (pesoConcluido/pesoTotalReal*100) : 0;
@@ -5159,6 +5197,19 @@ function calcularCurvaPlanejada(){
   // em curva S de EVM/Primavera (resource-loaded, distribuição uniforme por
   // dia). Registros sem etapas detalhadas (raro, cronogramas antigos sem XML
   // reimportado) caem de volta no comportamento antigo, pra não perder peso.
+  //
+  // Períodos de paralisação da campanha: dias em que não há trabalho algum,
+  // independente do que start/finish da etapa diga (o XML do MS Project já
+  // ajusta o calendário internamente pra pular esses dias, mas nosso parser só
+  // lê start/finish da etapa — não lê o calendário/exceções do Project — então
+  // sem isso aqui uma etapa que atravessa o período parado reparte peso nele
+  // como se fosse dia útil normal). Formato: 'AAAA-MM-DD' (inclusive nas pontas).
+  const PERIODOS_PARALISACAO = [
+    { inicio: '2027-01-08', fim: '2027-02-06' }, // Paralisação da campanha (29 dias)
+  ];
+  function ehDiaParalisado(dataStr){
+    return PERIODOS_PARALISACAO.some(p => dataStr >= p.inicio && dataStr <= p.fim);
+  }
   const dataPlan = fonteParaCurvaPlanejada();
   const pesoTotal = dataPlan.reduce((s,r) => s + calcularPesoEfetivo(r), 0);
   if(pesoTotal === 0) return [];
@@ -5177,12 +5228,20 @@ function calcularCurvaPlanejada(){
       const dIni = new Date(e.start.slice(0,10));
       const dFim = new Date(e.finish.slice(0,10));
       const dias = Math.max(1, Math.round((dFim-dIni)/86400000)+1);
-      const pesoPorDia = pesoEtapa/dias;
+      // Lista de dias do intervalo que NÃO caem num período de paralisação.
+      const chavesUteis = [];
       for(let i=0;i<dias;i++){
         const d = new Date(dIni); d.setDate(d.getDate()+i);
         const chave = d.toISOString().slice(0,10);
-        porData[chave] = (porData[chave]||0) + pesoPorDia;
+        if(!ehDiaParalisado(chave)) chavesUteis.push(chave);
       }
+      // Se a etapa inteira cai dentro da paralisação (não deveria acontecer,
+      // já que o Project ajusta o calendário — mas por segurança não perdemos
+      // peso nenhum), cai de volta pro comportamento antigo (reparte em todos
+      // os dias corridos) em vez de silenciosamente descartar o peso da etapa.
+      const alvo = chavesUteis.length ? chavesUteis : Array.from({length:dias}, (_,i) => { const d = new Date(dIni); d.setDate(d.getDate()+i); return d.toISOString().slice(0,10); });
+      const pesoPorDia = pesoEtapa/alvo.length;
+      alvo.forEach(chave => { porData[chave] = (porData[chave]||0) + pesoPorDia; });
     });
   });
   const datas = Object.keys(porData).sort();
@@ -5198,7 +5257,7 @@ async function calcularCurvaRealizada(){
 
   // Usa somente registros com horas_planejadas conhecidas (do cronograma importado)
   const pesos = {};
-  getData().forEach(r => { if(r.horas_planejadas) pesos[r.registro] = calcularPesoEfetivo(r); });
+  filtrarPorDisciplinaCurva(getData()).forEach(r => { if(r.horas_planejadas) pesos[r.registro] = calcularPesoEfetivo(r); });
   const pesoTotal = Object.values(pesos).reduce((a,b)=>a+b,0);
   if(pesoTotal === 0) return [];
 
@@ -5347,6 +5406,22 @@ function agregarCurvaPorPeriodo(pontos, granularidade){
 }
 
 let _curvaGranularidade = 'semanal';
+let _curvaDisciplina = '';
+function setCurvaDisciplina(disc){
+  _curvaDisciplina = disc;
+  renderCurvaSKPIs();
+}
+// Preenche o dropdown só com as disciplinas que realmente têm horas planejadas
+// (mesmo critério usado por fonteParaCurvaPlanejada), senão apareceriam opções
+// que nunca desenham curva nenhuma — mesmo padrão do filtro da Folha Tarefa.
+function populateCurvaDisciplinaFilter(){
+  const sel = document.getElementById('curva-disc-filter');
+  if(!sel) return;
+  const discs = [...new Set(getData().filter(r => r.horas_planejadas).map(r => r.disciplina).filter(Boolean))].sort();
+  const atual = sel.value;
+  sel.innerHTML = '<option value="">Todas as disciplinas</option>' + discs.map(d => `<option value="${d}">${d}</option>`).join('');
+  sel.value = discs.includes(atual) ? atual : '';
+}
 function setCurvaGranularidade(g){
   _curvaGranularidade = g;
   document.querySelectorAll('.curva-gran-btn').forEach(b => {
@@ -5465,6 +5540,7 @@ function renderTabelaCurva(periodos, mapaPlan, mapaReal){
 let _curvaRenderToken = 0;
 async function renderCurvaSKPIs(){
   const meuToken = ++_curvaRenderToken;
+  populateCurvaDisciplinaFilter();
   const kpis = calcularKPIs();
   renderKPICards(kpis);
   const planejadaBruta = calcularCurvaPlanejada();       // pontos diários (peso do cronograma)
@@ -5642,11 +5718,11 @@ function renderFolhaTarefa(){
   const hoje = new Date().toISOString().slice(0,10);
   const linhas = grupos.map(({registro:r, etapasDoPeriodo}) => {
     const cabecalho = `<tr style="background:#f8fafc">
-      <td colspan="8" style="padding:10px 12px;font-weight:700;font-size:.82rem;border-top:2px solid #e5e7eb">
+      <td colspan="9" style="padding:10px 12px;font-weight:700;font-size:.82rem;border-top:2px solid #e5e7eb">
         ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}${r.tag?' · TAG: '+esc(r.tag):''}${r.modulo?' · Módulo: '+esc(r.modulo):''}${r.setor?' · Piso/Setor: '+esc(r.setor):''}</span>
       </td></tr>`;
     const resumo = `<tr class="folha-detalhe">
-      <td colspan="8" style="padding:6px 12px;font-size:.76rem;color:var(--muted);border-bottom:1px solid #f0f0f0">${r.nome_tarefa ?? ''}</td>
+      <td colspan="9" style="padding:6px 12px;font-size:.76rem;color:var(--muted);border-bottom:1px solid #f0f0f0">${r.nome_tarefa ?? ''}</td>
       </tr>`;
 
     // Detecta tarefa "placeholder": quando a SS só tem UMA etapa no cronograma e o
@@ -5655,7 +5731,7 @@ function renderFolhaTarefa(){
     const semDetalhamento = etapasDoPeriodo.length === 1 &&
       (etapasDoPeriodo[0].nome||'').trim() === (r.nome_tarefa||'').trim();
     const avisoSemDetalhe = semDetalhamento ? `<tr class="folha-detalhe">
-      <td colspan="8" style="padding:6px 12px;font-size:.72rem;color:#b45309;background:rgba(245,158,11,.08);border-bottom:1px solid #f0f0f0">
+      <td colspan="9" style="padding:6px 12px;font-size:.72rem;color:#b45309;background:rgba(245,158,11,.08);border-bottom:1px solid #f0f0f0">
         ⚠️ Esta SS ainda não tem detalhamento de etapas no cronograma (só a visão geral do serviço) — a data abaixo é da SS como um todo, não de um passo específico de execução.
       </td></tr>` : '';
 
@@ -5688,7 +5764,7 @@ function renderFolhaTarefa(){
     }));
     const recursosTxt = Object.entries(recursosAgregados).map(([nome,qtd])=>`${nome} (${qtd})`).join(' · ');
     const linhaRecursos = recursosTxt ? `<tr class="folha-detalhe">
-      <td colspan="8" style="padding:6px 12px;font-size:.72rem;color:var(--muted);border-bottom:2px solid #e5e7eb">👷 Recursos necessários: ${recursosTxt}</td>
+      <td colspan="9" style="padding:6px 12px;font-size:.72rem;color:var(--muted);border-bottom:2px solid #e5e7eb">👷 Recursos necessários: ${recursosTxt}</td>
       </tr>` : '';
 
     return cabecalho + resumo + avisoSemDetalhe + tarefasRows + linhaRecursos;
@@ -5714,6 +5790,18 @@ function renderFolhaTarefa(){
       </tr></thead>
       <tbody>${linhas}</tbody>
     </table>`;
+  // BUGFIX: `position:sticky` com `top` vindo de var()/calc() (a regra CSS
+  // ".tbl-wrap-page-abaixo-barra th") NÃO gruda em <th> no Chromium — testado e
+  // confirmado isoladamente fora deste arquivo: a mesma regra funciona perfeitamente
+  // numa <div>, mas falha silenciosamente numa célula de tabela, fazendo o cabeçalho
+  // simplesmente rolar junto com o conteúdo em vez de ficar fixo (era isso que fazia
+  // o cabeçalho "aparecer no meio da lista" ao rolar). Contorno: calcular o valor final
+  // em pixels aqui e aplicá-lo como estilo inline em cada <th> — inline style tem
+  // prioridade sobre a regra CSS e, sendo um valor literal (não var/calc), o navegador
+  // gruda corretamente.
+  const stickyTotalPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sticky-total')) || 168;
+  const folhaThTopPx = stickyTotalPx + (toolbarEl ? toolbarEl.offsetHeight : 60);
+  contEl.querySelectorAll('th').forEach(th => { th.style.top = folhaThTopPx + 'px'; });
   if(FOLHA_RESUMO_COLLAPSED) aplicarFolhaCollapsed();
 }
 let FOLHA_RESUMO_COLLAPSED = false;
