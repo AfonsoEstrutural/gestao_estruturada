@@ -368,9 +368,9 @@ h1{letter-spacing:.02em}
     <span style="font-size:.72rem;color:var(--muted)">· Revisão Petrobras 19/05/2026</span>
     <select id="fase-filtro-select" onchange="setFaseFiltro(this.value)" title="Escopo de fase exibido no sistema"
             style="margin-left:6px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:.72rem;font-weight:700">
-      <option value="Fase 3" selected>Fase 3</option>
+      <option value="Fase 3">Fase 3</option>
       <option value="Fase 2">Fase 2 (remanescente)</option>
-      <option value="Todas as Fases">Todas as Fases</option>
+      <option value="Todas as Fases" selected>Todas as Fases</option>
     </select>
   </div>
   <div style="display:flex;align-items:center;gap:14px;padding:0 16px;font-size:.72rem;color:var(--muted)">
@@ -1909,7 +1909,7 @@ function exportCronoCSV() {
 }
 function exportCronoXLS(){ exportCronoCSV(); flash('📗 Arquivo CSV gerado — compatível com Excel.','#22c55e',3000); }
 
-let _faseFiltro = 'Fase 3'; // Fase 3 (padrão, comportamento igual ao de sempre) | Fase 2 | Todas as Fases
+let _faseFiltro = 'Todas as Fases'; // Todas as Fases (padrão) | Fase 3 | Fase 2
 function matchesFase(r){
   const fase = r.fase_origem || 'Fase 3';
   return _faseFiltro === 'Todas as Fases' || fase === _faseFiltro;
@@ -5662,25 +5662,34 @@ function folhaTarefa(janelaDias, disciplina){
     return { grupos, ancora };
   }
 
-  let ancora = hoje, limiteStr = limiteDe(hoje);
-  const temAlgumaNaJanelaInicial = dadosFiltrados.some(r => r.etapas_cronograma.some(e => tocaJanela(e, ancora, limiteStr)));
-  if (!temAlgumaNaJanelaInicial) {
-    let proximoInicio = null;
-    dadosFiltrados.forEach(r => r.etapas_cronograma.forEach(e => {
-      if ((e.percentWork ?? 0) >= 100) return;
-      const ini = (e.start || '').slice(0,10);
-      if (ini && ini > hoje && (!proximoInicio || ini < proximoInicio)) proximoInicio = ini;
-    }));
-    if (proximoInicio) { ancora = proximoInicio; limiteStr = limiteDe(ancora); }
+  function montarGrupos(ancoraCalc, limiteCalc){
+    return dadosFiltrados
+      .map(r => ({ registro: r, etapasDoPeriodo: r.etapas_cronograma.filter(e => tocaJanela(e, ancoraCalc, limiteCalc)) }))
+      .filter(x => x.etapasDoPeriodo.length)
+      .sort((a,b) => (a.etapasDoPeriodo[0].finish||'').localeCompare(b.etapasDoPeriodo[0].finish||''));
   }
 
-  const grupos = dadosFiltrados
-    .map(r => {
-      const etapasDoPeriodo = r.etapas_cronograma.filter(e => tocaJanela(e, ancora, limiteStr)); // já vem em ordem de EDT, herdada do import
-      return { registro: r, etapasDoPeriodo };
-    })
-    .filter(x => x.etapasDoPeriodo.length)
-    .sort((a,b) => (a.etapasDoPeriodo[0].finish||'').localeCompare(b.etapasDoPeriodo[0].finish||''));
+  // Antes: só pulava a janela pra frente quando ela estivesse 100% vazia — um
+  // único registro bem na borda (ex: termina no último dia da janela) já
+  // contava como "tem alguma coisa" e travava o salto, escondendo um bloco de
+  // trabalho bem maior que começasse só 1-2 dias depois do limite. Agora:
+  // calcula sempre as duas opções (âncora em hoje vs. âncora pulando pro
+  // próximo início de trabalho) e usa a que resultar em MAIS registros —
+  // assim um item isolado na borda nunca mais esconde o grupo maior seguinte.
+  const limiteStr = limiteDe(hoje);
+  const grupoHoje = montarGrupos(hoje, limiteStr);
+  let proximoInicio = null;
+  dadosFiltrados.forEach(r => r.etapas_cronograma.forEach(e => {
+    if ((e.percentWork ?? 0) >= 100) return;
+    const ini = (e.start || '').slice(0,10);
+    if (ini && ini > hoje && (!proximoInicio || ini < proximoInicio)) proximoInicio = ini;
+  }));
+  let ancora = hoje, grupos = grupoHoje;
+  if (proximoInicio) {
+    const limitePulado = limiteDe(proximoInicio);
+    const grupoPulado = montarGrupos(proximoInicio, limitePulado);
+    if (grupoPulado.length > grupoHoje.length) { ancora = proximoInicio; grupos = grupoPulado; }
+  }
   return { grupos, ancora };
 }
 // Preenche o dropdown de disciplina só com as disciplinas que realmente têm
@@ -5717,9 +5726,17 @@ function renderFolhaTarefa(){
   }
   const hoje = new Date().toISOString().slice(0,10);
   const linhas = grupos.map(({registro:r, etapasDoPeriodo}) => {
+    // TAG/Módulo/Piso-Setor às vezes ficam vazios no DATA_BR (ex: registro nunca
+    // reimportado depois que a LUCAR/LUPA passou a trazer esses campos) mesmo
+    // quando a fonte bruta da importação (LUCAR_DATA — a mesma que a aba
+    // Cronograma usa) já os tem. Usa LUCAR_DATA como reserva nesse caso.
+    const lucarRef = (typeof LUCAR_DATA !== 'undefined') ? LUCAR_DATA[r.registro] : null;
+    const tagRes = r.tag || (lucarRef && lucarRef.tag) || '';
+    const moduloRes = r.modulo || (lucarRef && lucarRef.modulo) || '';
+    const setorRes = r.setor || (lucarRef && lucarRef.setor) || '';
     const cabecalho = `<tr style="background:#f8fafc">
       <td colspan="9" style="padding:10px 12px;font-weight:700;font-size:.82rem;border-top:2px solid #e5e7eb">
-        ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}${r.tag?' · TAG: '+esc(r.tag):''}${r.modulo?' · Módulo: '+esc(r.modulo):''}${r.setor?' · Piso/Setor: '+esc(r.setor):''}</span>
+        ${r.registro ?? ''} <span style="font-weight:400;color:var(--muted)">· ${r.nro_ss ?? ''} · ${r.disciplina ?? ''}${tagRes?' · TAG: '+esc(tagRes):''}${moduloRes?' · Módulo: '+esc(moduloRes):''}${setorRes?' · Piso/Setor: '+esc(setorRes):''}</span>
       </td></tr>`;
     const resumo = `<tr class="folha-detalhe">
       <td colspan="9" style="padding:6px 12px;font-size:.76rem;color:var(--muted);border-bottom:1px solid #f0f0f0">${r.nome_tarefa ?? ''}</td>
@@ -7927,25 +7944,52 @@ async function pullSamcFromCloud(){
 
 // ── Interface da lista SAMC (filtros de checkbox, mesmo padrão da Materiais) ──
 const SAMC_MS_LABELS = { 'ms-samc-status':'Status', 'ms-samc-fase':'Fase de Execução', 'ms-samc-fluxo':'Fluxo' };
+// Dropdown aberto no momento via "portal" (movido pro <body>), se houver.
+let _samcMsPortalOpen = null;
+function _samcMsClosePortal(){
+  if(!_samcMsPortalOpen) return;
+  const { drop, btn, parent, next } = _samcMsPortalOpen;
+  drop.style.display = 'none';
+  drop.style.position = '';
+  drop.style.top = '';
+  drop.style.left = '';
+  if(next && next.parentNode === parent) parent.insertBefore(drop, next);
+  else parent.appendChild(drop);
+  btn.classList.remove('active');
+  _samcMsPortalOpen = null;
+}
 function toggleSamcMs(id){
   const drop=document.getElementById(id);
-  const isOpen=drop.style.display!=='none';
-  document.querySelectorAll('#samc-import-card .ms-drop').forEach(d=>{d.style.display='none';});
-  document.querySelectorAll('#samc-import-card .ms-btn').forEach(b=>{b.classList.remove('active');});
-  if(!isOpen){
-    drop.style.display='block';
-    document.getElementById(id+'-btn').classList.add('active');
-    setTimeout(()=>{
-      function closeMs(e){
-        const btn=document.getElementById(id+'-btn');
-        if(!drop.contains(e.target)&&e.target!==btn){
-          drop.style.display='none'; btn.classList.remove('active');
-          document.removeEventListener('click',closeMs);
-        }
+  const btn=document.getElementById(id+'-btn');
+  const jaAberto = _samcMsPortalOpen && _samcMsPortalOpen.drop===drop;
+  _samcMsClosePortal();
+  if(jaAberto) return;
+  // BUGFIX: o cabeçalho sticky da tabela abaixo (dentro de .tbl-wrap, com scroll
+  // próprio) às vezes pinta por cima deste menu mesmo com z-index maior — é um
+  // comportamento de compositing do Chromium para elementos sticky dentro de
+  // containers com scroll, não um problema de matemática de z-index. Contorno:
+  // "portal" — move o menu pro final do <body> com position:fixed enquanto
+  // estiver aberto, escapando de qualquer contexto/scroll problemático; volta
+  // pro lugar original no DOM ao fechar.
+  const parent = drop.parentElement;
+  const next = drop.nextSibling;
+  const r = btn.getBoundingClientRect();
+  drop.style.position = 'fixed';
+  drop.style.top = (r.bottom+4)+'px';
+  drop.style.left = r.left+'px';
+  document.body.appendChild(drop);
+  drop.style.display='block';
+  btn.classList.add('active');
+  _samcMsPortalOpen = { drop, btn, parent, next };
+  setTimeout(()=>{
+    function closeMs(e){
+      if(!drop.contains(e.target)&&e.target!==btn){
+        _samcMsClosePortal();
+        document.removeEventListener('click',closeMs);
       }
-      document.addEventListener('click',closeMs);
-    },10);
-  }
+    }
+    document.addEventListener('click',closeMs);
+  },10);
 }
 function updateSamcMsBtn(id){
   const checked=document.querySelectorAll(`.samc-ms-chk[data-group="${id}"]:checked`);
