@@ -9041,9 +9041,21 @@ async function pullEditsAndMerge() {
     const cloudMap = (await res.json()) || {};
     // Registra o carimbo de hora atual como "conhecido" — evita que a primeira
     // verificação automática (15 min depois) baixe tudo de novo sem necessidade.
+    // Se o carimbo ainda não existir (primeira vez que este mecanismo roda, antes de
+    // qualquer edição nova ter sido salva), cria ele agora — senão a checagem leve
+    // nunca teria um valor pra comparar e continuaria baixando tudo sempre.
     try {
       const metaRes = await fetch(`${FIREBASE_URL}/lupa_meta/lastPush.json`, { headers: jsonbinHeaders() });
-      if(metaRes.ok) { const v = await metaRes.json(); if(v) _ultimoLastPushConhecido = v; }
+      if(metaRes.ok) {
+        const v = await metaRes.json();
+        if(v) {
+          _ultimoLastPushConhecido = v;
+        } else {
+          const agora = Date.now();
+          _ultimoLastPushConhecido = agora;
+          fetch(`${FIREBASE_URL}/lupa_meta/lastPush.json`, { method:'PUT', headers: jsonbinHeaders(), body: String(agora) }).catch(()=>{});
+        }
+      }
     } catch(e) {}
     const localMap = _loadLocalEditsRaw() || {};
 
