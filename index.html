@@ -2464,7 +2464,7 @@ async function doLogin() {
     renderAll();
     if (JSONBIN_ID && JSONBIN_KEY) {
       pullEditsAndMerge();
-      setInterval(() => pullEdits(true), 300000); // 5 min — reduzido para poupar cota gratuita do JSONBin
+      iniciarSincronizacaoAutomatica(); // 15 min + pausa quando a aba está oculta
     }
     flash(`✅ Bem-vindo(a), ${found.nome}!`, '#22c55e', 3000);
     // Atualizar label do usuário na barra
@@ -7123,6 +7123,9 @@ const FIREBASE_URL = 'https://gestaoestruturada-8b457-default-rtdb.firebaseio.co
 let JSONBIN_ID  = 'firebase-ativo';   // mantido por compatibilidade com o restante do código (checagens if(JSONBIN_ID && JSONBIN_KEY))
 let JSONBIN_KEY = 'firebase-ativo';
 let SYNC_BUSY  = false;
+// Controla a checagem leve de novidade (evita baixar o banco inteiro sem necessidade).
+let _ultimoLastPushConhecido = null;
+let _pollingPausadoPorAbaOculta = false;
 
 // ── UI helpers ────────────────────────────────────────────────────────────
 function flash(msg, color='#22c55e', dur=4000) {
@@ -9005,6 +9008,12 @@ async function _doPush() {
     if(putRes.ok) {
       updateSyncStatus('☁️ Sincronizado ' + new Date().toLocaleTimeString('pt-BR'), '#22c55e');
       flash('☁️ Alteração salva e sincronizada com a equipe!');
+      // Grava um carimbo de hora leve (poucos bytes) — é isso que pullEdits() consulta
+      // a cada verificação em vez de baixar o banco inteiro toda vez. Não bloqueia o
+      // fluxo principal se falhar (é só uma otimização de banda, não dado crítico).
+      const agora = Date.now();
+      _ultimoLastPushConhecido = agora;
+      fetch(`${FIREBASE_URL}/lupa_meta/lastPush.json`, { method:'PUT', headers: jsonbinHeaders(), body: String(agora) }).catch(()=>{});
     } else {
       const err = await putRes.json();
       throw new Error(err.message || putRes.status);
@@ -9030,6 +9039,12 @@ async function pullEditsAndMerge() {
     const res = await fetch(`${FIREBASE_URL}/lupa_data.json`, { headers: jsonbinHeaders() });
     if(!res.ok) throw new Error((await res.json()).message || res.status);
     const cloudMap = (await res.json()) || {};
+    // Registra o carimbo de hora atual como "conhecido" — evita que a primeira
+    // verificação automática (15 min depois) baixe tudo de novo sem necessidade.
+    try {
+      const metaRes = await fetch(`${FIREBASE_URL}/lupa_meta/lastPush.json`, { headers: jsonbinHeaders() });
+      if(metaRes.ok) { const v = await metaRes.json(); if(v) _ultimoLastPushConhecido = v; }
+    } catch(e) {}
     const localMap = _loadLocalEditsRaw() || {};
 
     // Mescla: para cada registro, vence o que tem _editedAt mais recente
@@ -9081,10 +9096,46 @@ async function recoverEdits() {
   }
 }
 
+// Timer central de sincronização automática: 15 min (era 5 min) + pausa quando a aba
+// não está em foco, retomando (com uma checagem imediata) quando volta ao foco — reduz
+// bem o consumo de download do plano gratuito do Firebase sem perder a sincronização
+// real entre a equipe.
+let _syncIntervalId = null;
+function iniciarSincronizacaoAutomatica() {
+  if(_syncIntervalId) return; // já iniciado, evita duplicar
+  _syncIntervalId = setInterval(() => {
+    if(document.hidden) { _pollingPausadoPorAbaOculta = true; return; }
+    pullEdits(true);
+  }, 900000); // 15 min
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden && _pollingPausadoPorAbaOculta) {
+      _pollingPausadoPorAbaOculta = false;
+      pullEdits(true); // volta ao foco depois de pausado: checa na hora, não espera o próximo ciclo
+    }
+  });
+}
 async function pullEdits(silent=false) {
   if(!JSONBIN_ID || !JSONBIN_KEY) {
     if(!silent) flash('⚙️ Configure o BIN ID e a API Key primeiro (botão ⚙️ Configurar).', '#f59e0b');
     return;
+  }
+  // Checagem leve primeiro (poucos bytes) — só baixa o banco inteiro (pode ser MBs) se
+  // o carimbo de hora do último push mudou desde a última vez que verificamos. Isso é
+  // o que evita estourar a cota gratuita de download do Firebase com verificações
+  // automáticas repetidas sem nenhuma novidade de verdade pra buscar.
+  let carimboJaChecado = null;
+  if(silent) {
+    try {
+      const metaRes = await fetch(`${FIREBASE_URL}/lupa_meta/lastPush.json`, { headers: jsonbinHeaders() });
+      if(metaRes.ok) {
+        const ultimoNoServidor = await metaRes.json();
+        carimboJaChecado = ultimoNoServidor;
+        if(ultimoNoServidor && _ultimoLastPushConhecido && ultimoNoServidor === _ultimoLastPushConhecido) {
+          updateSyncStatus('☁️ Sincronizado ' + new Date().toLocaleTimeString('pt-BR'), '#14b8a6');
+          return; // nada novo — evita o download completo
+        }
+      }
+    } catch(e) { /* se a checagem leve falhar, cai pro fluxo normal abaixo */ }
   }
   if(!silent) updateSyncStatus('⏬ Buscando...', '#f59e0b');
   try {
@@ -9095,6 +9146,16 @@ async function pullEdits(silent=false) {
     }
     const data = await res.json();
     const map = data || {};
+    // Marca a versão que acabamos de baixar como "conhecida" pra próxima checagem leve
+    // (reaproveita o valor já buscado acima quando possível, evita uma chamada extra).
+    if(carimboJaChecado) {
+      _ultimoLastPushConhecido = carimboJaChecado;
+    } else {
+      try {
+        const metaRes2 = await fetch(`${FIREBASE_URL}/lupa_meta/lastPush.json`, { headers: jsonbinHeaders() });
+        if(metaRes2.ok) { const v = await metaRes2.json(); if(v) _ultimoLastPushConhecido = v; }
+      } catch(e) {}
+    }
     if(!Object.keys(map).length) {
       if(!silent) flash('ℹ️ Nenhuma edição encontrada no servidor.', '#1a6fad');
       updateSyncStatus('☁️ Sem edições remotas', 'var(--muted)');
@@ -9271,8 +9332,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     autoSnapshotIfNeeded(); // salva a "foto" da semana, se ainda não existir uma
     carregarBaselineCronograma(); // atualiza o texto de status da baseline no Painel Admin
     pullEscopoFase2FromCloud().then(atualizarStatusEscopoFase2);
-    setInterval(() => pullEdits(true), 300000); // 5 min — reduzido para poupar cota gratuita do JSONBin
-    setInterval(() => pullMateriaisDetProcAndRender(), 300000); // idem, para Materiais/Detalhamento/Processamento
+    iniciarSincronizacaoAutomatica(); // 15 min + pausa quando a aba está oculta
+    setInterval(() => { if(!document.hidden) pullMateriaisDetProcAndRender(); }, 900000); // 15 min, idem pausa por aba oculta
   }
 });
 </script>
