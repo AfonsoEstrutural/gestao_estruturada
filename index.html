@@ -1728,6 +1728,7 @@ h1{letter-spacing:.02em}
   <div class="modal-box">
     <div class="modal-title">✏️ Editar Registro <span id="lucar-modal-reg-label"></span></div>
 
+    <div class="modal-field" id="le-registro-row"><label>Nº Registro</label><input type="text" id="le-registro" placeholder="Ex: 333908"></div>
     <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 6px">📋 Campos do LUCAR</div>
     <div class="modal-field"><label>Nº SS</label><input type="text" id="le-ss"></div>
     <div class="modal-field"><label>Nome da Tarefa</label><input type="text" id="le-nome-tarefa"></div>
@@ -7234,9 +7235,15 @@ async function salvarNovoRegistro(){
     // duplicata — senão "0333908" digitado passaria pela checagem mesmo já existindo
     // um "333908" no sistema, criando dois registros que na prática são o mesmo.
     const registro = _normalizarRegistro(registroDigitado);
-    // Um registro pode já existir no LUCAR_DATA (importado, ainda sem Status) ou já
-    // ter Status no DATA_BR — nos dois casos é duplicata, não um registro novo.
-    if(LUCAR_DATA[registro] || DATA_BR.some(r => _normalizarRegistro(r.registro) === registro)){ erros.push(`Linha ${i+1}: o Registro ${registro} já existe no sistema.`); return; }
+    // Um registro pode já existir no LUCAR_DATA (aparece na Cronograma normalmente)
+    // ou só no DATA_BR (registro "órfão": saiu de uma importação LUCAR anterior e
+    // ficou sem vínculo — some da Cronograma, que só lista o que está em LUCAR_DATA,
+    // mas continua contando como duplicata aqui). Mensagens diferentes pra cada caso,
+    // porque "já existe" sem explicação deixa o órfão impossível de rastrear na tela.
+    const jaNaCronograma = !!LUCAR_DATA[registro];
+    const orfaoEmDataBr = !jaNaCronograma && DATA_BR.some(r => _normalizarRegistro(r.registro) === registro);
+    if(jaNaCronograma){ erros.push(`Linha ${i+1}: o Registro ${registro} já existe na Cronograma.`); return; }
+    if(orfaoEmDataBr){ erros.push(`Linha ${i+1}: o Registro ${registro} já existe no sistema, mas está "órfão" (sem vínculo com a LUCAR — por isso não aparece na Cronograma). Use "🔎 Auditar Registros Órfãos" no Painel Admin para localizá-lo e decidir se cancela ou revincula.`); return; }
     if(registrosNoLote.has(registro)){ erros.push(`Linha ${i+1}: o Registro ${registro} está repetido nesta lista.`); return; }
     registrosNoLote.add(registro);
     novos.push({ registro, disciplina });
@@ -7281,21 +7288,13 @@ async function salvarNovoRegistro(){
     });
   });
 
-  LUCAR_HISTORICO.push({
-    timestamp: agora,
-    registroNovo: novos.length,
-    registroRemovido: 0,
-    registroCancelado: 0,
-    totalAtivos: Object.keys(LUCAR_DATA).length,
-    fase: 'Cadastro Manual',
-    alteracaoLupa: 'Sim'
-  });
-
+  // Histórico de Importações fica reservado só para importações reais da LUCAR/LUPA
+  // (handleLucarImport) — cadastro manual não gera entrada lá, por decisão do projeto.
   fecharNovoRegistroModal();
   renderAll();
   renderLucarTeste();
   pushEdits();
-  const [okLucar] = await Promise.all([pushLucarDataToCloud(), pushLucarHistoricoToCloud()]);
+  const okLucar = await pushLucarDataToCloud();
   flash(`✅ ${novos.length} registro(s) cadastrado(s)` + (okLucar ? ' · sincronizado.' : ' · ⚠️ salvo localmente, mas falhou ao sincronizar — tente "🔄 Sincronizar Agora" no Painel Admin.'), '#22c55e', 7000);
 }
 
@@ -8836,6 +8835,9 @@ function openLucarEditBulk(){
   document.getElementById('le-esi').checked = false;
   document.getElementById('le-br').checked = false;
 
+  // Renomear o Nº Registro só faz sentido editando um de cada vez — em modo em
+  // massa esconde o campo (não daria pra renomear vários pro mesmo número).
+  document.getElementById('le-registro-row').style.display = 'none';
   document.getElementById('le-tabela-section').style.display = '';
   document.getElementById('le-sem-tabela').style.display = 'none';
   document.getElementById('lucar-edit-modal').style.display = 'flex';
@@ -8850,6 +8852,8 @@ function openLucarEdit(registro){
   _lucarEditRegistros = null;
 
   document.getElementById('lucar-modal-reg-label').textContent = `Registro: ${registro}`;
+  document.getElementById('le-registro-row').style.display = '';
+  document.getElementById('le-registro').value = registro;
   document.getElementById('le-ss').value = l.nro_ss || '';
   document.getElementById('le-nome-tarefa').value = l.nome_tarefa || '';
   document.getElementById('le-disciplina').value = l.disciplina || (t && t.disciplina) || '';
@@ -8902,8 +8906,31 @@ function saveLucarEdit(){
     return saveLucarEditBulk();
   }
 
-  const registro = _lucarEditRegistro;
+  let registro = _lucarEditRegistro;
   if(!registro || !LUCAR_DATA[registro]) return;
+
+  // Renomeação do Nº Registro (chave em LUCAR_DATA e valor em DATA_BR/ESCOPO_FASE2).
+  // Feita ANTES dos outros campos para já seguir gravando no registro certo.
+  const novoRegistroDigitado = document.getElementById('le-registro').value.trim();
+  if(!novoRegistroDigitado){ flash('⚠️ O Nº Registro não pode ficar em branco.', '#f59e0b', 5000); return; }
+  const novoRegistro = _normalizarRegistro(novoRegistroDigitado);
+  if(novoRegistro !== registro){
+    const jaExiste = !!LUCAR_DATA[novoRegistro] || DATA_BR.some(r => String(r.registro) !== registro && _normalizarRegistro(r.registro) === novoRegistro);
+    if(jaExiste){ flash(`⚠️ Já existe um Registro ${novoRegistro} no sistema — escolha outro número.`, '#ef4444', 7000); return; }
+    LUCAR_DATA[novoRegistro] = LUCAR_DATA[registro];
+    delete LUCAR_DATA[registro];
+    LUCAR_DATA[novoRegistro].registro = novoRegistro;
+    const tIdxRename = DATA_BR.findIndex(r=>String(r.registro)===registro);
+    if(tIdxRename>=0) DATA_BR[tIdxRename].registro = novoRegistro;
+    if(ESCOPO_FASE2 && ESCOPO_FASE2[registro] !== undefined){
+      ESCOPO_FASE2[novoRegistro] = ESCOPO_FASE2[registro];
+      delete ESCOPO_FASE2[registro];
+    }
+    flash(`ℹ️ Registro renomeado de ${registro} para ${novoRegistro}. Se havia vínculo com Materiais, SAMC ou Planejamento pelo número antigo, reimporte essas planilhas para reconectar.`, '#3b82f6', 9000);
+    registro = novoRegistro;
+    _lucarEditRegistro = novoRegistro;
+  }
+
   const l = LUCAR_DATA[registro];
   l.nro_ss         = document.getElementById('le-ss').value;
   l.nome_tarefa    = document.getElementById('le-nome-tarefa').value;
