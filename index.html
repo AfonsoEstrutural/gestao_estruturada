@@ -390,7 +390,8 @@ h1{letter-spacing:.02em}
   <div class="tab" onclick="showTab('planejamento',this)">📐 Planejamento</div>
   <div class="tab" onclick="showTab('disciplina',this)">⚙️ Disciplina</div>
   <div class="tab" onclick="showTab('alertas',this)">⚠️ Alertas</div>
-  <div class="tab" onclick="showTab('tabela',this)">🗃️ Tabela</div>
+  <!-- Aba "Tabela" desativada (15/08/2026) — a aba Cronograma abaixo já reúne todas essas informações e mais.
+       Código e dados preservados (não removidos) para reversão fácil se necessário; showTab() redireciona qualquer acesso residual pra Cronograma. -->
   <div class="tab" onclick="showTab('curvas',this)">📈 Curva S / KPIs</div>
   <div class="tab" onclick="showTab('folha-tarefa',this)">🗓️ Folha Tarefa</div>
   <div class="tab" onclick="showTab('lucar-teste',this)">📅 Cronograma</div>
@@ -1171,8 +1172,8 @@ h1{letter-spacing:.02em}
     <p style="font-size:.78rem;color:var(--muted);margin-bottom:8px">
       Importe a planilha "P74-PPGM_I_LUCAR...xlsx" (aba "LUPA") pelo Painel Admin (🔐 Admin → 🧪 LUCAR/LUPA). O Sistema aplica
       automaticamente os filtros de Situação (exclui Cancelado/Atendido), Escopo (UMS 3ª Fase), Gerência Executante
-      (contém PPGM-I, exceto PPGM-II/III) e Nº AS (contém "Estr"), e monta a Tabela Detalhada abaixo, já cruzada com as
-      colunas hoje existentes na aba Tabela.
+      (contém PPGM-I, exceto PPGM-II/III) e Nº AS (contém "Estr"), e monta a Tabela Detalhada abaixo, já cruzada com os
+      campos de Status (SAMC, Planejamento, Suprimento etc.).
     </p>
     <div id="lucar-resumo" style="font-size:.78rem;color:var(--muted)"></div>
   </div>
@@ -1248,8 +1249,9 @@ h1{letter-spacing:.02em}
 
   <div class="card" style="padding:0">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;flex-wrap:wrap;gap:8px">
-      <div class="card-title" style="margin:0"><span class="dot" style="background:var(--accent)"></span>📋 Tabela Detalhada (unificada: LUCAR + Tabela + Cronograma)</div>
+      <div class="card-title" style="margin:0"><span class="dot" style="background:var(--accent)"></span>📋 Tabela Detalhada (unificada: LUCAR + Status + Cronograma)</div>
       <div style="display:flex;gap:8px">
+        <button onclick="abrirNovoRegistroModal()" style="background:var(--green);border:none;color:#fff;border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)" title="Cadastrar manualmente uma nova SS e seu(s) registro(s)">➕ Novo Registro/SS</button>
         <button onclick="exportLucarCSV()" style="background:var(--blue);border:none;color:#fff;border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">⬇ CSV</button>
         <button onclick="exportLucarXLS()" style="background:var(--green);border:none;color:#fff;border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">📗 Excel</button>
       </div>
@@ -1786,7 +1788,7 @@ h1{letter-spacing:.02em}
       </div>
     </div>
     <div id="le-sem-tabela" style="display:none;background:rgba(107,114,128,.12);border:1px solid var(--border);border-radius:5px;padding:10px 12px;font-size:.74rem;color:var(--muted);margin:14px 0">
-      ℹ️ Este registro ainda não está na aba Tabela — os campos de status ficam disponíveis assim que ele for cadastrado lá.
+      ℹ️ Este registro ainda não tem os campos de Status (SAMC, Planejamento, Suprimento etc.) cadastrados — eles ficam disponíveis assim que o registro receber esses dados (ex: pelo cruzamento com o relatório de SAMC, ou usando "➕ Novo Registro/SS").
     </div>
 
     <div style="background:rgba(26,111,173,.1);border:1px solid rgba(26,111,173,.3);border-radius:5px;padding:10px 12px;font-size:.74rem;color:#60a5fa;margin-bottom:4px">
@@ -1795,6 +1797,32 @@ h1{letter-spacing:.02em}
     <div class="modal-actions">
       <button class="modal-btn cancel" onclick="closeLucarEditModal()">Cancelar</button>
       <button class="modal-btn save" onclick="saveLucarEdit()">💾 Salvar Alteração</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL — CADASTRO MANUAL DE NOVA SS / REGISTRO(S) -->
+<div class="modal-overlay" id="novo-registro-modal" style="display:none" onclick="if(event.target===this)fecharNovoRegistroModal()">
+  <div class="modal-box" style="max-width:640px">
+    <div class="modal-title">➕ Novo Registro/SS <span>cadastro manual — fora da importação LUCAR</span></div>
+
+    <div style="background:rgba(26,111,173,.1);border:1px solid rgba(26,111,173,.3);border-radius:5px;padding:10px 12px;font-size:.74rem;color:#60a5fa;margin-bottom:12px">
+      ℹ️ Cadastro simplificado: informe apenas o <strong>Nº Registro</strong> e a <strong>Disciplina</strong> de cada linha. Nº SS, Nome da Tarefa, TAG, vencimentos, Gerência e os demais campos ficam em branco até a próxima importação LUCAR/LUPA trazer esses dados — a Disciplina informada aqui é preservada automaticamente nesse momento.
+    </div>
+
+    <div style="font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;margin:4px 0 6px">🧾 Registro(s)</div>
+    <div id="nr-linhas"></div>
+    <button type="button" onclick="adicionarLinhaNovoRegistro()" style="width:100%;margin-bottom:6px;background:rgba(26,111,173,.12);border:1px solid var(--blue);color:var(--blue);border-radius:5px;padding:8px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">➕ Adicionar outra linha (registro)</button>
+
+    <div style="background:rgba(217,119,6,.1);border:1px solid rgba(217,119,6,.3);border-radius:5px;padding:10px 12px;font-size:.74rem;color:#b45309;margin:10px 0 4px">
+      ℹ️ Status SAMC, Fabricação, Status Suprimento e Status Planejamento entram com valores padrão (Em Andamento / Verificar / Não Cadastrado / Delineamento Não Iniciado) e podem ser ajustados depois pelo ✏️ na Cronograma.
+    </div>
+    <div style="background:rgba(26,111,173,.1);border:1px solid rgba(26,111,173,.3);border-radius:5px;padding:10px 12px;font-size:.74rem;color:#60a5fa;margin-bottom:4px">
+      ☁️ Ao salvar, o(s) registro(s) são <strong>enviados à nuvem</strong> e ficam visíveis para toda a equipe ao sincronizar.
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="fecharNovoRegistroModal()">Cancelar</button>
+      <button class="modal-btn save" onclick="salvarNovoRegistro()">💾 Salvar Registro(s)</button>
     </div>
   </div>
 </div>
@@ -1919,8 +1947,13 @@ function setFaseFiltro(v){
   // Um filtro deixado marcado (ex: Status SAMC) de quando se via outra fase pode
   // esconder TUDO da fase nova (registros novos ainda sem esses status
   // preenchidos) — evita a confusão de "a fase X não mostra nada" limpando os
-  // filtros da Tabela sempre que a fase muda.
+  // filtros da Tabela (hoje desativada, mas o array getTableData ainda existe)
+  // e, principalmente, os da Cronograma — achado nesta revisão (15/08/2026):
+  // antes só a Tabela era limpa aqui, então a Cronograma (aba realmente usada
+  // desde a desativação da Tabela) podia ficar presa mostrando "vazio" ao trocar
+  // de fase com um filtro antigo selecionado.
   if(typeof clearFilters === 'function') clearFilters();
+  if(typeof limparFiltrosLucar === 'function') limparFiltrosLucar();
   renderAll();
   renderActiveTabContent();
   // Chamada direta (redundante com renderActiveTabContent, de propósito): a lista
@@ -1952,7 +1985,7 @@ function getAllData()  {
   // Correção automática: 'ADP Delineamento' (sem ON) é o mesmo status de 'ADP Delineamento ON'
   DATA_BR.forEach(r => { if (r.status_plan === 'ADP Delineamento') r.status_plan = 'ADP Delineamento ON'; });
   return DATA_BR.filter(matchesFase);
-}  // todos os registros — usado pela aba Tabela
+}  // todos os registros do DATA_BR — usado pela aba Cronograma (e por getData() abaixo)
 function getData() {                        // apenas escopo ativo — usado por todas as outras abas
   return DATA_BR.filter(function(r) {
     return matchesFase(r) &&
@@ -2483,7 +2516,7 @@ function enforceViewerRestrictions() {
   if (!_currentUser || _currentUser.perfil !== 'visualizador') return;
   // Botões de editar (Tabela e Cronograma) + barra de edição em massa + checkboxes de seleção
   document.querySelectorAll(
-    '.edit-cell-btn, #bulk-bar, #bulk-bar-crono, .row-chk, .hdr-chk, .row-chk-crono, #hdr-chk-crono, #btn-recover, [onclick*="openEdit"], [onclick*="openCronoEdit"], [onclick*="applyBulkEdit"], [onclick*="openLucarEditBulk"]'
+    '.edit-cell-btn, #bulk-bar, #bulk-bar-crono, .row-chk, .hdr-chk, .row-chk-crono, #hdr-chk-crono, #btn-recover, [onclick*="openEdit"], [onclick*="openCronoEdit"], [onclick*="applyBulkEdit"], [onclick*="openLucarEditBulk"], [onclick*="abrirNovoRegistroModal"]'
   ).forEach(el => { el.style.display = 'none'; });
   // Campos inline editáveis na Tabela (Data Sup.+Tarde, ESI, BR, Responsável)
   document.querySelectorAll('[onchange*="saveSupField"]').forEach(el => { el.disabled = true; el.style.opacity = '.5'; el.style.cursor = 'not-allowed'; });
@@ -2493,7 +2526,7 @@ function applyPerfilUI() {
   const p = _currentUser.perfil;
   // Ocultar edição para visualizadores
   const editEls = document.querySelectorAll(
-    '.edit-cell-btn, #bulk-bar, #bulk-bar-crono, .row-chk, .hdr-chk, .row-chk-crono, #hdr-chk-crono, #btn-recover, [onclick*="openEdit"], [onclick*="applyBulkEdit"], [onclick*="openLucarEditBulk"]'
+    '.edit-cell-btn, #bulk-bar, #bulk-bar-crono, .row-chk, .hdr-chk, .row-chk-crono, #hdr-chk-crono, #btn-recover, [onclick*="openEdit"], [onclick*="applyBulkEdit"], [onclick*="openLucarEditBulk"], [onclick*="abrirNovoRegistroModal"]'
   );
   editEls.forEach(el => { el.style.display = (p === 'visualizador') ? 'none' : ''; });
   // Mostrar seção de usuários só para admin
@@ -6343,7 +6376,7 @@ function _gotoTabela() {
   if(lbl && _prevTab) lbl.textContent = 'Filtrado a partir de: ' + (names[_prevTab]||_prevTab);
   window.scrollTo({top:0,behavior:'smooth'});
 }
-// ── Coluna "Processamento" da aba Tabela ────────────────────────────────────
+// ── Coluna "Processamento" (Cronograma) ─────────────────────────────────────
 // Calcula o avanço médio (%) dos TAGs (Número do Detalhamento) de Processamento
 // de um Registro. "NA" se o registro não tem materiais de fabricação cadastrados
 // em Materiais; "0%" se tem materiais mas ainda não há apontamento de Processamento.
@@ -6413,13 +6446,14 @@ function renderTable() {
     const rowStyle = isCanceled ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through' : '';
     const cancelBadge = isCanceled ? '<span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">CANCELADO</span>' : '';
     const fase2Badge = (r.fase_origem === 'Fase 2') ? '<span style="font-size:.6rem;background:rgba(217,119,6,.15);color:#b45309;border:1px solid rgba(217,119,6,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">FASE 2 · REMANESCENTE</span>' : '';
+    const manualBadge = (r.origem_cadastro === 'Manual') ? '<span title="Cadastrado manualmente, fora da importação LUCAR" style="font-size:.6rem;background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">🆕 MANUAL</span>' : '';
     const effSup = getEffectiveSupData(r.registro);
     const supStatusView = effSup ? effSup.status : r.status_sup;
     const supDateView = effSup && effSup.dataTarde ? dateToISO(effSup.dataTarde) : (r.data_sup_tarde||'');
     return `<tr style="${rowStyle}" data-registro="${r.registro}" data-fonte="${r.fonte||'BR'}">
     <td class="check-col"><input type="checkbox" class="row-chk" onchange="updateBulkBar()"></td>
     <td><button class="edit-cell-btn" onclick="openEdit('${r.registro}','${r.fonte||'BR'}')">✏️</button></td>
-    <td style="font-family:monospace;font-size:.71rem">${r.registro}${cancelBadge}${fase2Badge}</td>
+    <td style="font-family:monospace;font-size:.71rem">${r.registro}${cancelBadge}${fase2Badge}${manualBadge}</td>
     <td style="font-family:monospace;font-size:.71rem;font-weight:700;color:var(--accent)">${ss}</td>
     <td><span class="chip" style="background:var(--bg3);color:var(--text)">${r.fonte||'BR'}</span></td>
     <td>${chipSAMC(r.status_samc)}</td>
@@ -6589,6 +6623,17 @@ function renderCrono() {
 }
 
 function showTab(id, el) {
+  // Aba "Tabela" desativada (15/08/2026) — a Cronograma reúne todas as suas
+  // informações e mais. Qualquer chamada que ainda tente abrir 'tabela'
+  // (ex: link antigo, favorito salvo) é redirecionada para lá automaticamente.
+  if(id === 'tabela'){
+    id = 'lucar-teste';
+    el = null;
+    document.querySelectorAll('.tab').forEach(function(t){
+      var oc = t.getAttribute('onclick')||'';
+      if(oc.indexOf("'lucar-teste'") !== -1) el = t;
+    });
+  }
   if(_currTab !== id){ _prevTab = _currTab; _currTab = id; }
   document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
@@ -6991,7 +7036,7 @@ function populateEditPlanOptions(){
   const todos = [...new Set([...STATUS_PLAN_BASE, ...emUso])];
   sel.innerHTML = todos.map(s=>`<option value="${String(s).replace(/"/g,'&quot;')}">${s}</option>`).join('');
 }
-// Popula o filtro "Todos Status Planejamento" da aba Tabela dinamicamente, preservando a seleção atual.
+// Popula o filtro "Todos Status Planejamento" dinamicamente, preservando a seleção atual.
 function populateFPlanFilter(){
   const sel = document.getElementById('f-plan');
   if(!sel) return;
@@ -7103,6 +7148,157 @@ function saveCronoEdit() {
   pushEdits();
 }
 
+// ── NOVO REGISTRO/SS — cadastro manual fora da importação LUCAR ─────────────
+// Usado quando a LUCAR/LUPA já trouxe uma SS/registro novo mas ele ainda não
+// está no arquivo de importação principal (ex: chegou avulso) — o usuário
+// cadastra manualmente aqui, com o(s) número(s) oficiais que já tem em mãos,
+// e o registro passa a existir no sistema normalmente (editável, filtrável,
+// sincronizado com a equipe) até a próxima importação completa da LUCAR.
+let _nrLineSeq = 0;
+const NR_DISC_OPTIONS = ['PINT-RTI','CALD-RTI','PSV','NR-13','PINT-PLANO','CALD-TANQUE'];
+// Mesma normalização usada em lucarBuildRecord/handleLucarImport ao ler "Nº Registro"
+// da planilha LUCAR: registros puramente numéricos perdem zeros à esquerda e ".0"
+// (ex: "0333908" e "333908.0" viram "333908"). Aplicar isso também no cadastro manual
+// evita que a mesma checagem de duplicata deixe passar o "mesmo" registro digitado
+// com formatação diferente — e garante que, quando a LUCAR trouxer esse registro
+// depois, a chave bata exatamente com a criada manualmente.
+function _normalizarRegistro(v){
+  const s = String(v||'').trim();
+  return /^\d+(\.0+)?$/.test(s) ? String(parseInt(s,10)) : s;
+}
+
+function _nrLinhaHTML(id){
+  return `<div class="nr-linha" data-line-id="${id}" style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:10px;background:var(--bg2)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+      <span style="font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase">Linha</span>
+      <button type="button" onclick="removerLinhaNovoRegistro(${id})" class="nr-remove-line" title="Remover esta linha" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.72rem;font-weight:700;font-family:var(--font)">🗑️ Remover linha</button>
+    </div>
+    <div class="modal-field"><label>Nº Registro *</label><input type="text" id="nr-${id}-registro" placeholder="Ex: 333908"></div>
+    <div class="modal-field"><label>Disciplina *</label>
+      <select id="nr-${id}-disc"><option value="">—</option>${NR_DISC_OPTIONS.map(o=>`<option>${o}</option>`).join('')}</select>
+    </div>
+  </div>`;
+}
+
+function adicionarLinhaNovoRegistro(){
+  _nrLineSeq++;
+  const id = _nrLineSeq;
+  document.getElementById('nr-linhas').insertAdjacentHTML('beforeend', _nrLinhaHTML(id));
+  _atualizarBotoesRemoverLinhaNovoRegistro();
+}
+
+function removerLinhaNovoRegistro(id){
+  const el = document.querySelector(`.nr-linha[data-line-id="${id}"]`);
+  if(el) el.remove();
+  if(!document.querySelectorAll('.nr-linha').length) adicionarLinhaNovoRegistro();
+  _atualizarBotoesRemoverLinhaNovoRegistro();
+}
+
+function _atualizarBotoesRemoverLinhaNovoRegistro(){
+  const linhas = document.querySelectorAll('.nr-linha');
+  document.querySelectorAll('.nr-remove-line').forEach(btn=>{ btn.style.display = linhas.length>1 ? '' : 'none'; });
+}
+
+function abrirNovoRegistroModal(){
+  if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode cadastrar registros.', '#ef4444', 3000); return; }
+  document.getElementById('nr-linhas').innerHTML = '';
+  _nrLineSeq = 0;
+  adicionarLinhaNovoRegistro();
+  document.getElementById('novo-registro-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function fecharNovoRegistroModal(){
+  document.getElementById('novo-registro-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function salvarNovoRegistro(){
+  if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode cadastrar registros.', '#ef4444', 3000); fecharNovoRegistroModal(); return; }
+
+  const val = id => { const el=document.getElementById(id); return el ? el.value.trim() : ''; };
+
+  const linhas = [...document.querySelectorAll('.nr-linha')];
+  const novos = [];
+  const erros = [];
+  const registrosNoLote = new Set();
+
+  linhas.forEach((linhaEl, i) => {
+    const id = linhaEl.dataset.lineId;
+    const registroDigitado = val(`nr-${id}-registro`);
+    const disciplina = val(`nr-${id}-disc`);
+    if(!registroDigitado && !disciplina) return; // linha em branco, ignora silenciosamente
+    if(!registroDigitado){ erros.push(`Linha ${i+1}: informe o Nº do Registro.`); return; }
+    if(!disciplina){ erros.push(`Linha ${i+1} (Registro ${registroDigitado}): selecione a Disciplina.`); return; }
+    // Normaliza (remove zeros à esquerda/".0" de registros numéricos) ANTES de checar
+    // duplicata — senão "0333908" digitado passaria pela checagem mesmo já existindo
+    // um "333908" no sistema, criando dois registros que na prática são o mesmo.
+    const registro = _normalizarRegistro(registroDigitado);
+    // Um registro pode já existir no LUCAR_DATA (importado, ainda sem Status) ou já
+    // ter Status no DATA_BR — nos dois casos é duplicata, não um registro novo.
+    if(LUCAR_DATA[registro] || DATA_BR.some(r => _normalizarRegistro(r.registro) === registro)){ erros.push(`Linha ${i+1}: o Registro ${registro} já existe no sistema.`); return; }
+    if(registrosNoLote.has(registro)){ erros.push(`Linha ${i+1}: o Registro ${registro} está repetido nesta lista.`); return; }
+    registrosNoLote.add(registro);
+    novos.push({ registro, disciplina });
+  });
+
+  if(!novos.length && !erros.length){ flash('⚠️ Adicione ao menos um registro com Nº e Disciplina preenchidos.', '#f59e0b', 5000); return; }
+  if(erros.length){ flash('⚠️ Corrija antes de salvar:<br>' + erros.join('<br>'), '#ef4444', 9000); return; }
+
+  const agora = new Date().toISOString();
+  novos.forEach(linha => {
+    // Cadastro simplificado: só Registro + Disciplina vêm da mão do usuário. Todo o
+    // resto (Nº SS, Nome da Tarefa, TAG, vencimentos, Gerência etc.) fica em branco
+    // até a próxima importação LUCAR/LUPA trazer os dados reais — o handleLucarImport
+    // já preserva a Disciplina manual nesse momento (rec.disciplina = LUCAR_DATA[...].disciplina),
+    // então não é perdida quando os outros campos forem preenchidos pela importação.
+    // Grava nos dois lugares que a Cronograma lê: LUCAR_DATA (é o que decide se a
+    // linha aparece na tabela) e DATA_BR (é o que guarda os campos de Status).
+    LUCAR_DATA[linha.registro] = {
+      registro: linha.registro, nro_ss: '', nome_tarefa: '',
+      disciplina: linha.disciplina,
+      nr13_venc: '', rti_venc: '', spie_venc: '',
+      gerencia: '', area_sistema: '', modulo: '',
+      setor: '', nota_item_med: '', origem: '',
+      tag: '', servico_padrao: '',
+      tipo_exigencia: '', prioridade: ''
+    };
+    DATA_BR.push({
+      registro: linha.registro,
+      nro_ss: '',
+      nome_tarefa: '',
+      nr13_venc: '', rti_venc: '', spie_venc: '',
+      gerencia: '', area_sistema: '', modulo: '',
+      setor: '', nota_item_med: '', origem: '',
+      tag: '', servico_padrao: '',
+      tipo_exigencia: '', prioridade: '',
+      fonte: 'BR',
+      status_samc: 'Em Andamento', disciplina: linha.disciplina, fabricacao: 'Verificar',
+      status_plan: 'Delineamento Não Iniciado', status_lupa: 'Novo', status_sup: 'Não Cadastrado',
+      observacoes: '',
+      origem_cadastro: 'Manual',
+      _editedAt: agora, _editedBy: SYNC_USER
+    });
+  });
+
+  LUCAR_HISTORICO.push({
+    timestamp: agora,
+    registroNovo: novos.length,
+    registroRemovido: 0,
+    registroCancelado: 0,
+    totalAtivos: Object.keys(LUCAR_DATA).length,
+    fase: 'Cadastro Manual',
+    alteracaoLupa: 'Sim'
+  });
+
+  fecharNovoRegistroModal();
+  renderAll();
+  renderLucarTeste();
+  pushEdits();
+  const [okLucar] = await Promise.all([pushLucarDataToCloud(), pushLucarHistoricoToCloud()]);
+  flash(`✅ ${novos.length} registro(s) cadastrado(s)` + (okLucar ? ' · sincronizado.' : ' · ⚠️ salvo localmente, mas falhou ao sincronizar — tente "🔄 Sincronizar Agora" no Painel Admin.'), '#22c55e', 7000);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════════
 // ☁️  CLOUD SYNC — via JSONBin.io (REST API gratuita, funciona em qualquer
@@ -7187,7 +7383,7 @@ function buildEditsMap() {
     // Só envia campos que realmente mudaram em relação ao original
     const orig = JSON.parse(_ORIG[r.registro] || '{}');
     const diff = { _editedAt: r._editedAt, _editedBy: r._editedBy };
-    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual','fase_origem'].forEach(f=>{
+    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual','fase_origem','origem_cadastro'].forEach(f=>{
       if(r[f] !== orig[f]) diff[f] = r[f];
     });
     if(Object.keys(diff).length > 2) map[r.registro] = diff;
@@ -7224,7 +7420,7 @@ function applyEditsMap(map) {
     if(idx >= 0) {
       const local = arr[idx]._editedAt || '';
       if(!local || edits._editedAt > local) { Object.assign(arr[idx], edits); count++; }
-    } else if(edits.fase_origem || edits.disciplina){
+    } else if(edits.fase_origem || edits.disciplina || edits.origem_cadastro){
       // Registro não existe no array local (ex: veio de "Declaração de Escopo" e
       // este arquivo/sessão nunca teve esse registro no conjunto original) — sem
       // isso, registros criados na hora "somem" ao abrir uma versão nova do
@@ -8454,7 +8650,7 @@ const LUCAR_COLS_UNIFICADAS = [
   ['gerencia','Gerência'],['area_sistema','Área/Sistema'],['modulo','Módulo'],['setor','Piso/Setor'],
   ['nota_item_med','Nota/Item/Med.'],['origem','Origem'],['tag','TAG'],['servico_padrao','Serviço Padrão'],
   ['tipo_exigencia','Tipo Exig.'],['prioridade','Prioridade'],
-  // colunas vindas da aba Tabela (quando o registro já existe em DATA_BR)
+  // colunas de Status (quando o registro já existe em DATA_BR)
   ['fonte','Fonte'],['status_samc','Status SAMC'],['samc_fase_execucao','Fase Execução (SAMC)'],['samc_fluxo','Fluxo'],['fabricacao','Fabricação'],['status_plan','Status Planejamento'],
   ['status_lupa','Status LUPA'],['status_sup','Status Suprimento'],['data_sup_tarde','Data Sup.+Tarde'],
   ['esi_resp','ESI'],['br_resp','BR'],
@@ -8517,6 +8713,7 @@ function renderLucarTeste(){
     const rowStyleCrono = isCanceledCrono ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through' : '';
     const cancelBadgeCrono = isCanceledCrono ? '<span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">SS CANCELADA/DESPRIORIZADA</span>' : '';
     const fase2BadgeCrono = (l.fase_origem === 'Fase 2') ? '<span style="font-size:.6rem;background:rgba(217,119,6,.15);color:#b45309;border:1px solid rgba(217,119,6,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">FASE 2 · REMANESCENTE</span>' : '';
+    const manualBadgeCrono = (t && t.origem_cadastro === 'Manual') ? '<span title="Cadastrado manualmente, fora da importação LUCAR" style="font-size:.6rem;background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">🆕 MANUAL</span>' : '';
     // Status Suprimento / Data Sup.+Tarde efetivos — mesmo cálculo usado na Tabela
     // (cruza com o Sistema de Materiais quando o registro existe lá); antes a
     // Cronograma mostrava só o campo bruto/manual, por isso ficava em branco
@@ -8535,7 +8732,7 @@ function renderLucarTeste(){
       <td><input type="checkbox" class="row-chk-crono" onchange="updateBulkBarCrono()"></td>
       <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
       <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
-      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}${fase2BadgeCrono}</td>
+      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}${fase2BadgeCrono}${manualBadgeCrono}</td>
       <td style="font-size:.7rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.nome_tarefa}">${l.nome_tarefa}</td>
       <td><select onchange="lucarSetDisciplina('${reg}',this.value)" style="font-size:.7rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px"><option value="">—</option>${discOpts}</select></td>
       <td style="font-size:.7rem">${l.nr13_venc||'—'}</td>
@@ -9209,7 +9406,7 @@ async function showHistory() {
       if(v && typeof v === 'object' && v._editedAt) edits.push([k, v]);
     });
     if(!edits.length) {
-      alert('Nenhuma edição registrada ainda.\nFaça edições na aba Tabela e elas aparecerão aqui.');
+      alert('Nenhuma edição registrada ainda.\nFaça edições na aba Cronograma e elas aparecerão aqui.');
       return;
     }
     edits.sort(function(a, b) {
