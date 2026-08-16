@@ -1242,6 +1242,7 @@ h1{letter-spacing:.02em}
           style="flex:1;min-width:200px;font-size:.76rem;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text);padding:6px 10px">
         <button onclick="limparFiltrosLucar()" style="background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🧹 Limpar Filtros</button>
         <button id="lucar-cancel-view-btn" onclick="toggleLucarCancelView()" title="Por padrão as SS/Registros cancelados ficam fora dos filtros; clique para ver só eles, isolados" style="background:rgba(107,114,128,.12);border:1px solid var(--muted);color:var(--muted);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">🚫 Ver SS/Registros Cancelados</button>
+        <button id="lucar-inativo-view-btn" onclick="toggleLucarInativoView()" title="Por padrão os registros marcados como Inativo ficam fora dos filtros; clique para ver só eles, isolados" style="background:rgba(107,114,128,.12);border:1px solid var(--muted);color:var(--muted);border-radius:5px;padding:7px 14px;font-size:.76rem;font-weight:700;cursor:pointer;font-family:var(--font)">👁️ Ver Registros Inativos</button>
       </div>
       <div id="lucar-f-count" style="font-size:.72rem;color:var(--muted);margin-top:8px"></div>
     </div>
@@ -1876,10 +1877,29 @@ var CANCEL_STATES = [
 // Checa o cancelamento SEMPRE ao vivo a partir do DATA_BR atual — nunca usar um
 // valor "isCancelado" congelado de uma importação anterior, porque o status pode
 // mudar depois (ex: de "SS Cancelada" para "Andamento") sem reimportar a planilha.
+// AMPLIADA em 16/08/2026: também considera "fora de escopo" um registro marcado
+// manualmente como Inativo (campo r.inativo, ligado pelo checkbox "Inativo" na
+// Cronograma) — mesmo efeito de exclusão de contagens que Cancelado/Despriorizado
+// já tinham, só que por decisão manual em vez de um status vindo de importação.
+// Todo lugar que já chamava esta função (Materiais, Detalhamento, Processamento,
+// badges e opacidade) passa a tratar Inativo do mesmo jeito automaticamente.
 function isRegistroCancelado(registro){
   const r = DATA_BR.find(x => String(x.registro) === String(registro));
   if(!r) return false;
-  return CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
+  return CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1 || !!r.inativo;
+}
+// Rótulo do badge de exclusão — igual à isRegistroCancelado acima, mas explica O
+// MOTIVO (cancelado por status vs. inativo manual vs. os dois), pra não rotular
+// como "CANCELADA/DESPRIORIZADA" um registro que só foi marcado Inativo à mão.
+function labelExclusaoRegistro(registro){
+  const r = DATA_BR.find(x => String(x.registro) === String(registro));
+  if(!r) return '';
+  const cancelado = CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
+  const inativo = !!r.inativo;
+  if(cancelado && inativo) return 'SS CANCELADA/DESPRIORIZADA · INATIVO';
+  if(cancelado) return 'SS CANCELADA/DESPRIORIZADA';
+  if(inativo) return 'INATIVO (manual)';
+  return '';
 }
 
 var _adminIn = false;
@@ -1991,7 +2011,8 @@ function getData() {                        // apenas escopo ativo — usado por
   return DATA_BR.filter(function(r) {
     return matchesFase(r) &&
            CANCEL_STATES.indexOf(r.status_plan) === -1 &&
-           CANCEL_STATES.indexOf(r.status_samc) === -1;
+           CANCEL_STATES.indexOf(r.status_samc) === -1 &&
+           !r.inativo; // marcado manualmente como Inativo na Cronograma — mesmo efeito de exclusão que Cancelado/Despriorizado
   });
 }
 function isOverdue(s) {
@@ -2519,8 +2540,8 @@ function enforceViewerRestrictions() {
   document.querySelectorAll(
     '.edit-cell-btn, #bulk-bar, #bulk-bar-crono, .row-chk, .hdr-chk, .row-chk-crono, #hdr-chk-crono, #btn-recover, [onclick*="openEdit"], [onclick*="openCronoEdit"], [onclick*="applyBulkEdit"], [onclick*="openLucarEditBulk"], [onclick*="abrirNovoRegistroModal"]'
   ).forEach(el => { el.style.display = 'none'; });
-  // Campos inline editáveis na Tabela (Data Sup.+Tarde, ESI, BR, Responsável)
-  document.querySelectorAll('[onchange*="saveSupField"]').forEach(el => { el.disabled = true; el.style.opacity = '.5'; el.style.cursor = 'not-allowed'; });
+  // Campos inline editáveis na Tabela/Cronograma (Data Sup.+Tarde, ESI, BR, Responsável, Inativo)
+  document.querySelectorAll('[onchange*="saveSupField"], [onchange*="toggleRegistroInativo"]').forEach(el => { el.disabled = true; el.style.opacity = '.5'; el.style.cursor = 'not-allowed'; });
 }
 function applyPerfilUI() {
   if (!_currentUser) return;
@@ -4075,7 +4096,7 @@ function renderMateriaisTeste(){
       const somaTxt = isAdmin ? `&nbsp;·&nbsp; Vlr. Total (R$): ${d.somaValorTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}${d.pctTotalSuprimento!=null?` &nbsp;·&nbsp; % Suprimento Total: ${d.pctTotalSuprimento}%`:''}` : '';
       const temCotacao = d.linhas.some(l=>String(l['Status de Fornecimento do Item na Totalidade']||'').includes('Cotação'));
       const cotacaoNote = temCotacao ? ' <span style="background:rgba(245,158,11,.18);color:var(--warn);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:1px 7px;font-size:.68rem;font-weight:700">⚠️ Este registro possui itens em Cotação</span>' : '';
-      const cancelBadgeMat = isRegistroCancelado(reg) ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
+      const cancelBadgeMat = isRegistroCancelado(reg) ? ` <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">${labelExclusaoRegistro(reg)}</span>` : '';
       const temIntegrado = d.linhas.some(l=>{
         const isIntegrado = String(l['Status de Fornecimento do Item na Totalidade']||'').trim()==='Integrado' && String(l['Flag']||'').trim()!=='Atendido';
         if(!isIntegrado) return false;
@@ -4424,7 +4445,7 @@ function renderDetTeste(){
       const regSlug = 'det_'+matSlug(reg);
       const liveInfo = getLiveRegInfo(reg, d);
       const regLabel = `${liveInfo.disciplina} — ${liveInfo.nomeTarefa}`;
-      const cancelBadgeDet = isRegistroCancelado(reg) ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
+      const cancelBadgeDet = isRegistroCancelado(reg) ? ` <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">${labelExclusaoRegistro(reg)}</span>` : '';
       html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(liveInfo.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${regLabel}</strong>${cancelBadgeDet} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${d.detalhamentos.length} detalhamento(s)</span></td></tr>`;
       d.detalhamentos.forEach(it=>{
@@ -4578,7 +4599,7 @@ function renderProcTeste(){
       const liveInfo = getLiveRegInfo(reg, d);
       const regSlug = 'proc_'+matSlug(reg);
       const itensComApon = d.detalhamentos.filter(it=>it.apon);
-      const cancelBadgeProc = isRegistroCancelado(reg) ? ' <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">SS CANCELADA/DESPRIORIZADA</span>' : '';
+      const cancelBadgeProc = isRegistroCancelado(reg) ? ` <span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px">${labelExclusaoRegistro(reg)}</span>` : '';
       html += `<tr data-ss="${ssSlug}" data-reg-header="${regSlug}" data-disc="${esc(liveInfo.disciplina)}" data-cancelado="${isRegistroCancelado(reg)?'1':'0'}" style="display:none;background:var(--bg2);cursor:pointer${isRegistroCancelado(reg)?';opacity:.5;text-decoration:line-through':''}" onclick="event.stopPropagation();toggleMatGroup('reg','${regSlug}', this.querySelector('.arrow'))">
         <td colspan="${colspan}" style="padding:6px 8px"><span class="arrow">▶</span> <strong>${liveInfo.disciplina} — ${liveInfo.nomeTarefa}</strong>${cancelBadgeProc} &nbsp; <span style="font-size:.7rem;color:var(--muted)">${itensComApon.length} item(ns) em execução</span></td></tr>`;
       itensComApon.forEach(it=>{
@@ -6345,7 +6366,8 @@ function clearLucarDrillFilters(){
   Object.keys(LUCAR_FILTER_MAP).forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const s = document.getElementById('lucar-f-search'); if(s) s.value='';
   _planMultiFilter = null; _supMultiFilter = null;
-  if(LUCAR_CANCEL_VIEW){ LUCAR_CANCEL_VIEW = false; const btn = document.getElementById('lucar-cancel-view-btn'); if(btn){ btn.textContent = '🚫 Ver SS/Registros Cancelados'; btn.style.background = 'rgba(107,114,128,.12)'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--muted)'; } }
+  if(LUCAR_CANCEL_VIEW){ LUCAR_CANCEL_VIEW = false; _resetLucarCancelViewBtn(); }
+  if(LUCAR_INATIVO_VIEW){ LUCAR_INATIVO_VIEW = false; _resetLucarInativoViewBtn(); }
 }
 function drillDown(filterKey,filterValue){
   clearLucarDrillFilters();
@@ -7382,7 +7404,7 @@ function buildEditsMap() {
     // Só envia campos que realmente mudaram em relação ao original
     const orig = JSON.parse(_ORIG[r.registro] || '{}');
     const diff = { _editedAt: r._editedAt, _editedBy: r._editedBy };
-    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual','fase_origem','origem_cadastro'].forEach(f=>{
+    ['status_samc','disciplina','fabricacao','status_plan','status_lupa','status_sup','observacoes','data_sup_tarde','esi_resp','br_resp','responsavel','nome_tarefa','nro_ss','nr13_venc','rti_venc','spie_venc','gerencia','area_sistema','modulo','setor','nota_item_med','origem','tag','servico_padrao','tipo_exigencia','prioridade','percent_execucao','qtd_etapas_cronograma','etapas_cronograma','horas_planejadas','data_prevista_fim','tem_etapa_critica_atrasada','tarefa_atual','fase_origem','origem_cadastro','inativo'].forEach(f=>{
       if(r[f] !== orig[f]) diff[f] = r[f];
     });
     if(Object.keys(diff).length > 2) map[r.registro] = diff;
@@ -7419,11 +7441,14 @@ function applyEditsMap(map) {
     if(idx >= 0) {
       const local = arr[idx]._editedAt || '';
       if(!local || edits._editedAt > local) { Object.assign(arr[idx], edits); count++; }
-    } else if(edits.fase_origem || edits.disciplina || edits.origem_cadastro){
-      // Registro não existe no array local (ex: veio de "Declaração de Escopo" e
-      // este arquivo/sessão nunca teve esse registro no conjunto original) — sem
-      // isso, registros criados na hora "somem" ao abrir uma versão nova do
-      // sistema, porque só existem como edição salva, nunca como registro base.
+    } else if(edits.fase_origem || edits.disciplina || edits.origem_cadastro || edits.inativo !== undefined){
+      // Registro não existe no array local (ex: veio de "Declaração de Escopo", de
+      // um cadastro manual, ou de um "Inativo" marcado num registro que aqui ainda
+      // não tinha linha própria no DATA_BR) — sem isso, registros criados na hora
+      // "somem" ao abrir uma versão nova do sistema, porque só existem como edição
+      // salva, nunca como registro base. edits.inativo!==undefined (em vez de só
+      // truthy) cobre o caso de reverter um Inativo (false) de um registro que essa
+      // sessão específica ainda não conhecia.
       arr.push({ registro, nro_ss:'', nome_tarefa:'', status_plan:'', status_samc:'', status_lupa:'', status_sup:'', fabricacao:'', observacoes:'', ...edits });
       count++;
     }
@@ -7951,7 +7976,9 @@ function auditarOrfaos(){
   const orfaosNaoCancelados = DATA_BR.filter(r=>{
     const temVinculo = !!LUCAR_DATA[String(r.registro)];
     const jaCancelado = CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
-    return !temVinculo && !jaCancelado;
+    // Órfão já marcado Inativo não precisa de atenção aqui — já está fora das
+    // contagens do mesmo jeito que um cancelado ficaria.
+    return !temVinculo && !jaCancelado && !r.inativo;
   });
   const modal = document.getElementById('orfaos-audit-modal');
   const listEl = document.getElementById('orfaos-audit-list');
@@ -8653,7 +8680,8 @@ const LUCAR_COLS_UNIFICADAS = [
   ['fonte','Fonte'],['status_samc','Status SAMC'],['samc_fase_execucao','Fase Execução (SAMC)'],['samc_fluxo','Fluxo'],['fabricacao','Fabricação'],['status_plan','Status Planejamento'],
   ['status_lupa','Status LUPA'],['status_sup','Status Suprimento'],['data_sup_tarde','Data Sup.+Tarde'],
   ['esi_resp','ESI'],['br_resp','BR'],
-  ['observacoes','Observações'],['responsavel','Responsável']
+  ['observacoes','Observações'],['responsavel','Responsável'],
+  ['inativo','Inativo']
 ];
 function renderLucarHistorico(){
   const body = document.getElementById('lucar-historico-body');
@@ -8709,8 +8737,11 @@ function renderLucarTeste(){
     const discEfetiva = l.disciplina || (t && t.disciplina) || '';
     const discOpts = LUCAR_DISC_OPTIONS.map(d=>`<option value="${d}" ${discEfetiva===d?'selected':''}>${d}</option>`).join('');
     const isCanceledCrono = t && (CANCEL_STATES.indexOf(t.status_plan) !== -1 || CANCEL_STATES.indexOf(t.status_samc) !== -1);
-    const rowStyleCrono = isCanceledCrono ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through' : '';
+    const isInativoCrono = !!(t && t.inativo);
+    const rowStyleCrono = isCanceledCrono ? 'opacity:.5;background:rgba(239,68,68,.06);text-decoration:line-through'
+      : (isInativoCrono ? 'opacity:.5;background:rgba(107,114,128,.08);text-decoration:line-through' : '');
     const cancelBadgeCrono = isCanceledCrono ? '<span style="font-size:.6rem;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">SS CANCELADA/DESPRIORIZADA</span>' : '';
+    const inativoBadgeCrono = (isInativoCrono && !isCanceledCrono) ? '<span title="Marcado manualmente como Inativo — fora de todas as contagens" style="font-size:.6rem;background:rgba(107,114,128,.18);color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">🚫 INATIVO</span>' : '';
     const fase2BadgeCrono = (l.fase_origem === 'Fase 2') ? '<span style="font-size:.6rem;background:rgba(217,119,6,.15);color:#b45309;border:1px solid rgba(217,119,6,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">FASE 2 · REMANESCENTE</span>' : '';
     const manualBadgeCrono = (t && t.origem_cadastro === 'Manual') ? '<span title="Cadastrado manualmente, fora da importação LUCAR" style="font-size:.6rem;background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">🆕 MANUAL</span>' : '';
     // Status Suprimento / Data Sup.+Tarde efetivos — mesmo cálculo usado na Tabela
@@ -8726,12 +8757,12 @@ function renderLucarTeste(){
       data-fonte="${esc(t?(t.fonte||'BR'):'')}" data-samc="${esc(t?t.status_samc||'':'')}" data-samcfase="${esc(t?t.samc_fase_execucao||'':'')}" data-samcfluxo="${esc(t?t.samc_fluxo||'':'')}" data-fab="${esc(t?t.fabricacao||'':'')}"
       data-plan="${esc(t?t.status_plan||'':'')}" data-lupa="${esc(t?t.status_lupa||'':'')}" data-sup="${esc(supStatusCrono||'')}"
       data-esi="${t&&t.esi_resp?'1':'0'}" data-br="${t&&t.br_resp?'1':'0'}" data-esibr="${t&&t.esi_resp&&t.br_resp?'1':'0'}"
-      data-cancelado="${isCanceledCrono?'1':'0'}" data-semvinculo="${t?'0':'1'}"
+      data-cancelado="${isCanceledCrono?'1':'0'}" data-inativo="${isInativoCrono?'1':'0'}" data-semvinculo="${t?'0':'1'}"
       data-responsavel="${esc(t?t.responsavel||'':'')}" data-datasup="${supDateCrono||''}">
       <td><input type="checkbox" class="row-chk-crono" onchange="updateBulkBarCrono()"></td>
       <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
       <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
-      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}${fase2BadgeCrono}${manualBadgeCrono}</td>
+      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}${inativoBadgeCrono}${fase2BadgeCrono}${manualBadgeCrono}</td>
       <td style="font-size:.7rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.nome_tarefa}">${l.nome_tarefa}</td>
       <td><select onchange="lucarSetDisciplina('${reg}',this.value)" style="font-size:.7rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px"><option value="">—</option>${discOpts}</select></td>
       <td style="font-size:.7rem">${l.nr13_venc||'—'}</td>
@@ -8764,6 +8795,7 @@ function renderLucarTeste(){
       <td class="sup-chk-col">${t?`<input type="checkbox" ${t.br_resp?'checked':''} title="BR responsável" onchange="saveSupField(event,'${t.registro}','br_resp')" style="accent-color:#1a6fad;width:15px;height:15px;cursor:pointer">`:'—'}</td>
       <td style="font-size:.7rem;min-width:390px;white-space:normal">${t?(t.observacoes||''):''}</td>
       <td style="font-size:.7rem">${t?(t.responsavel||''):''}</td>
+      <td class="sup-chk-col"><input type="checkbox" ${isInativoCrono?'checked':''} title="Marcar como Inativo — sai de todas as contagens, igual Cancelado/Despriorizado" onchange="toggleRegistroInativo('${reg}', this.checked)" style="accent-color:#6b7280;width:16px;height:16px;cursor:pointer"></td>
     </tr>`;
   }).join('');
   populateLucarFilters();
@@ -8777,6 +8809,39 @@ function fmtDataSupTardeBR(v){
 }
 function lucarSetDisciplina(registro, val){
   if(LUCAR_DATA[registro]){ LUCAR_DATA[registro].disciplina = val; pushLucarDataToCloud(); }
+}
+
+// Coluna "Inativo" da Cronograma: marcação manual, independente de Status
+// SAMC/Planejamento/LUPA — desliga o registro de "todas as contagens" (Curva S,
+// Gráficos, Folha Tarefa, Suprimento, Materiais/Detalhamento/Processamento, SAMC)
+// do mesmo jeito que Cancelado/Despriorizado já fazem (ver isRegistroCancelado,
+// ampliada em 16/08/2026 pra também considerar este campo).
+function toggleRegistroInativo(registro, checked){
+  if (_currentUser && _currentUser.perfil === 'visualizador') { flash('🔒 Perfil visualizador não pode editar.', '#ef4444', 3000); renderLucarTeste(); return; }
+  let idx = DATA_BR.findIndex(r => String(r.registro) === String(registro));
+  if(idx < 0){
+    // Registro só existe na LUCAR_DATA (ainda "sem vínculo" com a Tabela/Cronograma
+    // em termos de Status) — cria a linha agora, com os mesmos padrões do cadastro
+    // manual simplificado, só pra poder guardar a marcação de Inativo.
+    const l = LUCAR_DATA[registro] || {};
+    DATA_BR.push({
+      registro, nro_ss: l.nro_ss||'', nome_tarefa: l.nome_tarefa||'',
+      nr13_venc: l.nr13_venc||'', rti_venc: l.rti_venc||'', spie_venc: l.spie_venc||'',
+      gerencia: l.gerencia||'', area_sistema: l.area_sistema||'', modulo: l.modulo||'',
+      setor: l.setor||'', nota_item_med: l.nota_item_med||'', origem: l.origem||'',
+      tag: l.tag||'', servico_padrao: l.servico_padrao||'', tipo_exigencia: l.tipo_exigencia||'', prioridade: l.prioridade||'',
+      fonte: 'BR', status_samc: 'Em Andamento', disciplina: l.disciplina||'', fabricacao: 'Verificar',
+      status_plan: 'Delineamento Não Iniciado', status_lupa: 'Ativo', status_sup: 'Não Cadastrado', observacoes: ''
+    });
+    idx = DATA_BR.length - 1;
+  }
+  DATA_BR[idx].inativo = !!checked;
+  DATA_BR[idx]._editedAt = new Date().toISOString();
+  DATA_BR[idx]._editedBy = SYNC_USER;
+  saveLocalEdits();
+  pushEdits();
+  renderLucarTeste();
+  flash(checked ? `🚫 Registro ${registro} marcado como Inativo — saiu de todas as contagens.` : `✅ Registro ${registro} reativado — voltou a contar normalmente.`, checked ? '#6b7280' : '#22c55e', 4000);
 }
 
 // ── Seleção múltipla (Cronograma) — mesma ideia da Tabela, mas abre o popup
@@ -9067,14 +9132,38 @@ function populateLucarFilters(){
   });
 }
 let LUCAR_CANCEL_VIEW = false; // false: visão normal (canceladas ocultas) · true: só canceladas
+let LUCAR_INATIVO_VIEW = false; // false: visão normal (inativos ocultos) · true: só inativos
+function _resetLucarCancelViewBtn(){
+  const btn = document.getElementById('lucar-cancel-view-btn');
+  if(btn){ btn.textContent = '🚫 Ver SS/Registros Cancelados'; btn.style.background = 'rgba(107,114,128,.12)'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--muted)'; }
+}
+function _resetLucarInativoViewBtn(){
+  const btn = document.getElementById('lucar-inativo-view-btn');
+  if(btn){ btn.textContent = '👁️ Ver Registros Inativos'; btn.style.background = 'rgba(107,114,128,.12)'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--muted)'; }
+}
 function toggleLucarCancelView(){
   LUCAR_CANCEL_VIEW = !LUCAR_CANCEL_VIEW;
+  // As duas visões isoladas (Cancelados / Inativos) são mutuamente exclusivas —
+  // nunca faz sentido isolar as duas coisas ao mesmo tempo na tela.
+  if(LUCAR_CANCEL_VIEW && LUCAR_INATIVO_VIEW){ LUCAR_INATIVO_VIEW = false; _resetLucarInativoViewBtn(); }
   const btn = document.getElementById('lucar-cancel-view-btn');
   if(btn){
     btn.textContent = LUCAR_CANCEL_VIEW ? '↩️ Voltar para Ativos' : '🚫 Ver SS/Registros Cancelados';
     btn.style.background = LUCAR_CANCEL_VIEW ? 'rgba(239,68,68,.15)' : 'rgba(107,114,128,.12)';
     btn.style.color = LUCAR_CANCEL_VIEW ? 'var(--danger)' : 'var(--muted)';
     btn.style.borderColor = LUCAR_CANCEL_VIEW ? 'var(--danger)' : 'var(--muted)';
+  }
+  applyLucarFilters();
+}
+function toggleLucarInativoView(){
+  LUCAR_INATIVO_VIEW = !LUCAR_INATIVO_VIEW;
+  if(LUCAR_INATIVO_VIEW && LUCAR_CANCEL_VIEW){ LUCAR_CANCEL_VIEW = false; _resetLucarCancelViewBtn(); }
+  const btn = document.getElementById('lucar-inativo-view-btn');
+  if(btn){
+    btn.textContent = LUCAR_INATIVO_VIEW ? '↩️ Voltar para Ativos' : '👁️ Ver Registros Inativos';
+    btn.style.background = LUCAR_INATIVO_VIEW ? 'rgba(107,114,128,.25)' : 'rgba(107,114,128,.12)';
+    btn.style.color = LUCAR_INATIVO_VIEW ? 'var(--text)' : 'var(--muted)';
+    btn.style.borderColor = LUCAR_INATIVO_VIEW ? 'var(--text)' : 'var(--muted)';
   }
   applyLucarFilters();
 }
@@ -9100,11 +9189,15 @@ function applyLucarFilters(){
   rows.forEach(row=>{
     if(!row.dataset || Object.keys(row.dataset).length===0){ return; } // linha de aviso (sem dados)
     let ok = true;
-    // Canceladas ficam fora do filtro por padrão; com o botão "Ver SS/Registros
-    // Cancelados" ativo, mostra só elas isoladas — nunca as duas coisas juntas.
+    // Canceladas e Inativos ficam fora do filtro por padrão; com o botão "Ver
+    // SS/Registros Cancelados" ou "Ver Registros Inativos" ativo, mostra só o
+    // grupo correspondente isolado — os dois toggles são mutualmente exclusivos
+    // (nunca isola os dois juntos), então só um destes três ramos roda por vez.
     const isCancelada = row.dataset.cancelado === '1';
+    const isInativo = row.dataset.inativo === '1';
     if(LUCAR_CANCEL_VIEW){ if(!isCancelada) ok = false; }
-    else { if(isCancelada) ok = false; }
+    else if(LUCAR_INATIVO_VIEW){ if(!isInativo) ok = false; }
+    else { if(isCancelada || isInativo) ok = false; }
     for(const attr in filtros){
       if((row.dataset[attr]||'') !== filtros[attr]){ ok = false; break; }
     }
@@ -9131,10 +9224,13 @@ function applyLucarFilters(){
     // maior. Detalhamos isso aqui para não parecer inconsistência/erro de dado.
     const todasLinhas = rows.filter(r=>r.dataset && Object.keys(r.dataset).length>0);
     const canceladas = todasLinhas.filter(r=>r.dataset.cancelado==='1').length;
+    // Evita contar 2x um registro que está cancelado E marcado Inativo ao mesmo tempo.
+    const inativos = todasLinhas.filter(r=>r.dataset.inativo==='1' && r.dataset.cancelado!=='1').length;
     const semVinculo = todasLinhas.filter(r=>r.dataset.semvinculo==='1').length;
-    const ativosNaTabela = todasLinhas.length - canceladas - semVinculo;
+    const ativosNaTabela = todasLinhas.length - canceladas - inativos - semVinculo;
     let detalhe = `${ativosNaTabela} ativo(s) na Tabela`;
     if(canceladas) detalhe += ` · ${canceladas} cancelado(s)`;
+    if(inativos) detalhe += ` · ${inativos} inativo(s)`;
     if(semVinculo) detalhe += ` · ${semVinculo} ainda sem vínculo com a Tabela`;
     countEl.textContent = `${visiveis} de ${rows.length} registro(s) exibido(s) — ${detalhe}`;
   }
@@ -9149,7 +9245,8 @@ function limparFiltrosLucar(){
   const searchEl = document.getElementById('lucar-f-search');
   if(searchEl) searchEl.value = '';
   _planMultiFilter = null; _supMultiFilter = null;
-  if(LUCAR_CANCEL_VIEW){ LUCAR_CANCEL_VIEW = false; const btn = document.getElementById('lucar-cancel-view-btn'); if(btn){ btn.textContent = '🚫 Ver SS/Registros Cancelados'; btn.style.background = 'rgba(107,114,128,.12)'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--muted)'; } }
+  if(LUCAR_CANCEL_VIEW){ LUCAR_CANCEL_VIEW = false; _resetLucarCancelViewBtn(); }
+  if(LUCAR_INATIVO_VIEW){ LUCAR_INATIVO_VIEW = false; _resetLucarInativoViewBtn(); }
   applyLucarFilters();
 }
 
@@ -9170,7 +9267,7 @@ function lucarExportRows(){
     if(!l) return null;
     return LUCAR_COLS_UNIFICADAS.map(([k])=>{
       if(k==='data_sup_tarde') return t ? fmtDataSupTardeBR(t.data_sup_tarde).replace('—','') : '';
-      if(k==='esi_resp'||k==='br_resp') return t ? (t[k]?'Sim':'Não') : '';
+      if(k==='esi_resp'||k==='br_resp'||k==='inativo') return t ? (t[k]?'Sim':'Não') : '';
       if(k==='disciplina') return l.disciplina || (t && t.disciplina) || '';
       if(k in l) return l[k]||'';
       if(t && k in t) return t[k]||'';
