@@ -1399,6 +1399,8 @@ h1{letter-spacing:.02em}
     <input type="file" id="samcImportInput" accept=".xlsx" style="display:none" onchange="handleSamcImport(event)">
     <button onclick="auditarOrfaos()" style="width:100%;margin-bottom:4px;background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">🔎 Auditar Registros Órfãos (sem vínculo com a LUCAR)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Encontra registros na Tabela que já saíram do escopo declarado da LUCAR mas não estão marcados como cancelados.</div>
+    <button onclick="auditarSemDisciplina()" style="width:100%;margin-bottom:4px;background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">🗑️ Excluir Registros sem Disciplina</button>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Encontra registros (de qualquer origem — LUCAR ou cadastro manual) sem Disciplina preenchida e permite excluí-los definitivamente do sistema (não é cancelamento — some sem deixar registro).</div>
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📊 Planejamento</div>
     <button onclick="document.getElementById('planImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(20,184,166,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📊 Atualizar Status Planejamento (Excel)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione um ou mais arquivos "UN-BUZ...xlsx". O mais recente prevalece em caso de conflito.</div>
@@ -1517,6 +1519,31 @@ h1{letter-spacing:.02em}
     <div class="modal-actions">
       <button class="modal-btn cancel" onclick="document.getElementById('orfaos-audit-modal').style.display='none'">Fechar sem alterar</button>
       <button class="modal-btn save" onclick="orfaosAplicarCancelamento()">✅ Marcar selecionados como Cancelados</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUDITORIA DE REGISTROS SEM DISCIPLINA (EXCLUSÃO DEFINITIVA) -->
+<div class="modal-overlay" id="sem-disciplina-audit-modal" style="display:none">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-title">🗑️ Registros sem Disciplina</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      Regra do projeto: todo registro no sistema — venha de importação da LUCAR/LUPA ou de cadastro manual —
+      precisa ter Nº Registro <strong>e</strong> Disciplina preenchidos. Os registros abaixo não têm Disciplina
+      (nem na LUCAR, nem na Tabela/Cronograma). <strong>Diferente de Cancelar ou marcar Inativo, a ação aqui é
+      uma exclusão definitiva</strong> — remove o registro completamente (LUCAR e Status), sem deixar rastro. Use
+      com cuidado: se o registro só ainda não foi classificado, prefira ir na Cronograma e preencher a Disciplina
+      em vez de excluir.
+    </div>
+    <div id="sem-disciplina-audit-resumo" style="font-size:.78rem;color:var(--blue);font-weight:600;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="semDisciplinaMarcarTodos(true)">Marcar todos</button>
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="semDisciplinaMarcarTodos(false)">Desmarcar todos</button>
+    </div>
+    <div id="sem-disciplina-audit-list" style="max-height:380px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="document.getElementById('sem-disciplina-audit-modal').style.display='none'">Fechar sem alterar</button>
+      <button class="modal-btn save" style="background:var(--danger);border-color:var(--danger)" onclick="semDisciplinaExcluirConfirmar()">🗑️ Excluir selecionados definitivamente</button>
     </div>
   </div>
 </div>
@@ -7283,7 +7310,7 @@ async function salvarNovoRegistro(){
     // porque "já existe" sem explicação deixa o órfão impossível de rastrear na tela.
     const jaNaCronograma = !!LUCAR_DATA[registro];
     const orfaoEmDataBr = !jaNaCronograma && DATA_BR.some(r => _normalizarRegistro(r.registro) === registro);
-    if(jaNaCronograma){ erros.push(`Linha ${i+1}: o Registro ${registro} já existe na Cronograma.`); return; }
+    if(jaNaCronograma){ erros.push(`Linha ${i+1}: o Registro ${registro} já existe na Cronograma. Se a busca por esse número não mostrar nada, ele provavelmente está marcado Cancelado ou Inativo (esses dois ficam ocultos por padrão, mas agora a busca por texto já mostra eles também) — digite o número no campo de busca da Cronograma pra localizar, ou use "Ver SS/Registros Cancelados" / "Ver Registros Inativos".`); return; }
     if(orfaoEmDataBr){ erros.push(`Linha ${i+1}: o Registro ${registro} já existe no sistema, mas está "órfão" (sem vínculo com a LUCAR — por isso não aparece na Cronograma). Use "🔎 Auditar Registros Órfãos" no Painel Admin para localizá-lo e decidir se cancela ou revincula.`); return; }
     if(registrosNoLote.has(registro)){ erros.push(`Linha ${i+1}: o Registro ${registro} está repetido nesta lista.`); return; }
     registrosNoLote.add(registro);
@@ -8042,6 +8069,111 @@ function orfaosAplicarCancelamento(){
   pushEdits();
   flash(`✅ ${count} registro(s) órfão(s) marcado(s) como cancelado(s).`, '#22c55e', 6000);
 }
+
+// ── Auditoria + exclusão definitiva de registros sem Disciplina ─────────────
+// Regra do projeto: todo registro precisa ter Registro + Disciplina, venha de
+// importação (LUCAR) ou de cadastro manual. O cadastro manual já bloqueia isso
+// (ver salvarNovoRegistro); a importação LUCAR NÃO bloqueia — por design ela
+// sempre entra com Disciplina em branco, pra ser classificada depois na
+// Cronograma (ver comentário em lucarBuildRecord). Esta ferramenta é o jeito de
+// limpar quem nunca chegou a ser classificado, em vez de deixá-los acumulando
+// sem disciplina e contando nos totais.
+function _registroTemDisciplina(reg){
+  const l = LUCAR_DATA[reg];
+  const t = DATA_BR.find(r => String(r.registro) === String(reg));
+  const disc = (l && l.disciplina) || (t && t.disciplina) || '';
+  return !!String(disc).trim();
+}
+function auditarSemDisciplina(){
+  const isAdmin = _currentUser && _currentUser.perfil === 'admin';
+  if(!isAdmin){ flash('⚠️ Apenas administradores podem excluir registros.', '#ef4444', 4000); return; }
+  const dataBrPorRegistro = {};
+  DATA_BR.forEach(r=>{ dataBrPorRegistro[String(r.registro)] = r; });
+  // Cobre as duas origens possíveis de um registro: os que estão na LUCAR_DATA
+  // (importados ou cadastrados manualmente) e os que só existem no DATA_BR
+  // (ex: órfãos antigos, de antes da checagem de Disciplina existir).
+  const todosRegistros = new Set([...Object.keys(LUCAR_DATA), ...DATA_BR.map(r=>String(r.registro))]);
+  const semDisciplina = [...todosRegistros].filter(reg => !_registroTemDisciplina(reg));
+  const modal = document.getElementById('sem-disciplina-audit-modal');
+  const listEl = document.getElementById('sem-disciplina-audit-list');
+  const resumoEl = document.getElementById('sem-disciplina-audit-resumo');
+  if(!semDisciplina.length){
+    listEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.78rem">Nenhum registro sem Disciplina encontrado — tudo certo por aqui.</div>';
+    if(resumoEl) resumoEl.textContent = '';
+    modal.style.display = 'flex';
+    return;
+  }
+  const esc = s => String(s==null?'':s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  if(resumoEl) resumoEl.textContent = `${semDisciplina.length} registro(s) sem Disciplina encontrado(s).`;
+  listEl.innerHTML = semDisciplina.sort().map(reg=>{
+    const l = LUCAR_DATA[reg];
+    const t = dataBrPorRegistro[reg];
+    const ss = (l && l.nro_ss) || (t && t.nro_ss) || '(sem SS)';
+    const nomeTarefa = (l && l.nome_tarefa) || (t && t.nome_tarefa) || '';
+    const origemTxt = l ? (t ? 'LUCAR + Status' : 'só LUCAR (sem vínculo)') : 'só Status (órfão)';
+    return `<label style="display:grid;grid-template-columns:20px 90px 110px 1fr auto;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:.75rem;cursor:pointer">
+      <input type="checkbox" class="sem-disciplina-audit-chk" value="${esc(reg)}" checked style="width:16px;height:16px">
+      <span style="font-family:monospace">${esc(reg)}</span>
+      <span style="font-family:monospace;color:var(--accent)">${esc(ss)}</span>
+      <span title="${esc(nomeTarefa)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nomeTarefa)||'—'}</span>
+      <span style="color:var(--muted);font-size:.68rem">${origemTxt}</span>
+    </label>`;
+  }).join('');
+  modal.style.display = 'flex';
+}
+function semDisciplinaMarcarTodos(v){
+  document.querySelectorAll('.sem-disciplina-audit-chk').forEach(c=>{ c.checked = v; });
+}
+// Remove a chave de um registro do mapa de edições na nuvem (Firebase) — sem
+// isso, um DATA_BR splice() local não seria suficiente: o registro é recriado
+// automaticamente na próxima vez que a página carregar e reaplicar os diffs
+// salvos em lupa_data.json (ver applyEditsMap/pullEditsAndMerge). É essa
+// limpeza no lado da nuvem que torna a exclusão definitiva de verdade.
+async function _deleteRegistroEditsFromCloud(registro){
+  try {
+    await fetch(`${FIREBASE_URL}/lupa_data/${encodeURIComponent(registro)}.json`, { method:'DELETE', headers: jsonbinHeaders() });
+  } catch(e){ console.warn('[Excluir sem Disciplina] Falha ao limpar diff na nuvem para', registro, e); }
+}
+async function semDisciplinaExcluirConfirmar(){
+  const selecionados = [...document.querySelectorAll('.sem-disciplina-audit-chk:checked')].map(c=>c.value);
+  if(!selecionados.length){ flash('ℹ️ Nenhum registro selecionado.', '#3b82f6', 4000); return; }
+  const confirmar = confirm(
+    `⚠️ ATENÇÃO: isso vai EXCLUIR DEFINITIVAMENTE ${selecionados.length} registro(s) do sistema — ` +
+    `diferente de Cancelar ou marcar Inativo, esta ação não deixa rastro nenhum e não pode ser desfeita por aqui.\n\n` +
+    `Confirme que revisou a lista (Nº Registro / Nº SS / Nome da Tarefa) antes de continuar.\n\n` +
+    `Tem certeza que quer excluir esses ${selecionados.length} registro(s)?`
+  );
+  if(!confirmar) return;
+  document.getElementById('sem-disciplina-audit-modal').style.display = 'none';
+
+  let count = 0;
+  selecionados.forEach(reg=>{
+    if(LUCAR_DATA[reg]) delete LUCAR_DATA[reg];
+    const idx = DATA_BR.findIndex(r=>String(r.registro)===String(reg));
+    if(idx>=0) DATA_BR.splice(idx,1);
+    if(typeof ESCOPO_FASE2 !== 'undefined' && ESCOPO_FASE2[reg] !== undefined) delete ESCOPO_FASE2[reg];
+    count++;
+  });
+
+  // Limpa também os diffs salvos localmente (localStorage), senão eles voltam a
+  // ser reaplicados na primeira sincronização depois de recarregar a página.
+  try {
+    const raw = localStorage.getItem('lupa_edits');
+    if(raw){
+      const map = JSON.parse(raw);
+      selecionados.forEach(reg=>{ delete map[reg]; });
+      localStorage.setItem('lupa_edits', JSON.stringify(map));
+    }
+  } catch(e){}
+
+  renderAll();
+  renderLucarTeste();
+  flash(`🗑️ Excluindo ${count} registro(s) e sincronizando com a nuvem...`, '#6b7280', 4000);
+  await Promise.all(selecionados.map(reg => _deleteRegistroEditsFromCloud(reg)));
+  const [okLucar] = await Promise.all([pushLucarDataToCloud()]);
+  flash(`✅ ${count} registro(s) excluído(s) definitivamente` + (okLucar ? ' e sincronizado(s) com a nuvem.' : ' — ⚠️ houve falha ao sincronizar a LUCAR; tente novamente pelo Painel Admin.'), '#22c55e', 8000);
+}
+
 async function handleSamcImport(e){
   const file = e.target.files[0];
   if(!file) return;
@@ -9205,6 +9337,7 @@ function applyLucarFilters(){
   const termo = searchEl ? searchEl.value.trim().toLowerCase() : '';
   const rows = [...document.querySelectorAll('#lucar-teste-body tr')];
   let visiveis = 0;
+  let visiveisForaDoAtivo = 0; // quantos dos resultados da busca são Cancelado/Inativo (normalmente ocultos, mas a busca os traz de volta)
   rows.forEach(row=>{
     if(!row.dataset || Object.keys(row.dataset).length===0){ return; } // linha de aviso (sem dados)
     let ok = true;
@@ -9212,11 +9345,20 @@ function applyLucarFilters(){
     // SS/Registros Cancelados" ou "Ver Registros Inativos" ativo, mostra só o
     // grupo correspondente isolado — os dois toggles são mutualmente exclusivos
     // (nunca isola os dois juntos), então só um destes três ramos roda por vez.
+    // EXCEÇÃO (16/08/2026): com uma busca de texto ativa, essa ocultação padrão
+    // não entra — senão procurar um Nº Registro específico que esteja Cancelado
+    // ou Inativo sempre retorna "0 resultados" mesmo ele existindo de verdade no
+    // sistema, dando a falsa impressão de que o registro sumiu (foi exatamente
+    // isso que gerou a confusão do "registro fantasma": a checagem de duplicata
+    // olha LUCAR_DATA direto, sem passar por esse filtro de tela, então ela
+    // sempre "encontra" o registro mesmo quando a busca na tela não encontrava).
     const isCancelada = row.dataset.cancelado === '1';
     const isInativo = row.dataset.inativo === '1';
-    if(LUCAR_CANCEL_VIEW){ if(!isCancelada) ok = false; }
-    else if(LUCAR_INATIVO_VIEW){ if(!isInativo) ok = false; }
-    else { if(isCancelada || isInativo) ok = false; }
+    if(!termo){
+      if(LUCAR_CANCEL_VIEW){ if(!isCancelada) ok = false; }
+      else if(LUCAR_INATIVO_VIEW){ if(!isInativo) ok = false; }
+      else { if(isCancelada || isInativo) ok = false; }
+    }
     for(const attr in filtros){
       if((row.dataset[attr]||'') !== filtros[attr]){ ok = false; break; }
     }
@@ -9233,7 +9375,7 @@ function applyLucarFilters(){
     if(ok && _planMultiFilter && _planMultiFilter.length && !_planMultiFilter.includes(row.dataset.plan||'')) ok = false;
     if(ok && _supMultiFilter && _supMultiFilter.length && !_supMultiFilter.includes(row.dataset.sup||'')) ok = false;
     row.style.display = ok ? '' : 'none';
-    if(ok) visiveis++;
+    if(ok){ visiveis++; if(termo && (isCancelada || isInativo)) visiveisForaDoAtivo++; }
   });
   const countEl = document.getElementById('lucar-f-count');
   if(countEl){
@@ -9251,7 +9393,11 @@ function applyLucarFilters(){
     if(canceladas) detalhe += ` · ${canceladas} cancelado(s)`;
     if(inativos) detalhe += ` · ${inativos} inativo(s)`;
     if(semVinculo) detalhe += ` · ${semVinculo} ainda sem vínculo com a Tabela`;
-    countEl.textContent = `${visiveis} de ${rows.length} registro(s) exibido(s) — ${detalhe}`;
+    let sufixoBusca = '';
+    if(termo && visiveisForaDoAtivo){
+      sufixoBusca = ` · ⚠️ ${visiveisForaDoAtivo} do(s) resultado(s) da busca está(ão) Cancelado/Inativo (normalmente ficariam ocultos — a busca os trouxe de volta)`;
+    }
+    countEl.textContent = `${visiveis} de ${rows.length} registro(s) exibido(s) — ${detalhe}${sufixoBusca}`;
   }
 }
 function limparFiltrosLucar(){
