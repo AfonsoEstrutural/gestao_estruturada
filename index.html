@@ -355,6 +355,10 @@ h1{letter-spacing:.02em}
     </div>
   </div>
     <div class="hdr-right">
+    <label title="Por padrão, registros marcados como Inativo na Cronograma ficam de fora dos cálculos de gráficos, KPIs e relatórios (Curva S, Gráficos Etapas BR, Gráficos Visão Geral, Folha Tarefa, Suprimento, etc.) — o mesmo tratamento que Cancelado/Despriorizado já tem. Marque esta opção para incluí-los de volta nesses cálculos. Não afeta Cancelado/Despriorizado, que continua sempre fora." style="display:flex;align-items:center;gap:6px;font-size:.74rem;font-weight:700;color:var(--muted);cursor:pointer;padding:0 4px;user-select:none">
+      <input type="checkbox" id="chk-incluir-inativos-graficos" onchange="toggleIncluirInativosGraficos(this.checked)" style="width:15px;height:15px;cursor:pointer">
+      Incluir Inativos nos Gráficos
+    </label>
     <button class="theme-btn" onclick="generateCampaignReport()" title="Gerar relatório de análise da campanha em Word" style="background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.5);color:var(--green)">📄 Relatório da Campanha</button>
     <button class="theme-btn" onclick="toggleTheme()" id="theme-btn">☀️ Claro</button>
     <button class="theme-btn" onclick="toggleAdminPanel()" title="Painel Administrador" style="background:rgba(245,166,35,.12);border-color:rgba(245,166,35,.5);color:var(--accent)">🔐 Admin</button>
@@ -1874,6 +1878,21 @@ var CANCEL_STATES = [
   'Cancelada',
   'Cancelado'
 ];
+// Checkbox global "Incluir Inativos nos Gráficos" (cabeçalho, ao lado do botão
+// Relatório da Campanha) — só reverte a exclusão do campo r.inativo em getData().
+// Cancelado/Despriorizado (CANCEL_STATES) continuam SEMPRE fora, independente
+// deste checkbox — ele existe só pra permitir uma conferência pontual de "e se os
+// Inativos entrassem de novo?", sem precisar desmarcar cada registro um por um.
+let INCLUIR_INATIVOS_GRAFICOS = false;
+function toggleIncluirInativosGraficos(checked){
+  INCLUIR_INATIVOS_GRAFICOS = checked;
+  renderAll();
+  renderActiveTabContent();
+  flash(checked
+    ? '📊 Registros Inativos agora ENTRAM nos cálculos de gráficos, KPIs e relatórios.'
+    : '📊 Registros Inativos voltaram a ficar de fora dos cálculos de gráficos, KPIs e relatórios.',
+    checked ? '#f59e0b' : '#22c55e', 5000);
+}
 // Checa o cancelamento SEMPRE ao vivo a partir do DATA_BR atual — nunca usar um
 // valor "isCancelado" congelado de uma importação anterior, porque o status pode
 // mudar depois (ex: de "SS Cancelada" para "Andamento") sem reimportar a planilha.
@@ -2012,7 +2031,7 @@ function getData() {                        // apenas escopo ativo — usado por
     return matchesFase(r) &&
            CANCEL_STATES.indexOf(r.status_plan) === -1 &&
            CANCEL_STATES.indexOf(r.status_samc) === -1 &&
-           !r.inativo; // marcado manualmente como Inativo na Cronograma — mesmo efeito de exclusão que Cancelado/Despriorizado
+           (INCLUIR_INATIVOS_GRAFICOS || !r.inativo); // Inativo some por padrão, igual Cancelado/Despriorizado — só volta se o checkbox "Incluir Inativos nos Gráficos" estiver marcado
   });
 }
 function isOverdue(s) {
