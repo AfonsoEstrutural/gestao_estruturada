@@ -8958,8 +8958,36 @@ function fmtDataSupTardeBR(v){
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
   return m ? `${m[3]}/${m[2]}/${m[1]}` : v;
 }
+// BUG corrigido em 17/08/2026: este onchange só gravava a Disciplina em LUCAR_DATA.
+// A aba Cronograma lê a Disciplina priorizando LUCAR_DATA (por isso mostrava o valor
+// novo certinho), mas Materiais/Detalhamento/Processamento/Gráficos leem priorizando
+// DATA_BR (getLiveRegInfo/getData) — que ficava com o valor ANTIGO parado pra sempre,
+// já que o reimport da LUCAR também preserva a Disciplina que já existir. Resultado:
+// mudar a Disciplina pela Cronograma "sumia" fora dela. Agora grava nos dois lugares.
 function lucarSetDisciplina(registro, val){
-  if(LUCAR_DATA[registro]){ LUCAR_DATA[registro].disciplina = val; pushLucarDataToCloud(); }
+  if(LUCAR_DATA[registro]){ LUCAR_DATA[registro].disciplina = val; }
+  let idx = DATA_BR.findIndex(r => String(r.registro) === String(registro));
+  if(idx < 0){
+    // Registro "sem vínculo" (só existe na LUCAR_DATA ainda) — cria a linha na Tabela
+    // agora, mesmo padrão usado pelo toggleRegistroInativo, só pra poder guardar a Disciplina.
+    const l = LUCAR_DATA[registro] || {};
+    DATA_BR.push({
+      registro, nro_ss: l.nro_ss||'', nome_tarefa: l.nome_tarefa||'',
+      nr13_venc: l.nr13_venc||'', rti_venc: l.rti_venc||'', spie_venc: l.spie_venc||'',
+      gerencia: l.gerencia||'', area_sistema: l.area_sistema||'', modulo: l.modulo||'',
+      setor: l.setor||'', nota_item_med: l.nota_item_med||'', origem: l.origem||'',
+      tag: l.tag||'', servico_padrao: l.servico_padrao||'', tipo_exigencia: l.tipo_exigencia||'', prioridade: l.prioridade||'',
+      fonte: 'BR', status_samc: 'Em Andamento', disciplina: val, fabricacao: 'Verificar',
+      status_plan: 'Delineamento Não Iniciado', status_lupa: 'Ativo', status_sup: 'Não Cadastrado', observacoes: ''
+    });
+  } else {
+    DATA_BR[idx].disciplina = val;
+    DATA_BR[idx]._editedAt = new Date().toISOString();
+    DATA_BR[idx]._editedBy = SYNC_USER;
+  }
+  saveLocalEdits();
+  pushEdits();
+  pushLucarDataToCloud();
 }
 
 // Coluna "Inativo" da Cronograma: marcação manual, independente de Status
@@ -9431,7 +9459,21 @@ function lucarExportRows(){
     const l = LUCAR_DATA[reg]; const t = dataBrPorRegistro[reg];
     if(!l) return null;
     return LUCAR_COLS_UNIFICADAS.map(([k])=>{
-      if(k==='data_sup_tarde') return t ? fmtDataSupTardeBR(t.data_sup_tarde).replace('—','') : '';
+      // Status Suprimento / Data Sup.+Tarde: usa o valor EFETIVO (cruzado com o
+      // Sistema de Materiais, quando o registro existe lá) — o mesmo cálculo usado
+      // na tela (Tabela e Cronograma). Sem isso a exportação pegava o campo bruto/
+      // manual do LUCAR, que fica desatualizado quando os Materiais têm o status real.
+      // Nº Registro: exporta como NÚMERO (sem casas decimais), não como texto — assim
+      // fórmulas do Excel (PROCV, CORRESP, etc.) conseguem localizar o valor buscando
+      // por um número. Antes ia como texto e não batia com números digitados nas fórmulas.
+      if(k==='registro'){
+        const bruto = (t && t.registro) || l.registro || reg;
+        const num = Number(bruto);
+        return (bruto!==undefined && bruto!==null && bruto!=='' && !isNaN(num)) ? num : (bruto||'');
+      }
+      const effSup = getEffectiveSupData(reg);
+      if(k==='status_sup') return effSup ? (effSup.status||'') : ((t && t.status_sup) || l.status_sup || '');
+      if(k==='data_sup_tarde') return (effSup && effSup.dataTarde) ? dateToISO(effSup.dataTarde) : (t ? fmtDataSupTardeBR(t.data_sup_tarde).replace('—','') : '');
       if(k==='esi_resp'||k==='br_resp'||k==='inativo') return t ? (t[k]?'Sim':'Não') : '';
       if(k==='disciplina') return l.disciplina || (t && t.disciplina) || '';
       if(k in l) return l[k]||'';
@@ -9443,7 +9485,9 @@ function lucarExportRows(){
 }
 function exportLucarCSV(){
   const { header, rows } = lucarExportRows();
-  const esc = v=>`"${(v||'').toString().replace(/"/g,'""')}"`;
+  // Valores num\u00E9ricos (ex.: coluna Registro) v\u00E3o sem aspas, para o Excel reconhecer
+  // como n\u00FAmero ao importar o CSV \u2014 com aspas ele tende a manter como texto.
+  const esc = v=> (typeof v === 'number') ? String(v) : `"${(v||'').toString().replace(/"/g,'""')}"`;
   const csv = [header.map(esc).join(','), ...rows.map(r=>r.map(esc).join(','))].join('\r\n');
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -9452,6 +9496,17 @@ function exportLucarCSV(){
 function exportLucarXLS(){
   const { header, rows } = lucarExportRows();
   const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  // Garante que a coluna Registro fique com formato num\u00E9rico inteiro (0 casas decimais)
+  // mesmo que alguma c\u00E9lula tenha sido escrita como texto, para permitir uso em
+  // f\u00F3rmulas do Excel (PROCV, CORRESP, etc.) e evitar exibi\u00E7\u00E3o com decimais.
+  const colRegistroIdx = header.indexOf('Registro');
+  if(colRegistroIdx !== -1){
+    for(let rIdx=1; rIdx<=rows.length; rIdx++){
+      const addr = XLSX.utils.encode_cell({ r: rIdx, c: colRegistroIdx });
+      const cell = ws[addr];
+      if(cell && typeof cell.v === 'number'){ cell.t = 'n'; cell.z = '0'; }
+    }
+  }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'LUCAR-LUPA');
   XLSX.writeFile(wb, `LUCAR_LUPA_Tabela_Detalhada_${new Date().toISOString().slice(0,10)}.xlsx`);
