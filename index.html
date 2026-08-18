@@ -6807,14 +6807,23 @@ function showTab(id, el) {
   }
 }
 
-// ── BUILD PLAN SUP DATA (dinâmico, usa getData()) ────────────────────────────
+// ── BUILD PLAN SUP DATA (dinâmico, usa getDataCronogramaAtivos()) ───────────
 function buildPlanSupData() {
   var SUP_COLS = ['Completo','Minuta sem Materiais de Aplicação','Não Cadastrado',
                   'Pendente BR','Pendente ESI','Pendente ESI+BR','LM Cadastrada'];
   var discs = ['TODOS','PINT-RTI','CALD-RTI','PSV','NR-13','PINT-PLANO','CALD-TANQUE'];
   var result = {};
+  // BUG DE ENTREGA (18/08/2026): esta tabela ("Planejamento × Suprimento", exibida
+  // dentro da aba Gráficos Etapas BR, logo abaixo do Funil de Avanço) continuava
+  // usando getData() — o escopo global (mesma base de Perfil da Campanha/Gráficos
+  // Visão Geral) — enquanto os donuts do Funil, na mesma aba, já usam
+  // getDataCronogramaAtivos() (escopo da Cronograma) desde 17/08/2026. Resultado:
+  // usuário via "326" nos donuts e "395" no total da tabela, na mesma tela.
+  // Corrigido para usar a mesma base dos donuts, com a mesma nuance de disciplina
+  // "efetiva" (getDataCronogramaAtivos() já devolve r.disciplina sobrescrito com o
+  // valor efetivo — não precisa recalcular aqui).
   discs.forEach(function(disc) {
-    var data = getData().filter(function(r) {
+    var data = getDataCronogramaAtivos().filter(function(r) {
       return disc === 'TODOS' || r.disciplina === disc;
     });
     var planMap = {};
