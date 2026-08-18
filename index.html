@@ -1401,6 +1401,8 @@ h1{letter-spacing:.02em}
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Encontra registros na Tabela que já saíram do escopo declarado da LUCAR mas não estão marcados como cancelados.</div>
     <button onclick="auditarSemDisciplina()" style="width:100%;margin-bottom:4px;background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">🗑️ Excluir Registros sem Disciplina</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Encontra registros (de qualquer origem — LUCAR ou cadastro manual) sem Disciplina preenchida e permite excluí-los definitivamente do sistema (não é cancelamento — some sem deixar registro).</div>
+    <button onclick="auditarFase2Legado()" style="width:100%;margin-bottom:4px;background:rgba(239,68,68,.1);border:1px solid var(--danger);color:var(--danger);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">🗄️ Revisar Resíduos da Fase 2 (obsoleta)</button>
+    <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Fase 2 (campanha anterior) não é mais usada — o projeto é 100% Fase 3 hoje. Encontra registros que ficaram com <code>Fase 2</code> na Tabela e ainda não foram encerrados, para marcá-los Cancelado. Não afeta a Cronograma (ela já não lista esses registros).</div>
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📊 Planejamento</div>
     <button onclick="document.getElementById('planImportInput').click()" style="width:100%;margin-bottom:4px;background:rgba(20,184,166,.15);border:1px solid var(--teal);color:var(--teal);border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📊 Atualizar Status Planejamento (Excel)</button>
     <div style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Selecione um ou mais arquivos "UN-BUZ...xlsx". O mais recente prevalece em caso de conflito.</div>
@@ -1412,13 +1414,16 @@ h1{letter-spacing:.02em}
     <button onclick="salvarBaselineCronograma()" style="width:100%;margin-bottom:4px;background:rgba(37,99,235,.1);border:1px solid #2563eb;color:#2563eb;border-radius:5px;padding:9px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--font)">📌 Salvar Baseline do Cronograma</button>
     <div id="baseline-status" style="font-size:.68rem;color:var(--muted);margin-bottom:14px">Carregando status da baseline...</div>
     <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🧪 LUCAR/LUPA</div>
-    <div class="modal-field" style="margin-bottom:8px"><label style="font-size:.7rem">Este arquivo representa:</label>
-      <select id="lucar-import-fase" style="width:100%;padding:6px;border-radius:5px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:.78rem">
-        <option value="Fase 3">Fase 3 (atualização normal — substitui o escopo atual)</option>
-        <option value="Fase 2">Fase 2 (escopo remanescente — soma ao que já existe, não substitui)</option>
-      </select>
+    <div class="modal-field" style="margin-bottom:8px">
+      <input type="hidden" id="lucar-import-fase" value="Fase 3">
+      <!-- Seletor "Este arquivo representa" (Fase 3 / Fase 2) e a "Declaração de Escopo —
+      Fase 2" foram ocultados em 17/08/2026: confirmado com o usuário que o projeto está
+      100% em Fase 3 hoje e a Fase 2 (resíduo de campanha anterior) não é mais usada.
+      Código/lógica preservados, inertes — reative removendo este comentário e o "display:none"
+      abaixo se a Fase 2 voltar a ser necessária no futuro. Ver "🗄️ Revisar Resíduos da Fase 2"
+      para encerrar o que ficou pendente daquele fluxo. -->
     </div>
-    <div class="modal-field" style="margin-bottom:8px;border:1px dashed var(--border);border-radius:6px;padding:8px">
+    <div class="modal-field" style="margin-bottom:8px;border:1px dashed var(--border);border-radius:6px;padding:8px;display:none">
       <label style="font-size:.7rem;font-weight:700">📋 Declaração de Escopo — Fase 2</label>
       <div style="font-size:.66rem;color:var(--muted);margin-bottom:6px">Só os registros declarados aqui entram quando você importar a LUPA como "Fase 2" — o resto do arquivo é ignorado. Um por linha: <code>registro;disciplina</code> (cole direto do Excel, aditivo — não apaga o que já foi declarado antes).</div>
       <textarea id="escopo-fase2-input" rows="4" placeholder="320759;CALD-RTI&#10;340695;PINT-RTI" style="width:100%;padding:6px;border-radius:5px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:.76rem;font-family:monospace"></textarea>
@@ -1544,6 +1549,29 @@ h1{letter-spacing:.02em}
     <div class="modal-actions">
       <button class="modal-btn cancel" onclick="document.getElementById('sem-disciplina-audit-modal').style.display='none'">Fechar sem alterar</button>
       <button class="modal-btn save" style="background:var(--danger);border-color:var(--danger)" onclick="semDisciplinaExcluirConfirmar()">🗑️ Excluir selecionados definitivamente</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUDITORIA DE RESÍDUOS DA FASE 2 (DECLARAÇÃO DESCONTINUADA EM 17/08/2026) -->
+<div class="modal-overlay" id="fase2-legado-audit-modal" style="display:none">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-title">🗄️ Resíduos da Fase 2 (declaração descontinuada)</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      A "Declaração de Escopo — Fase 2" foi um recurso criado para tratar serviços remanescentes de uma
+      campanha anterior. O projeto está confirmadamente 100% em Fase 3 hoje — esses itens não são mais
+      trabalho ativo. Os registros abaixo ainda têm <code>fase_origem = "Fase 2"</code> na Tabela e não
+      estão marcados como cancelados. Marque os que devem ser encerrados (SS Cancelada).
+    </div>
+    <div id="fase2-legado-audit-resumo" style="font-size:.78rem;color:var(--blue);font-weight:600;margin-bottom:10px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="fase2LegadoMarcarTodos(true)">Marcar todos</button>
+      <button class="modal-btn cancel" style="padding:5px 12px;font-size:.72rem" onclick="fase2LegadoMarcarTodos(false)">Desmarcar todos</button>
+    </div>
+    <div id="fase2-legado-audit-list" style="max-height:380px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="document.getElementById('fase2-legado-audit-modal').style.display='none'">Fechar sem alterar</button>
+      <button class="modal-btn save" onclick="fase2LegadoAplicarCancelamento()">✅ Marcar selecionados como Cancelados</button>
     </div>
   </div>
 </div>
@@ -2059,6 +2087,43 @@ function getData() {                        // apenas escopo ativo — usado por
            CANCEL_STATES.indexOf(r.status_plan) === -1 &&
            CANCEL_STATES.indexOf(r.status_samc) === -1 &&
            (INCLUIR_INATIVOS_GRAFICOS || !r.inativo); // Inativo some por padrão, igual Cancelado/Despriorizado — só volta se o checkbox "Incluir Inativos nos Gráficos" estiver marcado
+  });
+}
+// Escopo "Cronograma" — usado só pelos Gráficos Etapas BR (decisão do usuário em
+// 17/08/2026): diferente de getData()/getAllData() acima (que somam TODO o
+// DATA_BR, usadas por Perfil da Campanha e Gráficos Visão Geral — visão global,
+// de propósito mais ampla), esta função replica exatamente a mesma base da
+// Cronograma — só quem está hoje em LUCAR_DATA (a declaração vigente), com o
+// mesmo filtro de Fase, Cancelado e Inativo que o resumo "328 ativos" da
+// Cronograma usa. Um registro sem vínculo em DATA_BR (raro, mas possível em
+// dados antigos) entra do mesmo jeito que a Cronograma trata: sem status pra
+// checar, conta como ativo.
+function getDataCronogramaAtivos(){
+  const dataBrPorRegistro = {};
+  DATA_BR.forEach(r=>{ dataBrPorRegistro[String(r.registro)] = r; });
+  return Object.keys(LUCAR_DATA).filter(reg=>{
+    const l = LUCAR_DATA[reg];
+    const fase = l.fase_origem || 'Fase 3';
+    if(_faseFiltro !== 'Todas as Fases' && fase !== _faseFiltro) return false;
+    const t = dataBrPorRegistro[reg];
+    const isCancelado = !!(t && (CANCEL_STATES.indexOf(t.status_plan) !== -1 || CANCEL_STATES.indexOf(t.status_samc) !== -1));
+    const isInativo = !!(t && t.inativo);
+    if(isCancelado) return false;
+    if(isInativo && !INCLUIR_INATIVOS_GRAFICOS) return false;
+    return true;
+  }).map(reg=>{
+    const l = LUCAR_DATA[reg];
+    const t = dataBrPorRegistro[reg];
+    // BUG corrigido em 18/08/2026: aqui devolvia "t" (o registro de DATA_BR) direto,
+    // então r.disciplina saía do campo bruto de DATA_BR. Mas a Cronograma (tela e
+    // filtro "Disciplina") usa a disciplina EFETIVA — LUCAR_DATA primeiro, DATA_BR só
+    // como reserva (mesma conta de discEfetiva em renderLucarTeste). Quando os dois
+    // campos ficam dessincronizados (uma edição antiga, antes da correção do
+    // lucarSetDisciplina, por exemplo), filtrar por "NR-13" aqui pegava registros que
+    // a Cronograma não mostra como NR-13 — 27 nesta aba contra 17 na Cronograma, com o
+    // mesmo filtro. Sobrescreve .disciplina com o valor efetivo pra sempre bater.
+    const discEfetiva = l.disciplina || (t && t.disciplina) || '';
+    return t ? { ...t, disciplina: discEfetiva } : { registro: reg, disciplina: discEfetiva };
   });
 }
 function isOverdue(s) {
@@ -6864,7 +6929,11 @@ function renderPlanSupTable(disc) {
 // ── RENDER BR CHARTS (Aba Gráficos Etapas BR) ────────────────────────────────
 function renderBRCharts(discFilter) {
   discFilter = discFilter || (document.getElementById('plan-sup-disc-sel')||{}).value || 'TODOS';
-  var base = getData();
+  // Escopo da Cronograma (328 ativos), não o escopo global de getData() — decisão
+  // do usuário em 17/08/2026: só esta aba (Gráficos Etapas BR) deve bater com a
+  // Cronograma; Perfil da Campanha e Gráficos Visão Geral continuam usando o
+  // panorama global (getData()/getAllData()), de propósito.
+  var base = getDataCronogramaAtivos();
   if (discFilter && discFilter !== 'TODOS') {
     base = base.filter(function(r){ return r.disciplina === discFilter; });
   }
@@ -8068,6 +8137,65 @@ function orfaosAplicarCancelamento(){
   renderAll();
   pushEdits();
   flash(`✅ ${count} registro(s) órfão(s) marcado(s) como cancelado(s).`, '#22c55e', 6000);
+}
+
+// ── Auditoria de resíduos da Fase 2 (declaração descontinuada em 17/08/2026) ──
+// A "Declaração de Escopo — Fase 2" tratava serviços remanescentes de uma
+// campanha anterior; confirmado com o usuário que o projeto é 100% Fase 3 hoje
+// e esse fluxo não é mais usado. Isto NÃO mexe no escopo da Cronograma (ela já
+// só lista quem está em LUCAR_DATA hoje — resíduos de Fase 2 sem vínculo lá já
+// não aparecem ali) — serve só para limpar a visão global (Perfil da Campanha,
+// Gráficos), que hoje ainda soma esses registros como "ativos" por engano.
+function auditarFase2Legado(){
+  const isAdmin = _currentUser && _currentUser.perfil === 'admin';
+  if(!isAdmin){ flash('⚠️ Apenas administradores podem auditar.', '#ef4444', 4000); return; }
+  const residuos = DATA_BR.filter(r=>{
+    if((r.fase_origem||'') !== 'Fase 2') return false;
+    const jaCancelado = CANCEL_STATES.indexOf(r.status_plan) !== -1 || CANCEL_STATES.indexOf(r.status_samc) !== -1;
+    return !jaCancelado && !r.inativo;
+  });
+  const modal = document.getElementById('fase2-legado-audit-modal');
+  const listEl = document.getElementById('fase2-legado-audit-list');
+  const resumoEl = document.getElementById('fase2-legado-audit-resumo');
+  if(!residuos.length){
+    listEl.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:.78rem">Nenhum resíduo de Fase 2 pendente encontrado — tudo certo por aqui.</div>';
+    if(resumoEl) resumoEl.textContent = '';
+    modal.style.display = 'flex';
+    return;
+  }
+  const esc = s => String(s==null?'':s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  if(resumoEl) resumoEl.textContent = `${residuos.length} registro(s) da Fase 2 encontrado(s), ainda sem marcação de cancelamento.`;
+  listEl.innerHTML = residuos.map(r=>{
+    return `<label style="display:grid;grid-template-columns:20px 90px 110px 1fr 1fr;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:.75rem;cursor:pointer">
+      <input type="checkbox" class="fase2-legado-audit-chk" value="${esc(r.registro)}" checked style="width:16px;height:16px">
+      <span style="font-family:monospace">${esc(r.registro)}</span>
+      <span style="font-family:monospace;color:var(--accent)">${esc(r.nro_ss||'(sem SS)')}</span>
+      <span>${esc(r.disciplina||'')}</span>
+      <span style="color:var(--muted)">SAMC: ${esc(r.status_samc||'—')} · Plan: ${esc(r.status_plan||'—')}</span>
+    </label>`;
+  }).join('');
+  modal.style.display = 'flex';
+}
+function fase2LegadoMarcarTodos(v){
+  document.querySelectorAll('.fase2-legado-audit-chk').forEach(c=>{ c.checked = v; });
+}
+function fase2LegadoAplicarCancelamento(){
+  const selecionados = [...document.querySelectorAll('.fase2-legado-audit-chk:checked')].map(c=>c.value);
+  document.getElementById('fase2-legado-audit-modal').style.display = 'none';
+  if(!selecionados.length){ flash('ℹ️ Nenhum registro selecionado.', '#3b82f6', 4000); return; }
+  let count = 0;
+  selecionados.forEach(reg=>{
+    const r = DATA_BR.find(x=>String(x.registro)===String(reg));
+    if(r && CANCEL_STATES.indexOf(r.status_samc)===-1){
+      r.status_samc = 'SS Cancelada';
+      r._editedAt = new Date().toISOString();
+      r._editedBy = SYNC_USER;
+      count++;
+    }
+  });
+  renderAll();
+  pushEdits();
+  flash(`✅ ${count} resíduo(s) da Fase 2 marcado(s) como cancelado(s).`, '#22c55e', 6000);
 }
 
 // ── Auditoria + exclusão definitiva de registros sem Disciplina ─────────────
