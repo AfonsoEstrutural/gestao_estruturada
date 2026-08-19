@@ -1511,9 +1511,13 @@ h1{letter-spacing:.02em}
     <div class="modal-title">🔎 Registros sem vínculo com a LUCAR atual (órfãos)</div>
     <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;line-height:1.6">
       Estes registros existem na Tabela mas não fazem parte da declaração atual da LUCAR/LUPA — ou seja,
-      já saíram do escopo ativo do projeto. Se algum deles não estiver marcado como cancelado, provavelmente
-      é porque uma importação (SAMC/Planejamento) sobrescreveu essa marcação antes da correção mais recente.
-      Marque os que devem voltar a "SS Cancelada".
+      já saíram do escopo ativo do projeto (por isso não aparecem na Cronograma, na busca por número, nem
+      em "Novo Registro/SS", que bloqueia como duplicado). Se algum deles não estiver marcado como cancelado,
+      provavelmente é porque uma importação (SAMC/Planejamento) sobrescreveu essa marcação antes da correção
+      mais recente, ou ele saiu da última leva importada da LUCAR sem ter sido de fato cancelado.
+      Para cada registro selecionado, escolha uma das duas ações abaixo: <strong>Revincular</strong> devolve
+      o registro à Cronograma normalmente (usando os dados que ele já tem na Tabela); <strong>Cancelar</strong>
+      marca como "SS Cancelada" e o tira definitivamente das contagens.
     </div>
     <div id="orfaos-audit-resumo" style="font-size:.78rem;color:var(--blue);font-weight:600;margin-bottom:10px"></div>
     <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -1523,6 +1527,7 @@ h1{letter-spacing:.02em}
     <div id="orfaos-audit-list" style="max-height:380px;overflow-y:auto;border:1px solid var(--border);border-radius:6px"></div>
     <div class="modal-actions">
       <button class="modal-btn cancel" onclick="document.getElementById('orfaos-audit-modal').style.display='none'">Fechar sem alterar</button>
+      <button class="modal-btn save" style="background:var(--blue)" onclick="orfaosRevincular()">🔗 Revincular selecionados à Cronograma</button>
       <button class="modal-btn save" onclick="orfaosAplicarCancelamento()">✅ Marcar selecionados como Cancelados</button>
     </div>
   </div>
@@ -8147,6 +8152,49 @@ function orfaosAplicarCancelamento(){
   pushEdits();
   flash(`✅ ${count} registro(s) órfão(s) marcado(s) como cancelado(s).`, '#22c55e', 6000);
 }
+// Revincular: o registro já existe em DATA_BR (com Status, e normalmente já
+// com os campos "de origem" — Nº SS, Disciplina, TAG etc. — preservados de
+// quando ele foi importado da LUCAR pela última vez) mas perdeu o vínculo em
+// LUCAR_DATA numa importação seguinte que não trouxe mais essa linha. Como a
+// Cronograma só lista quem está em LUCAR_DATA, ele "sumiu" da tela, da busca
+// por número e passou a ser bloqueado como duplicado em "Novo Registro/SS" —
+// mesmo sem estar cancelado. Revincular recria a entrada em LUCAR_DATA a
+// partir dos próprios dados que já estão em DATA_BR (mesmo formato de campos
+// que handleLucarImport usa), sem tocar nos campos de Status — o registro
+// volta a aparecer normalmente na Cronograma, com o que ele já tinha.
+async function orfaosRevincular(){
+  const selecionados = [...document.querySelectorAll('.orfaos-audit-chk:checked')].map(c=>c.value);
+  document.getElementById('orfaos-audit-modal').style.display = 'none';
+  if(!selecionados.length){ flash('ℹ️ Nenhum registro selecionado.', '#3b82f6', 4000); return; }
+  let count = 0;
+  selecionados.forEach(reg=>{
+    const key = String(reg);
+    const r = DATA_BR.find(x=>String(x.registro)===key);
+    if(!r) return;
+    if(LUCAR_DATA[key]) return; // já revinculado por outra via — não sobrescreve
+    LUCAR_DATA[key] = {
+      registro: key,
+      nro_ss: r.nro_ss||'', nome_tarefa: r.nome_tarefa||'',
+      disciplina: r.disciplina||'',
+      nr13_venc: r.nr13_venc||'', rti_venc: r.rti_venc||'', spie_venc: r.spie_venc||'',
+      gerencia: r.gerencia||'', area_sistema: r.area_sistema||'', modulo: r.modulo||'',
+      setor: r.setor||'', nota_item_med: r.nota_item_med||'', origem: r.origem||'',
+      tag: r.tag||'', servico_padrao: r.servico_padrao||'',
+      tipo_exigencia: r.tipo_exigencia||'', prioridade: r.prioridade||'',
+      fase_origem: r.fase_origem || 'Fase 3'
+    };
+    if(r.origem_cadastro !== 'Manual') r.origem_cadastro = 'Revinculado';
+    r._editedAt = new Date().toISOString();
+    r._editedBy = SYNC_USER;
+    count++;
+  });
+  if(!count){ flash('ℹ️ Nenhum registro revinculado — já tinham vínculo ou não foram encontrados na Tabela.', '#3b82f6', 5000); return; }
+  renderAll();
+  renderLucarTeste();
+  pushEdits();
+  const okLucar = await pushLucarDataToCloud();
+  flash(`🔗 ${count} registro(s) revinculado(s) à Cronograma` + (okLucar ? ' · sincronizado.' : ' · ⚠️ salvo localmente, mas falhou ao sincronizar — tente "🔄 Sincronizar Agora" no Painel Admin.'), '#22c55e', 7000);
+}
 
 // ── Auditoria de resíduos da Fase 2 (declaração descontinuada em 17/08/2026) ──
 // A "Declaração de Escopo — Fase 2" tratava serviços remanescentes de uma
@@ -9032,6 +9080,7 @@ function renderLucarTeste(){
     const inativoBadgeCrono = (isInativoCrono && !isCanceledCrono) ? '<span title="Marcado manualmente como Inativo — fora de todas as contagens" style="font-size:.6rem;background:rgba(107,114,128,.18);color:var(--muted);border:1px solid rgba(107,114,128,.4);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">🚫 INATIVO</span>' : '';
     const fase2BadgeCrono = (l.fase_origem === 'Fase 2') ? '<span style="font-size:.6rem;background:rgba(217,119,6,.15);color:#b45309;border:1px solid rgba(217,119,6,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">FASE 2 · REMANESCENTE</span>' : '';
     const manualBadgeCrono = (t && t.origem_cadastro === 'Manual') ? '<span title="Cadastrado manualmente, fora da importação LUCAR" style="font-size:.6rem;background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">🆕 MANUAL</span>' : '';
+    const revinculadoBadgeCrono = (t && t.origem_cadastro === 'Revinculado') ? '<span title="Órfão revinculado manualmente à declaração vigente da LUCAR (Auditar Registros Órfãos)" style="font-size:.6rem;background:rgba(26,111,173,.15);color:var(--blue);border:1px solid rgba(26,111,173,.3);border-radius:4px;padding:1px 5px;margin-left:4px;text-decoration:none;display:inline-block">🔗 REVINCULADO</span>' : '';
     // Status Suprimento / Data Sup.+Tarde efetivos — mesmo cálculo usado na Tabela
     // (cruza com o Sistema de Materiais quando o registro existe lá); antes a
     // Cronograma mostrava só o campo bruto/manual, por isso ficava em branco
@@ -9050,7 +9099,7 @@ function renderLucarTeste(){
       <td><input type="checkbox" class="row-chk-crono" onchange="updateBulkBarCrono()"></td>
       <td><button class="edit-cell-btn" onclick="openLucarEdit('${reg}')">✏️</button></td>
       <td style="font-family:monospace;font-size:.71rem;white-space:nowrap">${l.nro_ss}</td>
-      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}${inativoBadgeCrono}${fase2BadgeCrono}${manualBadgeCrono}</td>
+      <td style="font-family:monospace;font-size:.71rem">${l.registro}${cancelBadgeCrono}${inativoBadgeCrono}${fase2BadgeCrono}${manualBadgeCrono}${revinculadoBadgeCrono}</td>
       <td style="font-size:.7rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.nome_tarefa}">${l.nome_tarefa}</td>
       <td><select onchange="lucarSetDisciplina('${reg}',this.value)" style="font-size:.7rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:2px 4px"><option value="">—</option>${discOpts}</select></td>
       <td style="font-size:.7rem">${l.nr13_venc||'—'}</td>
