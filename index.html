@@ -749,6 +749,7 @@ h1{letter-spacing:.02em}
         <label style="display:grid;grid-template-columns:1fr 20px;align-items:center;gap:10px;padding:5px 14px;cursor:pointer;font-size:.75rem;text-align:left;direction:ltr">NR-13<input type="checkbox" class="ms-chk" data-group="ms-disc" value="NR-13"></label>
         <label style="display:grid;grid-template-columns:1fr 20px;align-items:center;gap:10px;padding:5px 14px;cursor:pointer;font-size:.75rem;text-align:left;direction:ltr">PINT-PLANO<input type="checkbox" class="ms-chk" data-group="ms-disc" value="PINT-PLANO"></label>
         <label style="display:grid;grid-template-columns:1fr 20px;align-items:center;gap:10px;padding:5px 14px;cursor:pointer;font-size:.75rem;text-align:left;direction:ltr">CALD-TANQUE<input type="checkbox" class="ms-chk" data-group="ms-disc" value="CALD-TANQUE"></label>
+        <label style="display:grid;grid-template-columns:1fr 20px;align-items:center;gap:10px;padding:5px 14px;cursor:pointer;font-size:.75rem;text-align:left;direction:ltr">PINT-TANQUE<input type="checkbox" class="ms-chk" data-group="ms-disc" value="PINT-TANQUE"></label>
       </div></div>
     <div class="ms-wrap"><button class="ms-btn" onclick="toggleMs('ms-sup')" id="ms-sup-btn">Suprimento ▾</button>
       <div class="ms-drop" id="ms-sup" style="display:none">
@@ -992,6 +993,7 @@ h1{letter-spacing:.02em}
           <option value="NR-13">NR-13</option>
           <option value="PINT-PLANO">PINT-PLANO</option>
           <option value="CALD-TANQUE">CALD-TANQUE</option>
+          <option value="PINT-TANQUE">PINT-TANQUE</option>
         </select>
         <span id="plan-sup-total" style="font-size:.72rem;color:var(--muted);white-space:nowrap"></span>
       </div>
@@ -1314,7 +1316,7 @@ h1{letter-spacing:.02em}
     <select id="crono-disc" onchange="renderCrono()" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 11px;font-size:.78rem;font-family:var(--font);outline:none">
       <option value="">Todas Disciplinas</option>
       <option>PINT-RTI</option><option>CALD-RTI</option><option>PSV</option>
-      <option>NR-13</option><option>PINT-PLANO</option><option>CALD-TANQUE</option>
+      <option>NR-13</option><option>PINT-PLANO</option><option>CALD-TANQUE</option><option>PINT-TANQUE</option>
     </select>
     <select id="crono-tipo" onchange="renderCrono()" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:7px 11px;font-size:.78rem;font-family:var(--font);outline:none">
       <option value="">Todos Tipos Exig.</option>
@@ -1657,6 +1659,7 @@ h1{letter-spacing:.02em}
         <option>NR-13</option>
         <option>PINT-PLANO</option>
         <option>CALD-TANQUE</option>
+        <option>PINT-TANQUE</option>
       </select>
     </div>
     <div class="modal-field">
@@ -1828,7 +1831,7 @@ h1{letter-spacing:.02em}
       <select id="le-disciplina">
         <option value="">—</option>
         <option>PINT-RTI</option><option>CALD-RTI</option><option>PINT-PLANO</option>
-        <option>NR-13</option><option>PSV</option><option>CALD-TANQUE</option>
+        <option>NR-13</option><option>PSV</option><option>CALD-TANQUE</option><option>PINT-TANQUE</option>
       </select>
     </div>
     <div class="modal-field"><label>NR13 Venc.</label><input type="text" id="le-nr13" placeholder="dd/mm/aaaa"></div>
@@ -1936,7 +1939,7 @@ h1{letter-spacing:.02em}
 // Fatores de peso por disciplina (homem-hora × fator) — usados na Curva S/KPIs.
 // Todos começam em 1.0; ajustável depois pelo Admin, sem precisar mexer em código.
 const FATORES_DISCIPLINA = {
-  'PINT-RTI': 1.0, 'CALD-RTI': 1.0, 'PSV': 1.0, 'NR-13': 1.0, 'CALD-TANQUE': 1.0, 'PINT-PLANO': 1.0
+  'PINT-RTI': 1.0, 'CALD-RTI': 1.0, 'PSV': 1.0, 'NR-13': 1.0, 'CALD-TANQUE': 1.0, 'PINT-PLANO': 1.0, 'PINT-TANQUE': 1.0
 };
 function calcularPesoEfetivo(r){
   const fator = FATORES_DISCIPLINA[r.disciplina] ?? 1.0;
@@ -1954,7 +1957,7 @@ const SAMC_COLORS = {'Em Andamento':'#1a6fad','Em Revisão':'#8b5cf6','Aguardand
 const SUP_COLORS = {'Completo':'#22c55e','Minuta sem Materiais de Aplicação':'#f59e0b','Não Cadastrado':'#6b7280','Pendente ESI':'#ef4444','Pendente ESI+BR':'#8b5cf6','Pendente BR':'#1a6fad'};
 const DISC_COLORS = {
   'PINT-RTI':'#1a6fad','CALD-RTI':'#0d9488','PSV':'#22c55e',
-  'NR-13':'#ef4444','PINT-PLANO':'#8b5cf6','CALD-TANQUE':'#f5a623'};
+  'NR-13':'#ef4444','PINT-PLANO':'#8b5cf6','CALD-TANQUE':'#f5a623','PINT-TANQUE':'#ec4899'};
 const LUPA_COLORS = {'Ativo':'#22c55e','Despriorizado':'#f59e0b','Cancelado':'#6b7280','Cancelar no SAMC':'#ef4444','Novo':'#1a6fad'};
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -2349,7 +2352,7 @@ const LUPA_C  = {'Ativo':'#22c55e','Novo':'#1a6fad','Cancelado':'#6b7280',
   'Despriorizado':'#f59e0b','Cancelar no SAMC':'#ef4444'};
 const FAB_C   = {'Não':'#1a6fad','Sim':'#22c55e','Verificar':'#f59e0b'};
 const DISC_C  = {'CALD-RTI':'#1a6fad','CALD-TANQUE':'#14b8a6','NR-13':'#ef4444',
-  'PINT-PLANO':'#8b5cf6','PINT-RTI':'#f5a623','PSV':'#22c55e'};
+  'PINT-PLANO':'#8b5cf6','PINT-RTI':'#f5a623','PSV':'#22c55e','PINT-TANQUE':'#ec4899'};
 const DELIN_C = {'Delineamento aprovado':'#22c55e','Delineamento pendente - ESI':'#f5a623',
   'Delineamento pendente - BR':'#1a6fad','Cancelados / A Cancelar':'#ef4444','Sem Status Definido':'#9ca3af'};
 const BOOK_C  = {'Book planejamento aprovado':'#22c55e',
@@ -3825,7 +3828,14 @@ function applyMatFilters(){
   MAT_STATUS_SEL = getMatMsVals('ms-mat-status');
   MAT_DISC_SEL = getMatMsVals('ms-mat-disc');
   const anyColActive = Object.values(MAT_FILTERS).some(arr=>arr.length);
-  const anyActive = anyColActive || MAT_STATUS_SEL.length>0 || MAT_DISC_SEL.length>0 || MAT_CANCEL_VIEW;
+  // BUG (19/08/2026): a busca livre (MAT_SEARCH) não entrava nesta conta, então uma
+  // pesquisa sozinha (sem nenhum outro filtro) não forçava a expansão da árvore abaixo.
+  // Resultado: os itens continuavam com style.display='none' (herdado do recolhimento
+  // padrão) e o bloco de busca (mais abaixo) via o cabeçalho do Registro como "não
+  // visível" e escondia tudo — mesmo os itens que combinavam com o texto pesquisado.
+  // Os cards de resumo não sofriam porque usam getMatFilteredItemRows(), que ignora
+  // style.display e calcula o match só a partir dos atributos/textContent.
+  const anyActive = anyColActive || MAT_STATUS_SEL.length>0 || MAT_DISC_SEL.length>0 || MAT_CANCEL_VIEW || !!MAT_SEARCH;
 
   // nível 3 — Itens (LM's)
   document.querySelectorAll('#materiais-teste-body tr[data-reg]').forEach(row=>{
@@ -4384,7 +4394,11 @@ function _fluxoStageInfo(kind, reg){
       return {status: v ? (done?'done':'active') : 'pending', icon:'📐', label:'Planejamento', text: v || 'Sem status'};
     }
     case 'sup': {
-      const v = d.status_sup || '';
+      // BUG (19/08/2026): usava d.status_sup (campo bruto), divergindo da aba Materiais
+      // quando o status de Suprimento é calculado a partir da importação de Materiais
+      // (getEffectiveSupData). Passa a usar effSup(d), a mesma função efetiva usada em
+      // Planejamento × Suprimento, Cronograma e nas exportações.
+      const v = effSup(d);
       const notReg = !v || /não cadastrado/i.test(v);
       const done = /completo/i.test(v);
       return {status: notReg ? 'pending' : (done?'done':'active'), icon:'🏭', label:'Suprimento', text: v || 'Não Cadastrado'};
@@ -7123,7 +7137,7 @@ function showTab(id, el) {
 function buildPlanSupData() {
   var SUP_COLS = ['Completo','Minuta sem Materiais de Aplicação','Não Cadastrado',
                   'Pendente BR','Pendente ESI','Pendente ESI+BR','LM Cadastrada'];
-  var discs = ['TODOS','PINT-RTI','CALD-RTI','PSV','NR-13','PINT-PLANO','CALD-TANQUE'];
+  var discs = ['TODOS','PINT-RTI','CALD-RTI','PSV','NR-13','PINT-PLANO','CALD-TANQUE','PINT-TANQUE'];
   var result = {};
   // BUG DE ENTREGA (18/08/2026): esta tabela ("Planejamento × Suprimento", exibida
   // dentro da aba Gráficos Etapas BR, logo abaixo do Funil de Avanço) continuava
@@ -7412,7 +7426,7 @@ function renderBRCharts(discFilter) {
   // ── Suprimento × Disciplina (BR) ──────────────────────────────────────────
   var supDiscEl = document.getElementById('br-supdisc-wrap');
   if (supDiscEl) {
-    var discsAll = ['PINT-RTI','CALD-RTI','PSV','NR-13','PINT-PLANO','CALD-TANQUE'];
+    var discsAll = ['PINT-RTI','CALD-RTI','PSV','NR-13','PINT-PLANO','CALD-TANQUE','PINT-TANQUE'];
     var supDiscRows = discsAll.map(function(d) {
       var rows = base.filter(function(r){ return r.disciplina === d; });
       if (!rows.length) return null;
@@ -7614,7 +7628,7 @@ function saveCronoEdit() {
 // e o registro passa a existir no sistema normalmente (editável, filtrável,
 // sincronizado com a equipe) até a próxima importação completa da LUCAR.
 let _nrLineSeq = 0;
-const NR_DISC_OPTIONS = ['PINT-RTI','CALD-RTI','PSV','NR-13','PINT-PLANO','CALD-TANQUE'];
+const NR_DISC_OPTIONS = ['PINT-RTI','CALD-RTI','PSV','NR-13','PINT-PLANO','CALD-TANQUE','PINT-TANQUE'];
 // Mesma normalização usada em lucarBuildRecord/handleLucarImport ao ler "Nº Registro"
 // da planilha LUCAR: registros puramente numéricos perdem zeros à esquerda e ".0"
 // (ex: "0333908" e "333908.0" viram "333908"). Aplicar isso também no cadastro manual
@@ -8355,7 +8369,7 @@ function lucarBuildRecord(row, colIdx){
   };
 }
 
-const LUCAR_DISC_OPTIONS = ['PINT-RTI','CALD-RTI','PINT-PLANO','NR-13','PSV','CALD-TANQUE'];
+const LUCAR_DISC_OPTIONS = ['PINT-RTI','CALD-RTI','PINT-PLANO','NR-13','PSV','CALD-TANQUE','PINT-TANQUE'];
 
 // Tela de revisão: quando um registro que estava ativo numa fase não vem mais
 // na nova LUCAR importada, pergunta ao administrador — um por um, com contexto
